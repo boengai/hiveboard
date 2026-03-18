@@ -1,0 +1,27 @@
+services:
+  hiveboard:
+    build:
+      context: .
+      target: production
+    ports:
+      - "${WEBHOOK_PORT:-8080}:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./tmp/workspaces:/app/workspaces
+      - ./WORKFLOW.md:/app/WORKFLOW.md:ro
+      # Claude CLI auth persists across rebuilds
+      - ./tmp/agents/.claude:/home/hiveboard/.claude
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://localhost:8080/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

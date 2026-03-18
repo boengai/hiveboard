@@ -1,0 +1,59 @@
+/** Normalized issue model used across the system. */
+export interface Issue {
+  id: string;
+  /** Project V2 item ID (PVTI_...) — needed for column moves */
+  projectItemId: string | null;
+  number: number;
+  title: string;
+  body: string;
+  state: string;
+  labels: string[];
+  /** Label name → node ID map (from GraphQL, empty from webhooks) */
+  labelIds: Record<string, string>;
+  url: string;
+  assignee: string | null;
+
+  /** The repo where this issue lives (from GraphQL) */
+  sourceOwner: string;
+  sourceRepo: string;
+
+  /** Parsed from repo:* label — the target repo to work in */
+  repoOwner: string | null;
+  repoName: string | null;
+
+  /** Parsed from action:* label */
+  action: string | null;
+}
+
+/** Result of running an agent for an issue. */
+export interface AgentResult {
+  issueId: string;
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+/** State of a running agent. */
+export interface RunState {
+  issueId: string;
+  issue: Issue;
+  process: Subprocess | null;
+  workerHost: string | null;
+  workspacePath: string | null;
+  retryAttempt: number;
+  startedAt: Date;
+  abortController: AbortController;
+}
+
+/** Retry tracking entry. */
+export interface RetryEntry {
+  attempt: number;
+  timer: Timer | null;
+  dueAtMs: number;
+  identifier: string;
+  error: string | null;
+  workerHost: string | null;
+  workspacePath: string | null;
+}
+
+type Subprocess = import("bun").Subprocess;
