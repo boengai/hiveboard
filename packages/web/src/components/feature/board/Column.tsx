@@ -9,15 +9,16 @@ interface ColumnProps {
 
 export function Column({ column }: ColumnProps) {
   const openDrawerCreate = useBoardStore((s) => s.openDrawerCreate)
+  const openDrawerView = useBoardStore((s) => s.openDrawerView)
   const showArchived = useBoardStore((s) => s.showArchived)
 
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
-  const visibleTasks = showArchived
-    ? column.tasks
-    : column.tasks.filter((t) => !t.archived)
+  const activeTasks = column.tasks.filter((t) => !t.archived)
+  const archivedTasks = column.tasks.filter((t) => t.archived)
 
-  const taskIds = visibleTasks.map((t) => t.id)
+  // In the sortable context, only active (non-archived) tasks are draggable
+  const taskIds = activeTasks.map((t) => t.id)
 
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-lg border border-border-default bg-surface-inset">
@@ -26,7 +27,7 @@ export function Column({ column }: ColumnProps) {
         <div className="flex items-center gap-2">
           <span className="text-body font-medium text-text-primary">{column.name}</span>
           <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-surface-overlay px-1.5 text-body-xs text-text-tertiary">
-            {visibleTasks.length}
+            {activeTasks.length}
           </span>
         </div>
         <button
@@ -58,14 +59,41 @@ export function Column({ column }: ColumnProps) {
         style={{ minHeight: '4rem' }}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {visibleTasks.length === 0 ? (
+          {activeTasks.length === 0 && !showArchived ? (
             <div className="flex flex-1 items-center justify-center py-6 text-body-sm text-text-tertiary">
               No tasks
             </div>
           ) : (
-            visibleTasks.map((task) => <TaskCard key={task.id} task={task} />)
+            activeTasks.map((task) => <TaskCard key={task.id} task={task} />)
           )}
         </SortableContext>
+
+        {/* Archived tasks — shown at bottom when showArchived is ON, not draggable */}
+        {showArchived && archivedTasks.length > 0 && (
+          <div className="mt-1 flex flex-col gap-2">
+            {archivedTasks.map((task) => (
+              <div
+                key={task.id}
+                onClick={() => openDrawerView(task.id)}
+                className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 opacity-50 hover:opacity-70"
+              >
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-body-xs text-gray-400">
+                    Archived
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty state when show-archived is ON and no tasks at all */}
+        {showArchived && activeTasks.length === 0 && archivedTasks.length === 0 && (
+          <div className="flex flex-1 items-center justify-center py-6 text-body-sm text-text-tertiary">
+            No tasks
+          </div>
+        )}
       </div>
     </div>
   )
