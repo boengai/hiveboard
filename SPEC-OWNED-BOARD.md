@@ -1787,7 +1787,7 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] Verify no unused imports or dead requires in remaining code (`bunx biome lint .`)
 
 #### 5.5 Configuration Updates
-- [ ] `WORKFLOW.md` — Remove or simplify YAML front matter:
+- [x] `WORKFLOW.md` — Remove or simplify YAML front matter:
   - Remove `tracker.labels` section (action_prefix, repo_prefix, status_running, status_failed)
   - Remove `tracker.columns` section (columns defined in DB seed now)
   - Remove `webhook` section (port, secret)
@@ -1797,7 +1797,7 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] Update `Dockerfile` — Multi-stage build (see "Production via Docker" section): deps → build-web (`vite build`) → production image. API serves static web assets in production. Single port `API_PORT` (default 8080). No Vite in production
 - [x] Update `docker-compose.yml` — Single service, `NODE_ENV=production`, volumes for `tmp/database/` (SQLite) + `tmp/workspaces/` (agents) + `WORKFLOW.md`. Health check via `/health` endpoint
 - [x] API `index.ts` — Detect `NODE_ENV=production`: serve `packages/web/dist/` as static files + SPA fallback (all non-`/graphql` routes → `index.html`). In dev mode, don't serve static files (Vite handles it)
-- [ ] Update `Makefile` — Update `dev`, `build`, `start` targets to use new monorepo scripts
+- [x] Update `Makefile` — Update `dev`, `build`, `start` targets to use new monorepo scripts
 
 #### 5.6 Documentation
 - [ ] Update `README.md`:
