@@ -1827,8 +1827,8 @@ GITHUB_TOKEN=ghp_your_token_here
 - [ ] Health check passes: `curl http://localhost:8080/health` → `{ "ok": true, ... }`
 
 **Code quality:**
-- [ ] `bunx biome lint .` reports no errors
-- [ ] `bunx tsc --noEmit` passes (no type errors)
-- [ ] `bun test` passes all tests (API + orchestrator)
-- [ ] No dead code: no unreachable imports, no unused exports, no orphaned files in `src/`
-- [ ] Git clean: no untracked generated files committed, `.gitignore` covers `tmp/database/`, `node_modules/`, `dist/`, `packages/web/dist/`
+- [x] `bunx biome lint .` reports no errors
+- [x] `bunx tsc --noEmit` passes (no type errors)
+- [x] `bun test` passes all tests (API + orchestrator)
+- [x] No dead code: no unreachable imports, no unused exports, no orphaned files in `src/`
+- [x] Git clean: no untracked generated files committed, `.gitignore` covers `tmp/database/`, `node_modules/`, `dist/`, `packages/web/dist/`

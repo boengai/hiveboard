@@ -1,9 +1,5 @@
 /** GraphQL queries and mutations for GitHub API. */
 
-// ---------------------------------------------------------------------------
-// Owner type detection
-// ---------------------------------------------------------------------------
-
 export const OWNER_TYPE_QUERY = `
   query($owner: String!) {
     repositoryOwner(login: $owner) {
@@ -11,10 +7,6 @@ export const OWNER_TYPE_QUERY = `
     }
   }
 `;
-
-// ---------------------------------------------------------------------------
-// PR review comments for an issue
-// ---------------------------------------------------------------------------
 
 /** Fetch the most recent linked PR and its review comments for an issue. */
 export const ISSUE_LINKED_PR_REVIEWS_QUERY = `
@@ -55,4 +47,3 @@ export const ISSUE_LINKED_PR_REVIEWS_QUERY = `
     }
   }
 `;
-
