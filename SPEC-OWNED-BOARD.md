@@ -1725,8 +1725,8 @@ GITHUB_TOKEN=ghp_your_token_here
 #### 4.5 Frontend Subscription Client
 - [x] `packages/web/src/graphql/subscriptions.ts` — SSE-based subscription client using `graphql-sse` package (pairs with Yoga SSE transport)
 - [x] `useSubscription(query, variables)` custom hook: manages EventSource lifecycle (open on mount, close on unmount/variable change), parses SSE `data:` events, returns `{ data, error, isConnected }`
-- [ ] Connection state indicator in header: green dot when connected, yellow when reconnecting, red on error
-- [ ] Auto-reconnect on disconnect: exponential backoff (1s, 2s, 4s, max 30s)
+- [x] Connection state indicator in header: green dot when connected, yellow when reconnecting, red on error
+- [x] Auto-reconnect on disconnect: exponential backoff (1s, 2s, 4s, max 30s)
 
 #### 4.6 Frontend Integration
 - [x] `Board.tsx`: Subscribe to `taskUpdated(boardId)` — on each event, merge updated task into Zustand store (update card in correct column, or move between columns). No full refetch needed
