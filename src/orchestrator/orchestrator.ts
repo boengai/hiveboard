@@ -118,73 +118,15 @@ export class Orchestrator {
     if (this.shutdownRequested) return;
 
     try {
-      // Refresh installation token (no-op for PAT auth)
-      await this.github.refreshToken();
-
-      const issues = await this.github.fetchProjectItems();
-      consola.debug(`Polled ${issues.length} project items`);
-
-      await this.reconcile(issues);
-      await this.dispatch(issues);
+      consola.debug("Poll cycle (no-op: board is local)");
     } catch (err) {
       consola.error("Poll cycle failed:", err);
     }
   }
 
   // -------------------------------------------------------------------------
-  // Reconciliation
-  // -------------------------------------------------------------------------
-
-  /** Reconcile running agents against current issue states. */
-  private async reconcile(issues: Issue[]): Promise<void> {
-    const issueMap = new Map(issues.map((i) => [i.id, i]));
-
-    for (const [issueId, rs] of this.state.running) {
-      const current = issueMap.get(issueId);
-
-      if (!current) {
-        // Issue disappeared from project
-        consola.warn(`Issue ${issueId} no longer in project, stopping agent`);
-        rs.abortController.abort();
-        continue;
-      }
-
-      // If issue no longer has an action label, it might have been handled
-      if (
-        !current.action &&
-        !current.labels.includes(this.github.runningLabel)
-      ) {
-        consola.info(
-          `Issue #${current.number} no longer actionable, stopping agent`,
-        );
-        rs.abortController.abort();
-      }
-    }
-  }
-
-  // -------------------------------------------------------------------------
   // Dispatch
   // -------------------------------------------------------------------------
-
-  /** Select and dispatch eligible issues. */
-  private async dispatch(issues: Issue[]): Promise<void> {
-    const eligible = issues.filter((i) => isEligible(this.state, i));
-
-    const available =
-      this.config.agent.max_concurrent_agents - this.state.running.size;
-    if (available <= 0) {
-      consola.debug(
-        `Concurrency limit reached (${this.state.running.size}/${this.config.agent.max_concurrent_agents})`,
-      );
-      return;
-    }
-
-    const toDispatch = eligible.slice(0, available);
-
-    for (const issue of toDispatch) {
-      await this.dispatchIssue(issue);
-    }
-  }
 
   /** Dispatch a single issue. */
   private async dispatchIssue(issue: Issue): Promise<void> {
@@ -195,28 +137,6 @@ export class Orchestrator {
     );
 
     try {
-      // Resolve projectItemId if missing (webhook path doesn't have it)
-      if (!issue.projectItemId) {
-        issue.projectItemId = await this.github.findProjectItemId(issue.id);
-      }
-
-      // Update labels: remove action label, set status to running
-      const actionLabel = this.github.actionLabel(issue.action ?? "");
-      await this.github.removeLabels(issue.id, [actionLabel], issue);
-      await this.github.setStatusLabel(
-        issue.id,
-        this.github.runningLabel,
-        issue,
-      );
-
-      // Move to In Progress column (skip for plan — stays in Backlog)
-      if (issue.projectItemId && issue.action !== "plan") {
-        await this.github.moveToColumn(
-          issue.projectItemId,
-          this.config.tracker.columns.in_progress,
-        );
-      }
-
       // Fetch review comments for revise action
       let reviewComments: FormattedReviewComment[] | undefined;
       if (issue.action === "revise") {
@@ -322,24 +242,6 @@ export class Orchestrator {
       consola.info(`Issue #${issue.number} completed successfully`);
       this.state.completed.add(`${issue.id}:${issue.action}`);
       this.state.retryAttempts.delete(issue.id);
-
-      try {
-        // Clear status labels
-        await this.github.setStatusLabel(issue.id, null, issue);
-        // Move column: plan → Todo, others → Review
-        if (issue.projectItemId) {
-          const column =
-            issue.action === "plan"
-              ? this.config.tracker.columns.todo
-              : this.config.tracker.columns.review;
-          await this.github.moveToColumn(issue.projectItemId, column);
-        }
-      } catch (err) {
-        consola.error(
-          `Failed to update labels/column for issue #${issue.number}:`,
-          err,
-        );
-      }
     } else {
       consola.warn(
         `Issue #${issue.number} failed: ${result.error?.slice(0, 100)}`,
@@ -362,32 +264,8 @@ export class Orchestrator {
       `Scheduling retry #${attempt} for issue #${issue.number} in ${delay}ms`,
     );
 
-    try {
-      // Set status to failed (removes running label automatically)
-      await this.github.setStatusLabel(
-        issue.id,
-        this.github.failedLabel,
-        issue,
-      );
-    } catch (err) {
-      consola.error(`Failed to update labels for retry:`, err);
-    }
-
     const timer = setTimeout(() => {
       this.state.retryAttempts.delete(issue.id);
-      // Clear status and re-add action label so next poll picks it up
-      this.github
-        .setStatusLabel(issue.id, null, issue)
-        .then(() =>
-          this.github.addLabels(
-            issue.id,
-            [this.github.actionLabel(issue.action ?? "")],
-            issue,
-          ),
-        )
-        .catch((err) =>
-          consola.error(`Failed to re-add action label for retry:`, err),
-        );
     }, delay);
 
     this.state.retryAttempts.set(issue.id, {
@@ -427,10 +305,10 @@ export class Orchestrator {
   }
 
   // -------------------------------------------------------------------------
-  // External API (for webhook integration)
+  // External API
   // -------------------------------------------------------------------------
 
-  /** Enqueue an issue for immediate dispatch (from webhook). */
+  /** Enqueue an issue for immediate dispatch (from board). */
   async enqueueIssue(issue: Issue): Promise<void> {
     if (!isEligible(this.state, issue)) {
       consola.debug(
@@ -451,7 +329,7 @@ export class Orchestrator {
     await this.dispatchIssue(issue);
   }
 
-  /** Cancel a running agent for an issue (e.g. issue closed or unlabeled). */
+  /** Cancel a running agent for an issue. */
   cancelIssue(issueId: string): void {
     const rs = this.state.running.get(issueId);
     if (rs) {

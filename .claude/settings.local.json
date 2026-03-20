@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api:*)",
+      "Bash(npm view:*)",
+      "WebFetch(domain:unpkg.com)",
+      "Bash(bun install:*)",
+      "Bash(git commit:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(find packages/api/src -type f -name *.ts)",
+      "Bash(bun run:*)",
+      "Bash(bun test:*)",
+      "Bash(find packages/api/test -type f -name *.ts)",
+      "Bash(find packages/web/src/components -type f -name *.tsx -o -name *.ts)",
+      "Bash(node --input-type=module --eval \"import\\(''''./packages/api/src/orchestrator/orchestrator.ts''''\\)\")",
+      "Bash(find /Users/boe-100x/Documents/projects/labs/boengai/hiveboard/packages/api/test -type f -name *.ts)"
+    ]
+  }
+}

@@ -8,7 +8,6 @@ const testIssue: Issue = {
   title: "Fix the widget",
   body: "The widget is broken. Please fix it.",
   state: "open",
-  projectItemId: null,
   labels: ["action:implement", "repo:hiveboard", "bug"],
   labelIds: {},
   url: "https://github.com/org/repo/issues/42",

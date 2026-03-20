@@ -12,7 +12,6 @@ const makeIssue = (id: string, action: string | null = "implement"): Issue => ({
   title: "Test",
   body: "",
   state: "open",
-  projectItemId: null,
   labels: [],
   labelIds: {},
   url: "",
