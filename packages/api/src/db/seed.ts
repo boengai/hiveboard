@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite'
+import type { Database } from 'bun:sqlite'
 import { generateId } from './ulid'
 
 export function seed(db: Database): void {

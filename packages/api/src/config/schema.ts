@@ -5,7 +5,7 @@ import { z } from 'zod/v4'
 // ---------------------------------------------------------------------------
 
 /** Resolves `$ENV_VAR` strings to their process.env value. */
-function envString(fallback?: string) {
+function _envString(fallback?: string) {
   return z
     .string()
     .optional()

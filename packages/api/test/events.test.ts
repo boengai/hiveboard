@@ -107,8 +107,8 @@ describe('task events', () => {
 
     const events = getEventsForTask(db, taskId)
     expect(events).toHaveLength(1)
-    expect(events[0]!.type).toBe('created')
-    expect(events[0]!.actor).toBe(user.id)
+    expect(events[0]?.type).toBe('created')
+    expect(events[0]?.actor).toBe(user.id)
   })
 
   test('updating task title produces a "title_changed" event with from/to', () => {
@@ -133,7 +133,7 @@ describe('task events', () => {
     const titleEvent = events.find(e => e.type === 'title_changed')
     expect(titleEvent).toBeDefined()
 
-    const data = JSON.parse(titleEvent!.data!)
+    const data = JSON.parse(titleEvent?.data as string)
     expect(data.from).toBe('Original Title')
     expect(data.to).toBe('Updated Title')
   })
@@ -156,7 +156,7 @@ describe('task events', () => {
     const events = getEventsForTask(db, taskId)
     const bodyEvent = events.find(e => e.type === 'body_changed')
     expect(bodyEvent).toBeDefined()
-    expect(bodyEvent!.data).toBeNull()
+    expect(bodyEvent?.data).toBeNull()
   })
 
   test('setting an action produces an "action_set" event', () => {
@@ -179,7 +179,7 @@ describe('task events', () => {
     const actionEvent = events.find(e => e.type === 'action_set')
     expect(actionEvent).toBeDefined()
 
-    const data = JSON.parse(actionEvent!.data!)
+    const data = JSON.parse(actionEvent?.data as string)
     expect(data.action).toBe(action)
   })
 
@@ -227,7 +227,7 @@ describe('task events', () => {
     const movedEvent = events.find(e => e.type === 'moved')
     expect(movedEvent).toBeDefined()
 
-    const data = JSON.parse(movedEvent!.data!)
+    const data = JSON.parse(movedEvent?.data as string)
     expect(data.from_column).toBe('Backlog')
     expect(data.to_column).toBe('In Progress')
   })
@@ -296,7 +296,7 @@ describe('task events', () => {
     const commentEvent = events.find(e => e.type === 'comment_added')
     expect(commentEvent).toBeDefined()
 
-    const data = JSON.parse(commentEvent!.data!)
+    const data = JSON.parse(commentEvent?.data as string)
     expect(data.comment_id).toBe(commentId)
   })
 
@@ -327,10 +327,10 @@ describe('task events', () => {
     expect(actionSetEvent).toBeDefined()
     expect(statusChangedEvent).toBeDefined()
 
-    const actionData = JSON.parse(actionSetEvent!.data!)
+    const actionData = JSON.parse(actionSetEvent?.data as string)
     expect(actionData.action).toBe(action)
 
-    const statusData = JSON.parse(statusChangedEvent!.data!)
+    const statusData = JSON.parse(statusChangedEvent?.data as string)
     expect(statusData.from).toBe('idle')
     expect(statusData.to).toBe('queued')
 

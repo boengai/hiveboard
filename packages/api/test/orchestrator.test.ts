@@ -186,14 +186,14 @@ describe('Orchestrator – dispatch flow', () => {
 
     const task = getTask(taskId)
     expect(task).not.toBeNull()
-    expect(task!.agent_status).toBe('success')
+    expect(task?.agent_status).toBe('success')
 
     // agent_runs row should exist and be successful
     const run = memDb
       .query('SELECT * FROM agent_runs WHERE task_id = ?')
       .get(taskId) as { status: string } | null
     expect(run).not.toBeNull()
-    expect(run!.status).toBe('success')
+    expect(run?.status).toBe('success')
   })
 
   it('transitions task from queued → running → failed when agent errors', async () => {
@@ -208,13 +208,13 @@ describe('Orchestrator – dispatch flow', () => {
     await flushMicrotasks(100)
 
     const task = getTask(taskId)
-    expect(task!.agent_status).toBe('failed')
+    expect(task?.agent_status).toBe('failed')
 
     const run = memDb
       .query('SELECT * FROM agent_runs WHERE task_id = ?')
       .get(taskId) as { status: string; error: string } | null
-    expect(run!.status).toBe('failed')
-    expect(run!.error).toContain('something broke')
+    expect(run?.status).toBe('failed')
+    expect(run?.error).toContain('something broke')
   })
 
   it('records an agent_started event on dispatch', async () => {
@@ -326,18 +326,18 @@ describe('Orchestrator – concurrency limit', () => {
       return { taskId: task.id, success: true, output: 'ok' }
     }
 
-    const t1 = insertQueuedTask({ action: 'plan' })
-    const t2 = insertQueuedTask({ action: 'plan' })
+    const _t1 = insertQueuedTask({ action: 'plan' })
+    const _t2 = insertQueuedTask({ action: 'plan' })
     const t3 = insertQueuedTask({ action: 'plan' })
 
     // First poll picks up t1 + t2 (limit=2), t3 stays queued
     await orchestrator.poll()
     await flushMicrotasks(50)
 
-    expect(getTask(t3)!.agent_status).toBe('queued')
+    expect(getTask(t3)?.agent_status).toBe('queued')
 
     // Release first wave, wait for completion
-    pass1Latch!()
+    pass1Latch?.()
     releaseLatch = pass1Latch!
     await flushMicrotasks(100)
 
@@ -345,7 +345,7 @@ describe('Orchestrator – concurrency limit', () => {
     await orchestrator.poll()
     await flushMicrotasks(100)
 
-    expect(getTask(t3)!.agent_status).toBe('success')
+    expect(getTask(t3)?.agent_status).toBe('success')
   })
 })
 
@@ -397,7 +397,7 @@ describe('Orchestrator – retry scheduling', () => {
       .query("SELECT * FROM task_events WHERE task_id = ? AND type = 'retry_scheduled'")
       .get(taskId) as { data: string } | null
     expect(event).not.toBeNull()
-    const data = JSON.parse(event!.data)
+    const data = JSON.parse(event?.data)
     expect(data.attempt).toBe(1)
   })
 

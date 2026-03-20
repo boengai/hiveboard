@@ -69,7 +69,7 @@ export function Board() {
 
     return dispose
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board?.id])
+  }, [board?.id, mergeTaskUpdate])
 
   function findTaskById(taskId: string): Task | undefined {
     if (!board) return undefined

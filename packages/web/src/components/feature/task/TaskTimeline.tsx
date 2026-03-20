@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { graphqlClient } from '@/graphql/client'
 import { GET_TASK_TIMELINE, GET_COMMENTS } from '@/graphql/queries'
 import { Badge } from '@/components/common/badge'
@@ -193,6 +193,7 @@ function CommentRow({
       {/* Reply button */}
       {onReply && (
         <button
+          type="button"
           className="self-start text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none focus:shadow-glow-honey"
           onClick={() => onReply(entry.id)}
         >
@@ -235,7 +236,7 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
   const [loading, setLoading] = useState(true)
   const [replyParentId, setReplyParentId] = useState<string | null>(null)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [timelineData, commentsData] = await Promise.all([
@@ -282,12 +283,11 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [taskId])
 
   useEffect(() => {
     fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId])
+  }, [fetchData])
 
   // Subscribe to new task events
   useEffect(() => {
@@ -413,10 +413,10 @@ function ReplyInput({
         placeholder="Write a reply…"
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        autoFocus
       />
       <div className="flex gap-2">
         <button
+          type="button"
           disabled={!body.trim() || submitting}
           onClick={handleSubmit}
           className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
@@ -424,6 +424,7 @@ function ReplyInput({
           {submitting ? 'Replying…' : 'Reply'}
         </button>
         <button
+          type="button"
           onClick={onCancel}
           className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
         >
