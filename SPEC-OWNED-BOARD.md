@@ -1764,8 +1764,8 @@ GITHUB_TOKEN=ghp_your_token_here
   - `createPullRequest(workspace, title, body, baseBranch, headBranch)` — wraps `gh pr create`
   - `fetchReviewComments(prUrl)` — fetches PR review comments for revise action
   - GitHub auth setup (PAT only — simplify by removing GitHub App auth if not needed for PR creation)
-- [ ] Remove Octokit dependency if `gh` CLI is sufficient for all remaining operations
-- [ ] If keeping Octokit: remove `@octokit/webhooks` from `package.json` dependencies
+- [x] Remove Octokit dependency if `gh` CLI is sufficient for all remaining operations
+- [x] If keeping Octokit: remove `@octokit/webhooks` from `package.json` dependencies
 
 #### 5.3 Remove Old Orchestrator
 - [ ] Delete or archive `src/orchestrator/orchestrator.ts` (replaced by `packages/api/src/orchestrator/`)
