@@ -81,8 +81,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   return (
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Title *</label>
+        <label htmlFor="create-title" className="text-body-xs text-text-secondary">Title *</label>
         <input
+          id="create-title"
           ref={titleRef}
           className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           placeholder="Task title"
@@ -93,8 +94,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Body</label>
+        <label htmlFor="create-body" className="text-body-xs text-text-secondary">Body</label>
         <textarea
+          id="create-body"
           className="min-h-[120px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           placeholder="Optional description…"
           value={form.body}
@@ -104,8 +106,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-body-xs text-text-secondary">Action</label>
+          <label htmlFor="create-action" className="text-body-xs text-text-secondary">Action</label>
           <select
+            id="create-action"
             className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             value={form.action}
             onChange={(e) => setForm({ ...form, action: e.target.value })}
@@ -119,8 +122,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
-          <label className="text-body-xs text-text-secondary">Target Repo</label>
+          <label htmlFor="create-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
           <input
+            id="create-target-repo"
             className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             placeholder="owner/repo"
             value={form.targetRepo}
@@ -300,8 +304,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
   return (
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Title *</label>
+        <label htmlFor="edit-title" className="text-body-xs text-text-secondary">Title *</label>
         <input
+          id="edit-title"
           ref={titleRef}
           className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           value={form.title}
@@ -310,8 +315,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Body</label>
+        <label htmlFor="edit-body" className="text-body-xs text-text-secondary">Body</label>
         <textarea
+          id="edit-body"
           className="min-h-[120px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           value={form.body}
           onChange={(e) => setForm({ ...form, body: e.target.value })}
@@ -320,8 +326,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-body-xs text-text-secondary">Action</label>
+          <label htmlFor="edit-action" className="text-body-xs text-text-secondary">Action</label>
           <select
+            id="edit-action"
             className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             value={form.action}
             onChange={(e) => setForm({ ...form, action: e.target.value })}
@@ -335,8 +342,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
-          <label className="text-body-xs text-text-secondary">Target Repo</label>
+          <label htmlFor="edit-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
           <input
+            id="edit-target-repo"
             className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             placeholder="owner/repo"
             value={form.targetRepo}

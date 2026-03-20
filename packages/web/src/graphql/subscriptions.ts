@@ -15,7 +15,7 @@ class ConnectionStateManager {
   setState(state: ConnectionState) {
     if (this.state === state) return
     this.state = state
-    this.listeners.forEach((fn) => fn(state))
+    this.listeners.forEach((fn) => { fn(state) })
   }
 
   subscribe(fn: ConnectionStateListener): () => void {

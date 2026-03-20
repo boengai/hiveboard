@@ -31,6 +31,7 @@ export function Column({ column }: ColumnProps) {
           </span>
         </div>
         <button
+          type="button"
           onClick={() => openDrawerCreate(column.id)}
           className="flex h-6 w-6 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
           aria-label={`Add task to ${column.name}`}
@@ -43,6 +44,7 @@ export function Column({ column }: ColumnProps) {
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={2}
+            aria-hidden="true"
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -72,10 +74,11 @@ export function Column({ column }: ColumnProps) {
         {showArchived && archivedTasks.length > 0 && (
           <div className="mt-1 flex flex-col gap-2">
             {archivedTasks.map((task) => (
-              <div
+              <button
                 key={task.id}
+                type="button"
                 onClick={() => openDrawerView(task.id)}
-                className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 opacity-50 hover:opacity-70"
+                className="w-full cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 text-left opacity-50 hover:opacity-70"
               >
                 <div className="mb-1 flex items-center gap-2">
                   <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-body-xs text-gray-400">
@@ -83,7 +86,7 @@ export function Column({ column }: ColumnProps) {
                   </span>
                 </div>
                 <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
-              </div>
+              </button>
             ))}
           </div>
         )}

@@ -5,22 +5,16 @@ import type { Config } from "../config/schema.ts";
 import type { Issue } from "../types.ts";
 import {
   ISSUE_LINKED_PR_REVIEWS_QUERY,
-  OWNER_TYPE_QUERY,
 } from "./queries.ts";
 import type {
   FormattedReviewComment,
   IssueLinkedPrReviewsResponse,
-  OwnerTypeResponse,
 } from "./types.ts";
 
-type OwnerKind = "repo" | "org" | "user";
 
 export class GitHubClient {
   private owner: string;
   private repo: string | undefined;
-
-  /** Resolved at first API call: "repo" | "org" | "user". */
-  private ownerKind: OwnerKind | null = null;
 
   /** True when using GitHub App auth (token needs periodic refresh). */
   private isAppAuth: boolean;
@@ -97,38 +91,6 @@ export class GitHubClient {
       process.env.GITHUB_TOKEN = token;
     }
     return token;
-  }
-
-  // -------------------------------------------------------------------------
-  // Owner type detection
-  // -------------------------------------------------------------------------
-
-  /** Detect and cache whether the owner is a repo-scoped project, org, or user. */
-  private async resolveOwnerKind(): Promise<OwnerKind> {
-    if (this.ownerKind) return this.ownerKind;
-
-    // If repo is set, it's a repo-scoped project — no detection needed
-    if (this.repo) {
-      this.ownerKind = "repo";
-      return this.ownerKind;
-    }
-
-    const resp = await this.octokit.graphql<OwnerTypeResponse>(
-      OWNER_TYPE_QUERY,
-      { owner: this.owner },
-    );
-
-    if (!resp.repositoryOwner) {
-      throw new Error(`GitHub owner "${this.owner}" not found`);
-    }
-
-    this.ownerKind =
-      resp.repositoryOwner.__typename === "Organization" ? "org" : "user";
-
-    consola.debug(
-      `Owner "${this.owner}" detected as ${this.ownerKind} (${resp.repositoryOwner.__typename})`,
-    );
-    return this.ownerKind;
   }
 
   // -------------------------------------------------------------------------

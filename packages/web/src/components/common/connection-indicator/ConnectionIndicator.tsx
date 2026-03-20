@@ -30,6 +30,7 @@ export function ConnectionIndicator() {
 
   return (
     <div
+      role="status"
       className="flex items-center gap-1.5"
       title={config.label}
       aria-label={`WebSocket: ${config.label}`}

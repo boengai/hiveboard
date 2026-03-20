@@ -45,15 +45,15 @@ describe('seed', () => {
       display_name: string
     }>
     expect(users).toHaveLength(1)
-    expect(users[0]!.username).toBe('queen-bee')
-    expect(users[0]!.role).toBe('admin')
-    expect(users[0]!.display_name).toBe('Queen Bee')
+    expect(users[0]?.username).toBe('queen-bee')
+    expect(users[0]?.role).toBe('admin')
+    expect(users[0]?.display_name).toBe('Queen Bee')
   })
 
   test('creates exactly 1 board named HiveBoard', () => {
     const boards = db.query('SELECT * FROM boards').all() as Array<{ name: string }>
     expect(boards).toHaveLength(1)
-    expect(boards[0]!.name).toBe('HiveBoard')
+    expect(boards[0]?.name).toBe('HiveBoard')
   })
 
   test('creates exactly 5 columns with correct names and positions', () => {
@@ -71,8 +71,8 @@ describe('seed', () => {
       { name: 'Done', position: 4 },
     ]
     for (let i = 0; i < expected.length; i++) {
-      expect(columns[i]!.name).toBe(expected[i]!.name)
-      expect(columns[i]!.position).toBe(expected[i]!.position)
+      expect(columns[i]?.name).toBe(expected[i]?.name)
+      expect(columns[i]?.position).toBe(expected[i]?.position)
     }
   })
 

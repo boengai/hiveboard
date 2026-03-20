@@ -180,7 +180,7 @@ describe('cancelAgent – queued task', () => {
   it('transitions queued → idle', async () => {
     const id = insertTask({ agentStatus: 'queued' })
     await cancelAgent(null, id)
-    expect(getTask(id)!.agent_status).toBe('idle')
+    expect(getTask(id)?.agent_status).toBe('idle')
   })
 
   it('inserts a status_changed event recording the transition', async () => {
@@ -192,7 +192,7 @@ describe('cancelAgent – queued task', () => {
       .get(id) as { data: string } | null
 
     expect(event).not.toBeNull()
-    const data = JSON.parse(event!.data)
+    const data = JSON.parse(event?.data)
     expect(data.from).toBe('queued')
     expect(data.to).toBe('idle')
   })
@@ -237,13 +237,13 @@ describe('cancelAgent – running task', () => {
     await flush(50) // let agent start
 
     // Task should now be running
-    expect(getTask(id)!.agent_status).toBe('running')
+    expect(getTask(id)?.agent_status).toBe('running')
 
     // Cancel via orchestrator + DB update
     await cancelAgent(orchestrator, id)
 
     expect(agentAborted).toBe(true)
-    expect(getTask(id)!.agent_status).toBe('idle')
+    expect(getTask(id)?.agent_status).toBe('idle')
   })
 
   it('marks the agent_run as failed after cancel', async () => {
@@ -272,7 +272,7 @@ describe('cancelAgent – running task', () => {
     // The agent_run row ends up as 'failed' (either via the onComplete path
     // triggered by the abort mock result or via the orchestrator's cancel update)
     expect(run).not.toBeNull()
-    expect(run!.status).toBe('failed')
+    expect(run?.status).toBe('failed')
   })
 })
 
@@ -312,6 +312,6 @@ describe('cancelAgent – idle task (no-op)', () => {
   it('keeps agent_status as idle and does not throw', async () => {
     const id = insertTask({ agentStatus: 'idle' })
     await expect(cancelAgent(null, id)).resolves.toBeUndefined()
-    expect(getTask(id)!.agent_status).toBe('idle')
+    expect(getTask(id)?.agent_status).toBe('idle')
   })
 })

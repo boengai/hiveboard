@@ -14,7 +14,7 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
+import { describe, it, expect, mock, afterEach } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'

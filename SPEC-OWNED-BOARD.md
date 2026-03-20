@@ -1776,15 +1776,15 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] Delete `src/ssh/client.ts` if SSH worker support is deferred (or keep if still needed)
 
 #### 5.4 Dependency Cleanup
-- [ ] Remove from root `package.json` dependencies:
+- [x] Remove from root `package.json` dependencies:
   - `@octokit/webhooks` (webhook verification no longer needed)
   - `@octokit/auth-app` (if simplifying to PAT-only)
   - `octokit` (if all GitHub ops go through `gh` CLI)
-- [ ] Remove from root `package.json` devDependencies:
+- [x] Remove from root `package.json` devDependencies:
   - `@types/mustache` (if prompt templates move to template literals)
   - `mustache` (if no longer used for prompts)
-- [ ] Run `bun install` to update lockfile
-- [ ] Verify no unused imports or dead requires in remaining code (`bunx biome lint .`)
+- [x] Run `bun install` to update lockfile
+- [x] Verify no unused imports or dead requires in remaining code (`bunx biome lint .`)
 
 #### 5.5 Configuration Updates
 - [ ] `WORKFLOW.md` — Remove or simplify YAML front matter:

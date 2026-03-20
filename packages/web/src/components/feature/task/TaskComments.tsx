@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { graphqlClient } from '@/graphql/client'
 import { GET_COMMENTS } from '@/graphql/queries'
 import { ADD_COMMENT, UPDATE_COMMENT, DELETE_COMMENT } from '@/graphql/mutations'
@@ -115,12 +115,14 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
           {!editing && (
             <>
               <button
+                type="button"
                 className="text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
                 onClick={() => { setEditBody(comment.body); setEditing(true) }}
               >
                 Edit
               </button>
               <button
+                type="button"
                 disabled={deleting}
                 className="text-body-xs text-error-400 hover:text-error-300 disabled:opacity-50 focus:outline-none"
                 onClick={handleDelete}
@@ -139,10 +141,10 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             className="min-h-[60px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400 focus:shadow-glow-honey"
             value={editBody}
             onChange={(e) => setEditBody(e.target.value)}
-            autoFocus
           />
           <div className="flex gap-2">
             <button
+              type="button"
               disabled={!editBody.trim() || saving}
               onClick={handleSave}
               className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
@@ -150,6 +152,7 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
               {saving ? 'Saving…' : 'Save'}
             </button>
             <button
+              type="button"
               onClick={() => { setEditing(false); setEditBody(comment.body) }}
               className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
             >
@@ -164,6 +167,7 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
       {/* Reply button */}
       {!editing && (
         <button
+          type="button"
           className="self-start text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
           onClick={() => setShowReplyInput(!showReplyInput)}
         >
@@ -192,10 +196,10 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             placeholder="Write a reply…"
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
-            autoFocus
           />
           <div className="flex gap-2">
             <button
+              type="button"
               disabled={!replyBody.trim() || replySubmitting}
               onClick={handleReply}
               className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
@@ -203,6 +207,7 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
               {replySubmitting ? 'Replying…' : 'Reply'}
             </button>
             <button
+              type="button"
               onClick={() => { setShowReplyInput(false); setReplyBody('') }}
               className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
             >
@@ -247,6 +252,7 @@ function ReplyBlock({
         <div className="flex items-center gap-2">
           <span className="text-body-xs text-text-tertiary">{timeAgo(reply.createdAt)}</span>
           <button
+            type="button"
             disabled={deleting}
             className="text-body-xs text-error-400 hover:text-error-300 disabled:opacity-50 focus:outline-none"
             onClick={handleDelete}
@@ -274,7 +280,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
   const [newBody, setNewBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setLoading(true)
     try {
       const data = await graphqlClient.request<{ comments: Comment[] }>(GET_COMMENTS, { taskId })
@@ -284,12 +290,11 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [taskId])
 
   useEffect(() => {
     fetchComments()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId])
+  }, [fetchComments])
 
   // Subscribe to new comments added by other sessions
   useEffect(() => {
@@ -387,6 +392,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           onChange={(e) => setNewBody(e.target.value)}
         />
         <button
+          type="button"
           disabled={!newBody.trim() || submitting}
           onClick={handleAddComment}
           className="self-start rounded-md bg-honey-400 px-4 py-1.5 text-body-sm font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"

@@ -52,7 +52,7 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
     if (el) {
       el.scrollTop = el.scrollHeight
     }
-  }, [chunks])
+  }, [])
 
   const handleCopyLog = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +91,7 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
           </span>
           {chunks.length > 0 && (
             <button
+              type="button"
               onClick={handleCopyLog}
               className="text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
             >

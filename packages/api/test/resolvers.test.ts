@@ -102,7 +102,7 @@ describe('boards query', () => {
   test('returns the seeded board', () => {
     const boards = db.query('SELECT * FROM boards ORDER BY created_at ASC').all() as BoardRow[]
     expect(boards).toHaveLength(1)
-    expect(boards[0]!.name).toBe('HiveBoard')
+    expect(boards[0]?.name).toBe('HiveBoard')
   })
 
   test('board has 5 columns', () => {
@@ -123,8 +123,8 @@ describe('board(id) query', () => {
     const board = db.query('SELECT * FROM boards LIMIT 1').get() as BoardRow
     const result = db.query('SELECT * FROM boards WHERE id = ?').get(board.id) as BoardRow | null
     expect(result).not.toBeNull()
-    expect(result!.id).toBe(board.id)
-    expect(result!.name).toBe('HiveBoard')
+    expect(result?.id).toBe(board.id)
+    expect(result?.name).toBe('HiveBoard')
   })
 
   test('returns null for non-existent board id', () => {
@@ -166,7 +166,7 @@ describe('createTask', () => {
       .query('SELECT * FROM tasks WHERE column_id = ? ORDER BY position ASC')
       .all(col.id) as TaskRow[]
     expect(tasks).toHaveLength(2)
-    expect(tasks[1]!.position).toBe(1024)
+    expect(tasks[1]?.position).toBe(1024)
   })
 })
 
