@@ -17,8 +17,8 @@ tracker:
 polling:
   interval_ms: 30000
 workspace:
-  root: ./workspaces
-  ttl_ms: 259200000   # 72 hours — stale workspaces are swept hourly
+  root: ./tmp/workspaces    # workspace root directory
+  ttl_ms: 259200000         # 72 hours — stale workspace cleanup
 hooks:
   after_create: >-
     git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ issue.repo_owner }}/{{ issue.repo_name }} . &&

@@ -1396,69 +1396,69 @@ GITHUB_TOKEN=ghp_your_token_here
 > **Blocked by:** Nothing — can start immediately
 
 #### 1.1 Monorepo Structure
-- [ ] Add `"workspaces": ["packages/*"]` to root `package.json`
-- [ ] Create `packages/api/package.json` with name `@hiveboard/api`, deps: `graphql`, `graphql-yoga`, `consola`, `ulid`
-- [ ] Create `packages/web/package.json` with name `@hiveboard/web`, deps: `react`, `vite`, `@tanstack/react-router`, `tailwindcss`, `zustand`, `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`, `graphql-request`, `graphql-sse`
-- [ ] Root `package.json` keeps existing `"start"` script pointing to `src/index.ts` (backward compat)
-- [ ] Add root scripts: `"dev"`, `"dev:api"`, `"dev:web"` (see Dev Scripts section)
-- [ ] Create `packages/api/tsconfig.json` extending root, with `"include": ["src/**/*.ts"]` and path alias `@api/*`
-- [ ] Create `packages/web/tsconfig.json` extending root, with JSX support (`"jsx": "react-jsx"`)
-- [ ] `bun install` succeeds with workspace resolution
-- [ ] Existing `bun run start` still boots the old orchestrator (no breakage to `src/`)
+- [x] Add `"workspaces": ["packages/*"]` to root `package.json`
+- [x] Create `packages/api/package.json` with name `@hiveboard/api`, deps: `graphql`, `graphql-yoga`, `consola`, `ulid`
+- [x] Create `packages/web/package.json` with name `@hiveboard/web`, deps: `react`, `vite`, `@tanstack/react-router`, `tailwindcss`, `zustand`, `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`, `graphql-request`, `graphql-sse`
+- [x] Root `package.json` keeps existing `"start"` script pointing to `src/index.ts` (backward compat)
+- [x] Add root scripts: `"dev"`, `"dev:api"`, `"dev:web"` (see Dev Scripts section)
+- [x] Create `packages/api/tsconfig.json` extending root, with `"include": ["src/**/*.ts"]` and path alias `@api/*`
+- [x] Create `packages/web/tsconfig.json` extending root, with JSX support (`"jsx": "react-jsx"`)
+- [x] `bun install` succeeds with workspace resolution
+- [x] Existing `bun run start` still boots the old orchestrator (no breakage to `src/`)
 
 #### 1.2 Database Layer (`packages/api/src/db/`)
-- [ ] `client.ts` — Bun SQLite singleton, reads `DATABASE_PATH` env var (default: `tmp/database/hiveboard.db` at project root), enable WAL mode, foreign keys ON
-- [ ] `schema.ts` — All `CREATE TABLE IF NOT EXISTS` statements (users, boards, columns, tasks, task_comments, task_events, agent_runs) matching the Database Schema section exactly
-- [ ] `migrate.ts` — Auto-migration on startup: run all `CREATE TABLE IF NOT EXISTS`, then call `seed()` if tables are empty
-- [ ] `seed.ts` — Idempotent seed: insert `queen-bee` user (role: admin), "HiveBoard" board, 5 columns (Backlog=0, Todo=1, In Progress=2, Review=3, Done=4) — skip if already exists
-- [ ] `ulid.ts` — Exports `generateId(): string` using `ulid` package. All IDs generated in application code (not SQLite DEFAULT)
-- [ ] All tables use `TEXT PRIMARY KEY` for IDs (ULID strings, 26 chars, time-sortable)
-- [ ] All timestamp columns use `DEFAULT (datetime('now'))` (ISO 8601 UTC strings)
-- [ ] `tasks.position` uses `REAL` type (fractional positioning, initial spacing 1024)
-- [ ] `tasks.action` accepts enum values: `plan`, `research`, `implement`, `implement-e2e`, `revise`, or `NULL`
-- [ ] `tasks.agent_status` defaults to `idle`, valid values: `idle`, `queued`, `running`, `success`, `failed`
-- [ ] `task_comments.parent_id` is nullable (NULL = top-level, non-NULL = threaded reply)
-- [ ] `task_events.actor` stores user ID string or literal `'SYSTEM'`
-- [ ] `task_events.data` stores JSON string payload (event-type-specific, see schema docs)
-- [ ] Foreign keys with `ON DELETE CASCADE` on board_id, task_id, parent_id references
-- [ ] Indexes: `tasks(board_id, column_id)`, `tasks(agent_status)`, `task_events(task_id, created_at)`, `task_comments(task_id)`, `agent_runs(task_id)`
+- [x] `client.ts` — Bun SQLite singleton, reads `DATABASE_PATH` env var (default: `tmp/database/hiveboard.db` at project root), enable WAL mode, foreign keys ON
+- [x] `schema.ts` — All `CREATE TABLE IF NOT EXISTS` statements (users, boards, columns, tasks, task_comments, task_events, agent_runs) matching the Database Schema section exactly
+- [x] `migrate.ts` — Auto-migration on startup: run all `CREATE TABLE IF NOT EXISTS`, then call `seed()` if tables are empty
+- [x] `seed.ts` — Idempotent seed: insert `queen-bee` user (role: admin), "HiveBoard" board, 5 columns (Backlog=0, Todo=1, In Progress=2, Review=3, Done=4) — skip if already exists
+- [x] `ulid.ts` — Exports `generateId(): string` using `ulid` package. All IDs generated in application code (not SQLite DEFAULT)
+- [x] All tables use `TEXT PRIMARY KEY` for IDs (ULID strings, 26 chars, time-sortable)
+- [x] All timestamp columns use `DEFAULT (datetime('now'))` (ISO 8601 UTC strings)
+- [x] `tasks.position` uses `REAL` type (fractional positioning, initial spacing 1024)
+- [x] `tasks.action` accepts enum values: `plan`, `research`, `implement`, `implement-e2e`, `revise`, or `NULL`
+- [x] `tasks.agent_status` defaults to `idle`, valid values: `idle`, `queued`, `running`, `success`, `failed`
+- [x] `task_comments.parent_id` is nullable (NULL = top-level, non-NULL = threaded reply)
+- [x] `task_events.actor` stores user ID string or literal `'SYSTEM'`
+- [x] `task_events.data` stores JSON string payload (event-type-specific, see schema docs)
+- [x] Foreign keys with `ON DELETE CASCADE` on board_id, task_id, parent_id references
+- [x] Indexes: `tasks(board_id, column_id)`, `tasks(agent_status)`, `task_events(task_id, created_at)`, `task_comments(task_id)`, `agent_runs(task_id)`
 
 #### 1.3 GraphQL Server
-- [ ] `packages/api/src/index.ts` — Entry point: run `migrate()`, create GraphQL Yoga server, `Bun.serve({ port: Number(process.env.API_PORT ?? 8080), fetch })` with CORS enabled for web origin. Include `/health` endpoint returning `{ ok: true, uptime }` (used by Docker healthcheck)
-- [ ] `packages/api/src/schema/typeDefs.ts` — Full GraphQL SDL matching the GraphQL Schema section (all types, enums, inputs, queries, mutations, subscriptions)
-- [ ] `packages/api/src/schema/resolvers.ts` — All resolver implementations (see below)
-- [ ] `packages/api/src/pubsub.ts` — In-memory pub/sub for GraphQL subscriptions (simple EventEmitter or Yoga's `createPubSub()`)
+- [x] `packages/api/src/index.ts` — Entry point: run `migrate()`, create GraphQL Yoga server, `Bun.serve({ port: Number(process.env.API_PORT ?? 8080), fetch })` with CORS enabled for web origin. Include `/health` endpoint returning `{ ok: true, uptime }` (used by Docker healthcheck)
+- [x] `packages/api/src/schema/typeDefs.ts` — Full GraphQL SDL matching the GraphQL Schema section (all types, enums, inputs, queries, mutations, subscriptions)
+- [x] `packages/api/src/schema/resolvers.ts` — All resolver implementations (see below)
+- [x] `packages/api/src/pubsub.ts` — In-memory pub/sub for GraphQL subscriptions (simple EventEmitter or Yoga's `createPubSub()`)
 
 #### 1.4 Query Resolvers
-- [ ] `boards` — `SELECT * FROM boards` → returns all boards with nested columns (each column with non-archived tasks sorted by position)
-- [ ] `board(id)` — Single board by ID with columns + tasks
-- [ ] `task(id)` — Single task with resolved `column`, `createdBy`, `updatedBy`, `comments` (top-level only, replies nested)
-- [ ] `agentRuns(taskId)` — `SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC`
-- [ ] `taskTimeline(taskId)` — `SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at ASC` — resolve actor to User object (or null if `'SYSTEM'`), set `isSystem = actor === 'SYSTEM'`
-- [ ] `comments(taskId)` — Top-level comments (`parent_id IS NULL`) with nested `replies` (recursive 1 level)
-- [ ] `me` — Returns hardcoded `queen-bee` user (MVP: no auth, single-user)
-- [ ] Column → `tasks` field resolver: `SELECT * FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC`
+- [x] `boards` — `SELECT * FROM boards` → returns all boards with nested columns (each column with non-archived tasks sorted by position)
+- [x] `board(id)` — Single board by ID with columns + tasks
+- [x] `task(id)` — Single task with resolved `column`, `createdBy`, `updatedBy`, `comments` (top-level only, replies nested)
+- [x] `agentRuns(taskId)` — `SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC`
+- [x] `taskTimeline(taskId)` — `SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at ASC` — resolve actor to User object (or null if `'SYSTEM'`), set `isSystem = actor === 'SYSTEM'`
+- [x] `comments(taskId)` — Top-level comments (`parent_id IS NULL`) with nested `replies` (recursive 1 level)
+- [x] `me` — Returns hardcoded `queen-bee` user (MVP: no auth, single-user)
+- [x] Column → `tasks` field resolver: `SELECT * FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC`
 
 #### 1.5 Mutation Resolvers
-- [ ] `createBoard(name)` — INSERT board, return it
-- [ ] `createTask(input)` — INSERT task with `created_by` and `updated_by` set to current user (queen-bee). If `columnId` omitted, default to first column (Backlog). Auto-assign `position` = max position in column + 1. INSERT `task_events` row: `{type: 'created', actor: user_id}`
-- [ ] `updateTask(id, input)` — UPDATE only provided fields (title, body, action, targetRepo). Set `updated_by`, `updated_at`. INSERT event for each changed field: `title_changed`, `body_changed`, `action_set`/`action_cleared`, `assigned`
-- [ ] `deleteTask(id)` — DELETE task (cascades to comments, events, agent_runs). Return `true`
-- [ ] `moveTask(id, columnId, position)` — UPDATE task's `column_id` and `position` (Float — frontend calculates fractional value via `(prev+next)/2`). If gap between adjacent positions < 1.0 after move, batch re-index all tasks in destination column (`0, 1024, 2048, ...`). INSERT `task_events` row: `{type: 'moved', data: {from_column: "name", to_column: "name"}}`. Set `updated_by`, `updated_at`
-- [ ] `archiveTask(id)` — SET `archived = 1`, `archived_at = datetime('now')`. INSERT event `{type: 'archived'}`. Set `updated_by`, `updated_at`
-- [ ] `unarchiveTask(id)` — SET `archived = 0`, `archived_at = NULL`. INSERT event `{type: 'unarchived'}`. Set `updated_by`, `updated_at`
-- [ ] `addComment(taskId, body, parentId?)` — If `parentId` is set, verify parent comment's `parent_id IS NULL` (reject with error if parent is already a reply — max 1 level nesting). INSERT into `task_comments`. INSERT `task_events` row: `{type: 'comment_added', data: {comment_id}}`. Return comment with resolved `createdBy`
-- [ ] `updateComment(id, body)` — UPDATE comment body and `updated_at`. Return updated comment
-- [ ] `deleteComment(id)` — DELETE comment (cascades replies). Return `true`
-- [ ] `dispatchAgent(taskId, action)` — SET `action`, `agent_status = 'queued'`. INSERT events: `action_set` + `status_changed (idle → queued)`. Return task _(actual agent spawning happens in Phase 3 orchestrator)_
-- [ ] `cancelAgent(taskId)` — SET `agent_status = 'idle'`. INSERT event `status_changed`. _(actual process kill in Phase 3)_
-- [ ] **Event consistency**: Every mutation that modifies task state wraps its DB writes in a transaction (`db.transaction(() => { ... })()`) to ensure task update + event insert are atomic
+- [x] `createBoard(name)` — INSERT board, return it
+- [x] `createTask(input)` — INSERT task with `created_by` and `updated_by` set to current user (queen-bee). If `columnId` omitted, default to first column (Backlog). Auto-assign `position` = max position in column + 1. INSERT `task_events` row: `{type: 'created', actor: user_id}`
+- [x] `updateTask(id, input)` — UPDATE only provided fields (title, body, action, targetRepo). Set `updated_by`, `updated_at`. INSERT event for each changed field: `title_changed`, `body_changed`, `action_set`/`action_cleared`, `assigned`
+- [x] `deleteTask(id)` — DELETE task (cascades to comments, events, agent_runs). Return `true`
+- [x] `moveTask(id, columnId, position)` — UPDATE task's `column_id` and `position` (Float — frontend calculates fractional value via `(prev+next)/2`). If gap between adjacent positions < 1.0 after move, batch re-index all tasks in destination column (`0, 1024, 2048, ...`). INSERT `task_events` row: `{type: 'moved', data: {from_column: "name", to_column: "name"}}`. Set `updated_by`, `updated_at`
+- [x] `archiveTask(id)` — SET `archived = 1`, `archived_at = datetime('now')`. INSERT event `{type: 'archived'}`. Set `updated_by`, `updated_at`
+- [x] `unarchiveTask(id)` — SET `archived = 0`, `archived_at = NULL`. INSERT event `{type: 'unarchived'}`. Set `updated_by`, `updated_at`
+- [x] `addComment(taskId, body, parentId?)` — If `parentId` is set, verify parent comment's `parent_id IS NULL` (reject with error if parent is already a reply — max 1 level nesting). INSERT into `task_comments`. INSERT `task_events` row: `{type: 'comment_added', data: {comment_id}}`. Return comment with resolved `createdBy`
+- [x] `updateComment(id, body)` — UPDATE comment body and `updated_at`. Return updated comment
+- [x] `deleteComment(id)` — DELETE comment (cascades replies). Return `true`
+- [x] `dispatchAgent(taskId, action)` — SET `action`, `agent_status = 'queued'`. INSERT events: `action_set` + `status_changed (idle → queued)`. Return task _(actual agent spawning happens in Phase 3 orchestrator)_
+- [x] `cancelAgent(taskId)` — SET `agent_status = 'idle'`. INSERT event `status_changed`. _(actual process kill in Phase 3)_
+- [x] **Event consistency**: Every mutation that modifies task state wraps its DB writes in a transaction (`db.transaction(() => { ... })()`) to ensure task update + event insert are atomic
 
 #### 1.6 Testing
-- [ ] `packages/api/test/db.test.ts` — Test migration runs without error, seed creates expected rows, idempotent re-run
-- [ ] `packages/api/test/resolvers.test.ts` — Test each query/mutation resolver against a fresh in-memory SQLite DB (`:memory:`)
-- [ ] `packages/api/test/events.test.ts` — Test that each mutation creates the correct `task_events` rows with expected type, actor, and data payload
-- [ ] `bun test` from root runs all tests (existing `test/` + new `packages/api/test/`)
+- [x] `packages/api/test/db.test.ts` — Test migration runs without error, seed creates expected rows, idempotent re-run
+- [x] `packages/api/test/resolvers.test.ts` — Test each query/mutation resolver against a fresh in-memory SQLite DB (`:memory:`)
+- [x] `packages/api/test/events.test.ts` — Test that each mutation creates the correct `task_events` rows with expected type, actor, and data payload
+- [x] `bun test` from root runs all tests (existing `test/` + new `packages/api/test/`)
 
 ---
 
@@ -1467,21 +1467,21 @@ GITHUB_TOKEN=ghp_your_token_here
 > **Blocked by:** Phase 1 (needs GraphQL API running)
 
 #### 2.1 Project Scaffold
-- [ ] `packages/web/vite.config.ts` — Vite config with React plugin, proxy `/graphql` → `http://localhost:${API_PORT ?? 8080}/graphql`, dev server on port `WEB_PORT ?? 5173`
-- [ ] `packages/web/index.html` — HTML entry point with `<div id="root">`, dark theme `<meta>`, load `src/main.tsx`
-- [ ] `packages/web/src/main.tsx` — React 18+ `createRoot`, mount `<LazyMotion features={domAnimation}>` → `<RouterProvider>` → `<StrictMode>` with TanStack Router
-- [ ] `packages/web/src/styles/index.css` — Tailwind v4 CSS-first config with `@import "tailwindcss"` + `@theme` blocks: Bee palette (honey/amber OKLCH tokens), warm gray neutrals, Linear-style surface layering (`surface-page`, `surface-raised`, `surface-overlay`), muted semantic colors, subtle shadows. Full spec in "Theme / Design Tokens" section
-- [ ] No `tailwind.config.ts` needed — Tailwind v4 uses CSS-first `@theme` directives (configured via `@tailwindcss/vite` plugin)
-- [ ] TanStack Router file-based routing: `src/routes/__root.tsx` (layout shell), `src/routes/index.tsx` (board view)
+- [x] `packages/web/vite.config.ts` — Vite config with React plugin, proxy `/graphql` → `http://localhost:${API_PORT ?? 8080}/graphql`, dev server on port `WEB_PORT ?? 5173`
+- [x] `packages/web/index.html` — HTML entry point with `<div id="root">`, dark theme `<meta>`, load `src/main.tsx`
+- [x] `packages/web/src/main.tsx` — React 18+ `createRoot`, mount `<LazyMotion features={domAnimation}>` → `<RouterProvider>` → `<StrictMode>` with TanStack Router
+- [x] `packages/web/src/styles/index.css` — Tailwind v4 CSS-first config with `@import "tailwindcss"` + `@theme` blocks: Bee palette (honey/amber OKLCH tokens), warm gray neutrals, Linear-style surface layering (`surface-page`, `surface-raised`, `surface-overlay`), muted semantic colors, subtle shadows. Full spec in "Theme / Design Tokens" section
+- [x] No `tailwind.config.ts` needed — Tailwind v4 uses CSS-first `@theme` directives (configured via `@tailwindcss/vite` plugin)
+- [x] TanStack Router file-based routing: `src/routes/__root.tsx` (layout shell), `src/routes/index.tsx` (board view)
 
 #### 2.2 GraphQL Client
-- [ ] `packages/web/src/graphql/client.ts` — `graphql-request` client pointed at `/graphql` (uses Vite proxy)
-- [ ] `packages/web/src/graphql/queries.ts` — All query documents: `GET_BOARD` (board with columns + tasks), `GET_TASK` (full task with comments + timeline), `GET_ME`
-- [ ] `packages/web/src/graphql/mutations.ts` — All mutation documents: `CREATE_TASK`, `UPDATE_TASK`, `DELETE_TASK`, `MOVE_TASK`, `ARCHIVE_TASK`, `UNARCHIVE_TASK`, `ADD_COMMENT`, `UPDATE_COMMENT`, `DELETE_COMMENT`, `DISPATCH_AGENT`, `CANCEL_AGENT`
-- [ ] `packages/web/src/graphql/subscriptions.ts` — SSE subscription client using `graphql-sse` + subscription documents (wired in Phase 4): `TASK_UPDATED`, `AGENT_LOG_STREAM`, `COMMENT_ADDED`, `TASK_EVENT_ADDED`
+- [x] `packages/web/src/graphql/client.ts` — `graphql-request` client pointed at `/graphql` (uses Vite proxy)
+- [x] `packages/web/src/graphql/queries.ts` — All query documents: `GET_BOARD` (board with columns + tasks), `GET_TASK` (full task with comments + timeline), `GET_ME`
+- [x] `packages/web/src/graphql/mutations.ts` — All mutation documents: `CREATE_TASK`, `UPDATE_TASK`, `DELETE_TASK`, `MOVE_TASK`, `ARCHIVE_TASK`, `UNARCHIVE_TASK`, `ADD_COMMENT`, `UPDATE_COMMENT`, `DELETE_COMMENT`, `DISPATCH_AGENT`, `CANCEL_AGENT`
+- [x] `packages/web/src/graphql/subscriptions.ts` — SSE subscription client using `graphql-sse` + subscription documents (wired in Phase 4): `TASK_UPDATED`, `AGENT_LOG_STREAM`, `COMMENT_ADDED`, `TASK_EVENT_ADDED`
 
 #### 2.3 State Management
-- [ ] `packages/web/src/store/boardStore.ts` — Zustand store with:
+- [x] `packages/web/src/store/boardStore.ts` — Zustand store with:
   - `board: Board | null` — current board data (columns + tasks)
   - `selectedTaskId: string | null` — which task drawer is open
   - `showArchived: boolean` — toggle for archived task visibility
@@ -1491,56 +1491,56 @@ GITHUB_TOKEN=ghp_your_token_here
   - Optimistic update helpers: `moveTaskOptimistic(taskId, toColumnId, position)` — immediately reorder in store, rollback on server error
 
 #### 2.4 Board View (`/`)
-- [ ] `Board.tsx` — Fetches board via `GET_BOARD` query on mount. Renders horizontal flex container of `<Column>` components. Wraps columns in `<DndContext>` from @dnd-kit with `onDragEnd` handler
-- [ ] `Column.tsx` — Renders column header (name + task count) + vertical list of `<TaskCard>` components. "+" button in header calls `openDrawerCreate(columnId)`. Column is a `<SortableContext>` (vertical list strategy) + `useDroppable()` for cross-column drops
-- [ ] `TaskCard.tsx` — Draggable card (`useSortable()` from @dnd-kit/sortable). Displays: title (truncated), action badge (colored pill: plan=blue, research=purple, implement=green, implement-e2e=teal, revise=orange), agent status indicator (idle=gray dot, queued=yellow pulse, running=blue spinner, success=green check, failed=red x), target repo (small text), created_by username. `onClick` → `openDrawerView(id)` to open drawer. Visual feedback on drag (opacity, shadow)
-- [ ] Drag-and-drop logic: `onDragEnd` → call `moveTask` mutation with new `columnId` + calculated `position`. Optimistically update store. On error, refetch board to reset
-- [ ] Position calculation on drop: insert between adjacent cards → `position = (prevPosition + nextPosition) / 2`. If no neighbors, use `0` or `max + 1024`. If fractional positions get too close (< 1), re-index all positions in the column (batch update)
+- [x] `Board.tsx` — Fetches board via `GET_BOARD` query on mount. Renders horizontal flex container of `<Column>` components. Wraps columns in `<DndContext>` from @dnd-kit with `onDragEnd` handler
+- [x] `Column.tsx` — Renders column header (name + task count) + vertical list of `<TaskCard>` components. "+" button in header calls `openDrawerCreate(columnId)`. Column is a `<SortableContext>` (vertical list strategy) + `useDroppable()` for cross-column drops
+- [x] `TaskCard.tsx` — Draggable card (`useSortable()` from @dnd-kit/sortable). Displays: title (truncated), action badge (colored pill: plan=blue, research=purple, implement=green, implement-e2e=teal, revise=orange), agent status indicator (idle=gray dot, queued=yellow pulse, running=blue spinner, success=green check, failed=red x), target repo (small text), created_by username. `onClick` → `openDrawerView(id)` to open drawer. Visual feedback on drag (opacity, shadow)
+- [x] Drag-and-drop logic: `onDragEnd` → call `moveTask` mutation with new `columnId` + calculated `position`. Optimistically update store. On error, refetch board to reset
+- [x] Position calculation on drop: insert between adjacent cards → `position = (prevPosition + nextPosition) / 2`. If no neighbors, use `0` or `max + 1024`. If fractional positions get too close (< 1), re-index all positions in the column (batch update)
 
 #### 2.5 Task Drawer (unified create + view/edit — vaul)
-- [ ] `TaskDrawer.tsx` — Single vaul-based right-side drawer (`direction="right"`, ~480px) used for **both** creating and viewing/editing tasks. Controlled by Zustand `drawerMode` state
-- [ ] Uses `<Drawer direction="right" open={drawerMode !== 'closed'} onOpenChange={...}>` from vaul wrapper
-- [ ] Scrollable content area uses `data-vaul-no-drag` to prevent swipe-dismiss on scroll
-- [ ] Drawer layout: `DrawerHeader` (sticky top) → scrollable body → `DrawerFooter` (sticky bottom)
+- [x] `TaskDrawer.tsx` — Single vaul-based right-side drawer (`direction="right"`, ~480px) used for **both** creating and viewing/editing tasks. Controlled by Zustand `drawerMode` state
+- [x] Uses `<Drawer direction="right" open={drawerMode !== 'closed'} onOpenChange={...}>` from vaul wrapper
+- [x] Scrollable content area uses `data-vaul-no-drag` to prevent swipe-dismiss on scroll
+- [x] Drawer layout: `DrawerHeader` (sticky top) → scrollable body → `DrawerFooter` (sticky bottom)
 
 ##### Create Mode (`drawerMode === 'create'`)
-- [ ] Header: "New Task" title, `<DrawerClose>` button
-- [ ] All fields start in **edit state** (no view/edit toggle needed):
+- [x] Header: "New Task" title, `<DrawerClose>` button
+- [x] All fields start in **edit state** (no view/edit toggle needed):
   - Title (text input, required, auto-focused)
   - Body (Write/Preview tabs — GitHub-style markdown, optional)
   - Action (dropdown: none, plan, research, implement, implement-e2e, revise)
   - Target Repo (text input, placeholder: `owner/repo`, optional)
-- [ ] Pre-fills `columnId` from the column where "+" was clicked (or Backlog if opened from header)
-- [ ] Footer: **"Create Task"** primary button (`honey-400`) → `CREATE_TASK` mutation → refetch board → close drawer
-- [ ] No timeline, no agent panel, no archive button (task doesn't exist yet)
+- [x] Pre-fills `columnId` from the column where "+" was clicked (or Backlog if opened from header)
+- [x] Footer: **"Create Task"** primary button (`honey-400`) → `CREATE_TASK` mutation → refetch board → close drawer
+- [x] No timeline, no agent panel, no archive button (task doesn't exist yet)
 
 ##### View Mode (`drawerMode === 'view'`, default when clicking a card)
-- [ ] Fetches full task data via `GET_TASK` query when opened
-- [ ] **Header**: Title as styled `<h2>` text, task ID badge, pencil/Edit button, `<DrawerClose>` button
-- [ ] **Body**: Rendered markdown via `<MarkdownPreview>`. Empty body shows "No description" in `text-tertiary`
-- [ ] **Metadata**: Action shown as colored badge, target repo as text with link icon — read-only
-- [ ] **Agent status panel**: `agentStatus` badge, retry count, last error. "Dispatch Agent" / "Cancel Agent" buttons
-- [ ] **PR link**: Clickable link to GitHub PR (if `prUrl` set, opens in new tab)
-- [ ] **Activity Timeline** (`TaskTimeline.tsx`): Unified chronological feed — see 2.6
-- [ ] **Footer**: "Archive" / "Unarchive" button, "Delete" button (with confirmation dialog)
-- [ ] **Created/Updated info**: "Created by queen-bee · 2h ago" / "Updated by queen-bee · 5m ago"
+- [x] Fetches full task data via `GET_TASK` query when opened
+- [x] **Header**: Title as styled `<h2>` text, task ID badge, pencil/Edit button, `<DrawerClose>` button
+- [x] **Body**: Rendered markdown via `<MarkdownPreview>`. Empty body shows "No description" in `text-tertiary`
+- [x] **Metadata**: Action shown as colored badge, target repo as text with link icon — read-only
+- [x] **Agent status panel**: `agentStatus` badge, retry count, last error. "Dispatch Agent" / "Cancel Agent" buttons
+- [x] **PR link**: Clickable link to GitHub PR (if `prUrl` set, opens in new tab)
+- [x] **Activity Timeline** (`TaskTimeline.tsx`): Unified chronological feed — see 2.6
+- [x] **Footer**: "Archive" / "Unarchive" button, "Delete" button (with confirmation dialog)
+- [x] **Created/Updated info**: "Created by queen-bee · 2h ago" / "Updated by queen-bee · 5m ago"
 
 ##### Edit Mode (toggled from View via pencil button)
-- [ ] Track `isEditing: boolean` in local component state (not Zustand — scoped to drawer)
-- [ ] **Header**: Title becomes text input (auto-focused)
-- [ ] **Body**: Switches to Write/Preview tabs (GitHub-style):
+- [x] Track `isEditing: boolean` in local component state (not Zustand — scoped to drawer)
+- [x] **Header**: Title becomes text input (auto-focused)
+- [x] **Body**: Switches to Write/Preview tabs (GitHub-style):
   - **Write tab**: Textarea (or CodeMirror with markdown syntax highlighting)
   - **Preview tab**: Same `<MarkdownPreview>` renderer
   - Tab bar with Radix Tabs, active underline in `honey-400`
   - Toolbar (optional): **B** bold, *I* italic, `<>` code, link, list
-- [ ] **Metadata**: Action becomes dropdown, target repo becomes text input
-- [ ] Footer changes: **"Save"** (`honey-400`) commits via `UPDATE_TASK` → returns to view mode. **"Cancel"** discards edits → returns to view mode
-- [ ] Agent panel, timeline, PR link remain visible (read-only) during edit
+- [x] **Metadata**: Action becomes dropdown, target repo becomes text input
+- [x] Footer changes: **"Save"** (`honey-400`) commits via `UPDATE_TASK` → returns to view mode. **"Cancel"** discards edits → returns to view mode
+- [x] Agent panel, timeline, PR link remain visible (read-only) during edit
 
 #### 2.6 Activity Timeline
-- [ ] `TaskTimeline.tsx` — Fetches `taskTimeline(taskId)` + `comments(taskId)`, merges into single chronological list sorted by `createdAt`
-- [ ] Each entry is a `<TimelineEvent>` or inline comment block
-- [ ] `TimelineEvent.tsx` — Single event row layout: `[icon] [actor badge] [description] [relative timestamp]`
+- [x] `TaskTimeline.tsx` — Fetches `taskTimeline(taskId)` + `comments(taskId)`, merges into single chronological list sorted by `createdAt`
+- [x] Each entry is a `<TimelineEvent>` or inline comment block
+- [x] `TimelineEvent.tsx` — Single event row layout: `[icon] [actor badge] [description] [relative timestamp]`
   - Icon per event type: created (plus), moved (arrow-right), status_changed (refresh), agent_started (play), agent_succeeded (check), agent_failed (x), pr_opened (git-pull-request), comment_added (message), archived (archive), title_changed (pencil), body_changed (file-text)
   - Actor badge: User events show username (e.g., "queen-bee"), SYSTEM events show "SYSTEM" badge with distinct styling (monospace, gray bg)
   - Description templates:
@@ -1559,33 +1559,33 @@ GITHUB_TOKEN=ghp_your_token_here
   - Relative timestamps: "just now", "2m ago", "1h ago", "Mar 18"
 
 #### 2.7 Comments
-- [ ] `TaskComments.tsx` — Comment entries appear inline in the timeline (at their `createdAt` position)
-- [ ] Each comment block: avatar/username, markdown body (rendered), relative timestamp, "Reply" button, "Edit" / "Delete" actions (only for own comments)
-- [ ] Threaded replies: Indented below parent comment, max 1 level of nesting. Reply input appears inline when "Reply" clicked
-- [ ] New comment input at the bottom of the timeline: textarea + "Comment" submit button. Calls `ADD_COMMENT` mutation
-- [ ] Edit mode: Replace body text with textarea, "Save" / "Cancel" buttons. Calls `UPDATE_COMMENT`
-- [ ] Delete: Confirmation prompt, calls `DELETE_COMMENT`, removes from timeline
+- [x] `TaskComments.tsx` — Comment entries appear inline in the timeline (at their `createdAt` position)
+- [x] Each comment block: avatar/username, markdown body (rendered), relative timestamp, "Reply" button, "Edit" / "Delete" actions (only for own comments)
+- [x] Threaded replies: Indented below parent comment, max 1 level of nesting. Reply input appears inline when "Reply" clicked
+- [x] New comment input at the bottom of the timeline: textarea + "Comment" submit button. Calls `ADD_COMMENT` mutation
+- [x] Edit mode: Replace body text with textarea, "Save" / "Cancel" buttons. Calls `UPDATE_COMMENT`
+- [x] Delete: Confirmation prompt, calls `DELETE_COMMENT`, removes from timeline
 
 #### 2.8 Board Header & Layout
-- [ ] Root layout (`__root.tsx`): Full-height dark background, header bar + main content
-- [ ] Header: App name "HiveBoard" (left), board name (center or left), current user "queen-bee" with avatar placeholder (right)
-- [ ] "Show Archived" toggle switch in board header — when ON, archived tasks render at bottom of their column with reduced opacity, `[Archived]` badge, not draggable
-- [ ] Responsive: Columns scroll horizontally on narrow screens, drawer overlays full-width on mobile
+- [x] Root layout (`__root.tsx`): Full-height dark background, header bar + main content
+- [x] Header: App name "HiveBoard" (left), board name (center or left), current user "queen-bee" with avatar placeholder (right)
+- [x] "Show Archived" toggle switch in board header — when ON, archived tasks render at bottom of their column with reduced opacity, `[Archived]` badge, not draggable
+- [x] Responsive: Columns scroll horizontally on narrow screens, drawer overlays full-width on mobile
 
 #### 2.9 Theming & Polish
-- [ ] Linear-minimal + Bee palette applied throughout (see "Theme / Design Tokens" section):
+- [x] Linear-minimal + Bee palette applied throughout (see "Theme / Design Tokens" section):
   - Surfaces: `surface-page` (bg), `surface-raised` (cards/columns), `surface-overlay` (dropdowns/dialogs), `surface-inset` (inputs)
   - Borders: `border-default` (subtle, barely visible like Linear), `border-hover`, `border-active` (`honey-400`)
   - Text: `text-primary` (headings), `text-secondary` (descriptions), `text-tertiary` (placeholders)
   - Accent: `honey-400` for primary buttons/selected states, used sparingly — most UI is gray-on-gray
   - Badges: muted backgrounds at 15% opacity (e.g., `success-400/15%` bg + `success-400` text)
-- [ ] Task card hover state: `border-hover` + `shadow-xs`, subtle `whileHover={{ y: -1 }}` via Motion
-- [ ] Drag preview: Card with slight rotation + `shadow-md`. Drop target columns show `border-active` (`honey-400`)
-- [ ] Status indicator animations: queued = pulsing `honey-400` dot, running = spinning `info-400` loader
-- [ ] Smooth drawer open/close via `AnimatePresence` + `motion.div` (slide from right, spring damping)
-- [ ] Loading states: Skeleton cards (pulse animation on `surface-overlay` rects) while board fetches
-- [ ] Empty column state: "No tasks" in `text-tertiary`, centered
-- [ ] Focus rings: `shadow-glow-honey` on focused inputs/buttons (not browser default)
+- [x] Task card hover state: `border-hover` + `shadow-xs`, subtle `whileHover={{ y: -1 }}` via Motion
+- [x] Drag preview: Card with slight rotation + `shadow-md`. Drop target columns show `border-active` (`honey-400`)
+- [x] Status indicator animations: queued = pulsing `honey-400` dot, running = spinning `info-400` loader
+- [x] Smooth drawer open/close via `AnimatePresence` + `motion.div` (slide from right, spring damping)
+- [x] Loading states: Skeleton cards (pulse animation on `surface-overlay` rects) while board fetches
+- [x] Empty column state: "No tasks" in `text-tertiary`, centered
+- [x] Focus rings: `shadow-glow-honey` on focused inputs/buttons (not browser default)
 
 ---
 
@@ -1594,51 +1594,51 @@ GITHUB_TOKEN=ghp_your_token_here
 > **Blocked by:** Phase 1 (needs DB + GraphQL mutations)
 
 #### 3.1 Orchestrator Port (`packages/api/src/orchestrator/`)
-- [ ] `orchestrator.ts` — New orchestrator that polls SQLite instead of GitHub Projects. Core loop: `SELECT * FROM tasks WHERE agent_status = 'queued' ORDER BY updated_at ASC LIMIT ?` (respects `max_concurrent_agents`)
-- [ ] Reuse existing concurrency model: `Map<taskId, RunState>` for running agents, `AbortController` per run
-- [ ] Poll interval configurable (default 5s for local SQLite vs 30s for GitHub API — much faster feedback loop)
-- [ ] Reconciliation check each cycle: verify running agents still have `agent_status = 'running'` in DB (handles external cancellation via `cancelAgent` mutation)
+- [x] `orchestrator.ts` — New orchestrator that polls SQLite instead of GitHub Projects. Core loop: `SELECT * FROM tasks WHERE agent_status = 'queued' ORDER BY updated_at ASC LIMIT ?` (respects `max_concurrent_agents`)
+- [x] Reuse existing concurrency model: `Map<taskId, RunState>` for running agents, `AbortController` per run
+- [x] Poll interval configurable (default 5s for local SQLite vs 30s for GitHub API — much faster feedback loop)
+- [x] Reconciliation check each cycle: verify running agents still have `agent_status = 'running'` in DB (handles external cancellation via `cancelAgent` mutation)
 
 #### 3.2 Dispatch Flow (SQLite-based)
-- [ ] On pick up queued task:
+- [x] On pick up queued task:
   1. `UPDATE tasks SET agent_status = 'running', updated_at = datetime('now')`
   2. INSERT `task_events`: `{type: 'agent_started', actor: 'SYSTEM', data: {action, retry: retryCount}}`
   3. INSERT `agent_runs`: `{task_id, action, status: 'running'}`
   4. Move task to "In Progress" column: `UPDATE tasks SET column_id = (SELECT id FROM columns WHERE name = 'In Progress')` (skip for `plan` and `research` actions)
   5. INSERT `task_events`: `{type: 'moved', actor: 'SYSTEM', data: {from_column, to_column}}` (if moved)
-- [ ] Workspace creation reuses `src/workspace/manager.ts` — create workspace from `target_repo` field. Clone via `git clone https://.../{target_repo} .` + checkout `task-{ulid}/{title-slug}` branch (ULID in branch name, e.g. `task-01HYX3KPQR/add-oauth2-login-flow`)
-- [ ] Agent spawning reuses `src/agent/runner.ts` — build prompt from task title + body + action. Claude CLI args: `claude --print --output-format json --model sonnet --max-turns 50 --allowedTools Bash,Read,Write,Edit,Glob,Grep --permission-mode bypassPermissions`
-- [ ] Map task fields to Issue-compatible shape for prompt template: `{ number: task.id, title, body, action, repo_owner, repo_name, labels: '', url: '' }`
+- [x] Workspace creation reuses `src/workspace/manager.ts` — create workspace from `target_repo` field. Clone via `git clone https://.../{target_repo} .` + checkout `task-{ulid}/{title-slug}` branch (ULID in branch name, e.g. `task-01HYX3KPQR/add-oauth2-login-flow`)
+- [x] Agent spawning reuses `src/agent/runner.ts` — build prompt from task title + body + action. Claude CLI args: `claude --print --output-format json --model sonnet --max-turns 50 --allowedTools Bash,Read,Write,Edit,Glob,Grep --permission-mode bypassPermissions`
+- [x] Map task fields to Issue-compatible shape for prompt template: `{ number: task.id, title, body, action, repo_owner, repo_name, labels: '', url: '' }`
 
 #### 3.3 `dispatchAgent` Mutation (enhanced)
-- [ ] Validate: task must have `action` set, `agent_status` must be `idle` or `failed`
-- [ ] For `implement`, `implement-e2e`, `revise` actions: `target_repo` is required (return error if missing)
-- [ ] For `plan`, `research` actions: `target_repo` is optional (research can be repo-less or repo-scoped)
-- [ ] SET `agent_status = 'queued'`, clear `agent_error`, increment `retry_count` if re-dispatching after failure
-- [ ] Publish `taskUpdated` event (Phase 4) so board reflects queued state immediately
+- [x] Validate: task must have `action` set, `agent_status` must be `idle` or `failed`
+- [x] For `implement`, `implement-e2e`, `revise` actions: `target_repo` is required (return error if missing)
+- [x] For `plan`, `research` actions: `target_repo` is optional (research can be repo-less or repo-scoped)
+- [x] SET `agent_status = 'queued'`, clear `agent_error`, increment `retry_count` if re-dispatching after failure
+- [x] Publish `taskUpdated` event (Phase 4) so board reflects queued state immediately
 
 #### 3.4 `cancelAgent` Mutation (enhanced)
-- [ ] If `agent_status = 'queued'`: simply SET `agent_status = 'idle'` (agent hasn't started yet)
-- [ ] If `agent_status = 'running'`: abort via `AbortController.abort()` on the RunState, wait for process exit, SET `agent_status = 'idle'`
-- [ ] INSERT `task_events`: `{type: 'status_changed', actor: user_id, data: {from: 'running'/'queued', to: 'idle'}}`
-- [ ] UPDATE `agent_runs`: SET `status = 'failed'`, `error = 'Cancelled by user'`, `finished_at`
+- [x] If `agent_status = 'queued'`: simply SET `agent_status = 'idle'` (agent hasn't started yet)
+- [x] If `agent_status = 'running'`: abort via `AbortController.abort()` on the RunState, wait for process exit, SET `agent_status = 'idle'`
+- [x] INSERT `task_events`: `{type: 'status_changed', actor: user_id, data: {from: 'running'/'queued', to: 'idle'}}`
+- [x] UPDATE `agent_runs`: SET `status = 'failed'`, `error = 'Cancelled by user'`, `finished_at`
 
 #### 3.5 Completion Handling
-- [ ] **On success:**
+- [x] **On success:**
   1. `UPDATE tasks SET agent_status = 'success', agent_output = ?, updated_at = datetime('now')`
   2. UPDATE `agent_runs`: SET `status = 'success'`, `output`, `finished_at`
   3. INSERT `task_events`: `{type: 'agent_succeeded', actor: 'SYSTEM', data: {action, duration_ms}}`
   4. Move task to "Review" column (for `implement`, `implement-e2e`, `revise`). For `plan`, move to "Todo". For `research`, stay in current column
   5. INSERT `task_events`: `{type: 'moved', actor: 'SYSTEM', data: {from_column, to_column}}` (if moved)
   6. If PR was created (implement/implement-e2e): parse PR URL from agent output, `UPDATE tasks SET pr_url = ?, pr_number = ?`, INSERT event `{type: 'pr_opened', data: {pr_url, pr_number}}`
-- [ ] **On failure:**
+- [x] **On failure:**
   1. `UPDATE tasks SET agent_status = 'failed', agent_error = ?, updated_at = datetime('now')`
   2. UPDATE `agent_runs`: SET `status = 'failed'`, `error`, `finished_at`
   3. INSERT `task_events`: `{type: 'agent_failed', actor: 'SYSTEM', data: {action, error: truncated_message}}`
   4. Retry logic: exponential backoff `delay = min(10000 * 2^attempt, max_retry_backoff_ms)`. Schedule re-queue after delay. Max retries configurable (default 3)
 
 #### 3.6 Workspace Lifecycle & Cleanup
-- [ ] Reuse `src/workspace/manager.ts` (moved to `packages/api/src/workspace/`) — same isolation model as current:
+- [x] Reuse `src/workspace/manager.ts` (moved to `packages/api/src/workspace/`) — same isolation model as current:
   - **Create**: `tmp/workspaces/{repoName}/task-{id}/` — one directory per task, cloned from `target_repo`
   - **Branch**: `git checkout -b task-{id}/{title-slug}` (was `issue-{number}/{action}`)
   - **Title slug**: lowercase, replace spaces/special chars with `-`, truncate to 50 chars, trim trailing `-`. E.g. `"Add OAuth2 login flow"` → `add-oauth2-login-flow`
@@ -1655,15 +1655,15 @@ GITHUB_TOKEN=ghp_your_token_here
     ```
   - **Reuse**: If workspace already exists (e.g., retry), reuse it — don't re-clone
   - **Hooks**: `after_create` hook runs after clone (configurable in `WORKFLOW.md`)
-- [ ] **TTL sweep** — runs every **1 hour** via `setInterval` in the orchestrator:
+- [x] **TTL sweep** — runs every **1 hour** via `setInterval` in the orchestrator:
   - Walk `tmp/workspaces/{repo}/task-*` directories
   - Remove any workspace with `mtime` older than `workspace.ttl_ms` (default: **72 hours** / 259200000ms)
   - Remove empty parent repo directories after sweep
   - Skip if `ttl_ms <= 0` (disabled)
   - Log each removal: `"Sweeping expired workspace: {path}"`
-- [ ] **Graceful cleanup on cancel**: When `cancelAgent` kills a running agent, workspace is NOT immediately removed (may be needed for retry). TTL sweep handles eventual cleanup
-- [ ] **Path safety**: Reuse `src/workspace/path-safety.ts` — symlink-aware validation to prevent directory traversal escapes
-- [ ] Config in `WORKFLOW.md`:
+- [x] **Graceful cleanup on cancel**: When `cancelAgent` kills a running agent, workspace is NOT immediately removed (may be needed for retry). TTL sweep handles eventual cleanup
+- [x] **Path safety**: Reuse `src/workspace/path-safety.ts` — symlink-aware validation to prevent directory traversal escapes
+- [x] Config in `WORKFLOW.md`:
   ```yaml
   workspace:
     root: ./tmp/workspaces    # workspace root directory
@@ -1671,16 +1671,16 @@ GITHUB_TOKEN=ghp_your_token_here
   ```
 
 #### 3.7 `research` Action
-- [ ] Agent prompt for research: "Research the following topic/codebase and write a detailed summary. Do NOT create a PR. Write your findings below."
-- [ ] If `target_repo` is set: clone repo into workspace, agent can explore code. Findings written to agent output
-- [ ] If `target_repo` is null: agent works without repo context (general research via web search if available, or knowledge-based)
-- [ ] On success: Save research findings to a text file at `tmp/workspaces/{repoName}/task-{id}/research-findings.md` (or `tmp/research/task-{id}/findings.md` if no repo). Store the file path in `agent_runs.output`. Do NOT append to `task.body` — body stays as the user wrote it. Findings are viewable in the agent output panel. Stay in current column, status → `success`
-- [ ] No PR creation, no column move to Review
+- [x] Agent prompt for research: "Research the following topic/codebase and write a detailed summary. Do NOT create a PR. Write your findings below."
+- [x] If `target_repo` is set: clone repo into workspace, agent can explore code. Findings written to agent output
+- [x] If `target_repo` is null: agent works without repo context (general research via web search if available, or knowledge-based)
+- [x] On success: Save research findings to a text file at `tmp/workspaces/{repoName}/task-{id}/research-findings.md` (or `tmp/research/task-{id}/findings.md` if no repo). Store the file path in `agent_runs.output`. Do NOT append to `task.body` — body stays as the user wrote it. Findings are viewable in the agent output panel. Stay in current column, status → `success`
+- [x] No PR creation, no column move to Review
 
 #### 3.8 GitHub PR Integration (slimmed)
-- [ ] Move `src/github/client.ts` → `packages/api/src/github/client.ts`, keep only: auth setup, `createPullRequest()`, `fetchReviewComments()` (for revise action)
-- [ ] PR creation: after successful `implement` or `implement-e2e`, run `gh pr create --title "{task.title}" --body "{task.body}" --base main --head task-{id}/{title-slug}` in workspace
-- [ ] Parse PR URL + number from `gh pr create` output, write back to task
+- [x] Move `src/github/client.ts` → `packages/api/src/github/client.ts`, keep only: auth setup, `createPullRequest()`, `fetchReviewComments()` (for revise action)
+- [x] PR creation: after successful `implement` or `implement-e2e`, run `gh pr create --title "{task.title}" --body "{task.body}" --base main --head task-{id}/{title-slug}` in workspace
+- [x] Parse PR URL + number from `gh pr create` output, write back to task
 - [ ] `revise` action: fetch PR review comments via GitHub API, include in agent prompt as context
 
 #### 3.9 Testing
@@ -1696,49 +1696,49 @@ GITHUB_TOKEN=ghp_your_token_here
 > **Blocked by:** Phase 1 (pub/sub), Phase 2 (UI components to wire up), Phase 3 (agent events to subscribe to)
 
 #### 4.1 PubSub Infrastructure
-- [ ] `packages/api/src/pubsub.ts` — Use GraphQL Yoga's built-in `createPubSub()` (in-memory, single-process). Define channels:
+- [x] `packages/api/src/pubsub.ts` — Use GraphQL Yoga's built-in `createPubSub()` (in-memory, single-process). Define channels:
   - `TASK_UPDATED:{boardId}` — fired on any task mutation within a board
   - `AGENT_LOG:{taskId}` — fired for each stdout chunk from Claude CLI
   - `COMMENT_ADDED:{taskId}` — fired when a new comment is added to a task
   - `TASK_EVENT:{taskId}` — fired when a new event is added to a task
-- [ ] Export typed publish helpers: `publishTaskUpdated(boardId, task)`, `publishAgentLog(taskId, chunk)`, `publishCommentAdded(taskId, comment)`, `publishTaskEvent(taskId, event)`
+- [x] Export typed publish helpers: `publishTaskUpdated(boardId, task)`, `publishAgentLog(taskId, chunk)`, `publishCommentAdded(taskId, comment)`, `publishTaskEvent(taskId, event)`
 
 #### 4.2 Subscription Resolvers
-- [ ] `taskUpdated(boardId)` — Subscribe to `TASK_UPDATED:{boardId}`. Returns full `Task` object on each publish. Wire into every task mutation resolver (createTask, updateTask, moveTask, archiveTask, etc.) + orchestrator status changes
-- [ ] `agentLogStream(taskId)` — Subscribe to `AGENT_LOG:{taskId}`. Returns `AgentLogChunk { taskId, chunk, timestamp }`. Orchestrator pipes Claude CLI stdout line-by-line to this channel
-- [ ] `commentAdded(taskId)` — Subscribe to `COMMENT_ADDED:{taskId}`. Returns full `Comment` object. Fired from `addComment` mutation
-- [ ] `taskEventAdded(taskId)` — Subscribe to `TASK_EVENT:{taskId}`. Returns full `TaskEvent` object. Fired from every event-producing mutation + orchestrator actions
+- [x] `taskUpdated(boardId)` — Subscribe to `TASK_UPDATED:{boardId}`. Returns full `Task` object on each publish. Wire into every task mutation resolver (createTask, updateTask, moveTask, archiveTask, etc.) + orchestrator status changes
+- [x] `agentLogStream(taskId)` — Subscribe to `AGENT_LOG:{taskId}`. Returns `AgentLogChunk { taskId, chunk, timestamp }`. Orchestrator pipes Claude CLI stdout line-by-line to this channel
+- [x] `commentAdded(taskId)` — Subscribe to `COMMENT_ADDED:{taskId}`. Returns full `Comment` object. Fired from `addComment` mutation
+- [x] `taskEventAdded(taskId)` — Subscribe to `TASK_EVENT:{taskId}`. Returns full `TaskEvent` object. Fired from every event-producing mutation + orchestrator actions
 
 #### 4.3 Transport Configuration
-- [ ] GraphQL Yoga SSE transport (default, no extra config needed): subscriptions served at same `/graphql` endpoint via `text/event-stream`
-- [ ] Vite proxy config: configure SSE pass-through with `changeOrigin: true` and disable response buffering via `configure: (proxy) => proxy.on('proxyRes', (res) => { res.headers['cache-control'] = 'no-cache'; res.headers['x-accel-buffering'] = 'no' })`
+- [x] GraphQL Yoga SSE transport (default, no extra config needed): subscriptions served at same `/graphql` endpoint via `text/event-stream`
+- [x] Vite proxy config: configure SSE pass-through with `changeOrigin: true` and disable response buffering via `configure: (proxy) => proxy.on('proxyRes', (res) => { res.headers['cache-control'] = 'no-cache'; res.headers['x-accel-buffering'] = 'no' })`
 - [ ] Test SSE connection in browser DevTools: `EventSource` to `/graphql` with subscription query
 - [ ] Fallback: if SSE proves unreliable through Vite proxy, switch to `graphql-ws` WebSocket transport (Yoga supports both)
 
 #### 4.4 Agent Log Streaming
-- [ ] In orchestrator's agent spawn: capture `stdout` stream from Claude CLI subprocess
-- [ ] For each line/chunk of stdout: `publishAgentLog(taskId, { chunk: line, timestamp: new Date().toISOString() })`
-- [ ] Buffer strategy: flush every line (not every byte) to avoid partial JSON/text. Use `readline` interface or split on `\n`
-- [ ] On agent completion: publish final chunk with `[DONE]` marker so frontend knows stream ended
-- [ ] Store accumulated output in `agent_runs.output` (concat all chunks) for persistence after stream ends
+- [x] In orchestrator's agent spawn: capture `stdout` stream from Claude CLI subprocess
+- [x] For each line/chunk of stdout: `publishAgentLog(taskId, { chunk: line, timestamp: new Date().toISOString() })`
+- [x] Buffer strategy: flush every line (not every byte) to avoid partial JSON/text. Use `readline` interface or split on `\n`
+- [x] On agent completion: publish final chunk with `[DONE]` marker so frontend knows stream ended
+- [x] Store accumulated output in `agent_runs.output` (concat all chunks) for persistence after stream ends
 
 #### 4.5 Frontend Subscription Client
-- [ ] `packages/web/src/graphql/subscriptions.ts` — SSE-based subscription client using `graphql-sse` package (pairs with Yoga SSE transport)
-- [ ] `useSubscription(query, variables)` custom hook: manages EventSource lifecycle (open on mount, close on unmount/variable change), parses SSE `data:` events, returns `{ data, error, isConnected }`
+- [x] `packages/web/src/graphql/subscriptions.ts` — SSE-based subscription client using `graphql-sse` package (pairs with Yoga SSE transport)
+- [x] `useSubscription(query, variables)` custom hook: manages EventSource lifecycle (open on mount, close on unmount/variable change), parses SSE `data:` events, returns `{ data, error, isConnected }`
 - [ ] Connection state indicator in header: green dot when connected, yellow when reconnecting, red on error
 - [ ] Auto-reconnect on disconnect: exponential backoff (1s, 2s, 4s, max 30s)
 
 #### 4.6 Frontend Integration
-- [ ] `Board.tsx`: Subscribe to `taskUpdated(boardId)` — on each event, merge updated task into Zustand store (update card in correct column, or move between columns). No full refetch needed
-- [ ] `TaskDrawer.tsx`: Subscribe to `agentLogStream(taskId)` when drawer is open and agent is running — append chunks to scrollable log viewer. Auto-scroll to bottom on new chunks
-- [ ] `AgentLogStream.tsx` — Monospace pre-formatted log viewer with:
+- [x] `Board.tsx`: Subscribe to `taskUpdated(boardId)` — on each event, merge updated task into Zustand store (update card in correct column, or move between columns). No full refetch needed
+- [x] `TaskDrawer.tsx`: Subscribe to `agentLogStream(taskId)` when drawer is open and agent is running — append chunks to scrollable log viewer. Auto-scroll to bottom on new chunks
+- [x] `AgentLogStream.tsx` — Monospace pre-formatted log viewer with:
   - Dark background (`surface-inset`), `text-primary` / `success-400` text (terminal feel)
   - Auto-scroll (with "scroll to bottom" button if user scrolled up)
   - "Copy log" button
   - Status indicator: "Streaming..." / "Completed" / "Failed"
-- [ ] `TaskTimeline.tsx`: Subscribe to `taskEventAdded(taskId)` — append new events to bottom of timeline in real-time. Smooth scroll-in animation for new entries
-- [ ] `TaskComments.tsx`: Subscribe to `commentAdded(taskId)` — append new comments to timeline in real-time
-- [ ] Agent status transitions: `TaskCard.tsx` updates status indicator immediately when `taskUpdated` fires (queued→running shows spinner, running→success shows green check, etc.)
+- [x] `TaskTimeline.tsx`: Subscribe to `taskEventAdded(taskId)` — append new events to bottom of timeline in real-time. Smooth scroll-in animation for new entries
+- [x] `TaskComments.tsx`: Subscribe to `commentAdded(taskId)` — append new comments to timeline in real-time
+- [x] Agent status transitions: `TaskCard.tsx` updates status indicator immediately when `taskUpdated` fires (queued→running shows spinner, running→success shows green check, etc.)
 
 #### 4.7 Testing
 - [ ] Manual test: open board in browser, dispatch agent from another tab/API call → verify card updates in real-time
@@ -1760,7 +1760,7 @@ GITHUB_TOKEN=ghp_your_token_here
 - [ ] Remove `src/github/types.ts` types related to project items and labels (keep PR types)
 
 #### 5.2 Slim GitHub Client to PR-Only
-- [ ] `packages/api/src/github/client.ts` — Keep only:
+- [x] `packages/api/src/github/client.ts` — Keep only:
   - `createPullRequest(workspace, title, body, baseBranch, headBranch)` — wraps `gh pr create`
   - `fetchReviewComments(prUrl)` — fetches PR review comments for revise action
   - GitHub auth setup (PAT only — simplify by removing GitHub App auth if not needed for PR creation)
@@ -1793,10 +1793,10 @@ GITHUB_TOKEN=ghp_your_token_here
   - Remove `webhook` section (port, secret)
   - Keep: `claude.*` config (model, max_turns, etc.), `agent.*` (concurrency, backoff), `workspace.*` (root, TTL, hooks)
   - Port config via env vars `API_PORT` (default 8080) / `WEB_PORT` (default 5173) — no need to duplicate in YAML
-- [ ] `.env.example` — Replace with new template (see "GitHub Auth Configuration" section). Support both `GITHUB_TOKEN` (PAT) and `GITHUB_APP_*` (App) auth. Remove `GITHUB_WEBHOOK_SECRET`, `GITHUB_OWNER`, `GITHUB_PROJECT_NUMBER`. Add `DATABASE_PATH`, `API_PORT`, `WEB_PORT`
-- [ ] Update `Dockerfile` — Multi-stage build (see "Production via Docker" section): deps → build-web (`vite build`) → production image. API serves static web assets in production. Single port `API_PORT` (default 8080). No Vite in production
-- [ ] Update `docker-compose.yml` — Single service, `NODE_ENV=production`, volumes for `tmp/database/` (SQLite) + `tmp/workspaces/` (agents) + `WORKFLOW.md`. Health check via `/health` endpoint
-- [ ] API `index.ts` — Detect `NODE_ENV=production`: serve `packages/web/dist/` as static files + SPA fallback (all non-`/graphql` routes → `index.html`). In dev mode, don't serve static files (Vite handles it)
+- [x] `.env.example` — Replace with new template (see "GitHub Auth Configuration" section). Support both `GITHUB_TOKEN` (PAT) and `GITHUB_APP_*` (App) auth. Remove `GITHUB_WEBHOOK_SECRET`, `GITHUB_OWNER`, `GITHUB_PROJECT_NUMBER`. Add `DATABASE_PATH`, `API_PORT`, `WEB_PORT`
+- [x] Update `Dockerfile` — Multi-stage build (see "Production via Docker" section): deps → build-web (`vite build`) → production image. API serves static web assets in production. Single port `API_PORT` (default 8080). No Vite in production
+- [x] Update `docker-compose.yml` — Single service, `NODE_ENV=production`, volumes for `tmp/database/` (SQLite) + `tmp/workspaces/` (agents) + `WORKFLOW.md`. Health check via `/health` endpoint
+- [x] API `index.ts` — Detect `NODE_ENV=production`: serve `packages/web/dist/` as static files + SPA fallback (all non-`/graphql` routes → `index.html`). In dev mode, don't serve static files (Vite handles it)
 - [ ] Update `Makefile` — Update `dev`, `build`, `start` targets to use new monorepo scripts
 
 #### 5.6 Documentation
