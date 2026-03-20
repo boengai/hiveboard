@@ -27,9 +27,5 @@
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"],
-  "references": [
-    { "path": "packages/api" },
-    { "path": "packages/web" }
-  ]
+  "exclude": ["node_modules"]
 }
