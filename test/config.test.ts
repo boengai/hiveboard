@@ -39,7 +39,7 @@ describe("ConfigSchema", () => {
     }
   });
 
-  test("applies defaults for labels and columns", () => {
+  test("parses tracker without labels/columns (removed fields)", () => {
     const result = ConfigSchema.safeParse({
       tracker: {
         kind: "github",
@@ -51,10 +51,8 @@ describe("ConfigSchema", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.tracker.labels.action_prefix).toBe("action:");
-      expect(result.data.tracker.labels.repo_prefix).toBe("repo:");
-      expect(result.data.tracker.columns.in_progress).toBe("In Progress");
-      expect(result.data.tracker.columns.review).toBe("Review");
+      expect(result.data.tracker.owner).toBe("org");
+      expect(result.data.tracker.project_number).toBe(2);
     }
   });
 
@@ -127,17 +125,6 @@ describe("ConfigSchema", () => {
         owner: "org",
         repo: "repo",
         project_number: 3,
-        labels: {
-          action_prefix: "do:",
-          repo_prefix: "target:",
-          status_running: "wip",
-          status_failed: "broken",
-        },
-        columns: {
-          in_progress: "Working",
-          review: "Pending Review",
-          done: "Complete",
-        },
       },
       polling: { interval_ms: 60_000 },
       workspace: { root: "/tmp/ws" },
@@ -162,8 +149,6 @@ describe("ConfigSchema", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.tracker.labels.action_prefix).toBe("do:");
-      expect(result.data.tracker.columns.done).toBe("Complete");
       expect(result.data.claude.model).toBe("opus");
       expect(result.data.worker.ssh_hosts).toEqual(["host1", "host2:2222"]);
     }

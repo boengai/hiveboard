@@ -4,7 +4,7 @@ import { consola } from "consola";
 import Mustache from "mustache";
 import type { Config } from "../config/schema.ts";
 import { sshExec } from "../ssh/client.ts";
-import type { Issue } from "../types/issue.ts";
+import type { Issue } from "../types.ts";
 import { validateWorkspacePath } from "./path-safety.ts";
 
 export interface WorkspaceResult {

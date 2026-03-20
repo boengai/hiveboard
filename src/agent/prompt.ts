@@ -1,6 +1,6 @@
 import Mustache from "mustache";
 import type { FormattedReviewComment } from "../github/types.ts";
-import type { Issue } from "../types/issue.ts";
+import type { Issue } from "../types.ts";
 
 /** Disable Mustache's default HTML escaping — we output plain text. */
 Mustache.escape = (text: string) => text;

@@ -2,7 +2,7 @@ import { consola } from "consola";
 import type { Config } from "../config/schema.ts";
 import type { FormattedReviewComment } from "../github/types.ts";
 import { sshSpawn } from "../ssh/client.ts";
-import type { AgentResult, Issue } from "../types/issue.ts";
+import type { AgentResult, Issue } from "../types.ts";
 import { CONTINUATION_PROMPT, renderPrompt } from "./prompt.ts";
 
 export interface RunAgentOptions {

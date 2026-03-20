@@ -1,4 +1,10 @@
-/** Normalized issue model used across the system. */
+/**
+ * Legacy type definitions for the src/ layer.
+ * These are kept for backward compatibility while the src/ layer is being
+ * superseded by packages/api/. The canonical types now live in packages/api/src/.
+ */
+
+/** Normalized issue model used across the legacy system. */
 export interface Issue {
   id: string;
   number: number;
@@ -15,11 +21,11 @@ export interface Issue {
   sourceOwner: string;
   sourceRepo: string;
 
-  /** Parsed from repo:* label — the target repo to work in */
+  /** The target repo to work in (from DB field `target_repo`) */
   repoOwner: string | null;
   repoName: string | null;
 
-  /** Parsed from action:* label */
+  /** The action to perform */
   action: string | null;
 }
 

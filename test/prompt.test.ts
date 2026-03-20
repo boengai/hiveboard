@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildPromptContext, renderPrompt } from "../src/agent/prompt.ts";
-import type { Issue } from "../src/types/issue.ts";
+import type { Issue } from "../src/types.ts";
 
 const testIssue: Issue = {
   id: "I_123",

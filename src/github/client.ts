@@ -2,7 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import { consola } from "consola";
 import { Octokit } from "octokit";
 import type { Config } from "../config/schema.ts";
-import type { Issue } from "../types/issue.ts";
+import type { Issue } from "../types.ts";
 import {
   ISSUE_LINKED_PR_REVIEWS_QUERY,
   OWNER_TYPE_QUERY,
