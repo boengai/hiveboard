@@ -23,6 +23,6 @@
     "indentWidth": 2
   },
   "files": {
-    "includes": ["src/**/*.ts", "test/**/*.ts"]
+    "includes": ["src/**/*.ts", "test/**/*.ts", "packages/api/src/**/*.ts", "packages/api/test/**/*.ts", "packages/web/src/**/*.ts", "packages/web/src/**/*.tsx"]
   }
 }
