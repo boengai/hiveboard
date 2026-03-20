@@ -4,6 +4,7 @@ import { pubsub, publishAgentLog } from '../pubsub'
 import type { Config } from '../config/schema'
 import { runAgent } from '../agent/runner'
 import type { WorkspaceManager } from '../workspace/manager'
+import { GitHubClient, type ReviewComment } from '../github/client'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,6 +18,7 @@ interface TaskRow {
   body: string
   action: string | null
   target_repo: string | null
+  pr_url: string | null
   agent_status: string
   retry_count: number
   created_at: string
@@ -69,6 +71,25 @@ function findColumnId(boardId: string, preferredName: string): string | null {
     )
     .get(boardId, preferredName) as { id: string } | null
   return row?.id ?? null
+}
+
+/**
+ * Format an array of PR review comments into a readable string for the agent prompt.
+ */
+function formatReviewComments(comments: ReviewComment[]): string {
+  const lines: string[] = ['## PR Review Comments', '']
+  for (const comment of comments) {
+    lines.push(`### Comment by @${comment.author}`)
+    if (comment.path) {
+      const location = comment.line != null ? `${comment.path}:${comment.line}` : comment.path
+      lines.push(`File: \`${location}\``)
+    }
+    if (comment.diffHunk) {
+      lines.push('```diff', comment.diffHunk, '```')
+    }
+    lines.push(comment.body, '')
+  }
+  return lines.join('\n').trim()
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +357,24 @@ export class Orchestrator {
 
   private async runAgentAsync(task: TaskRow, runId: string, runState: RunState): Promise<void> {
     try {
+      // For revise action, fetch PR review comments to include in the agent prompt
+      let reviewComments: string | undefined
+      if (task.action === 'revise' && task.pr_url) {
+        try {
+          const github = new GitHubClient()
+          const comments = await github.fetchReviewComments(task.pr_url)
+          if (comments.length > 0) {
+            reviewComments = formatReviewComments(comments)
+            consola.info(`Fetched ${comments.length} review comment(s) for task ${task.id}`)
+          } else {
+            consola.info(`No review comments found for task ${task.id} (${task.pr_url})`)
+          }
+        } catch (err) {
+          consola.warn(`Failed to fetch review comments for task ${task.id}: ${err}`)
+          // Continue without review comments rather than failing the whole run
+        }
+      }
+
       const result = await runAgent({
         task: {
           id: task.id,
@@ -348,6 +387,7 @@ export class Orchestrator {
         promptTemplate: this.promptTemplate,
         config: this.config,
         retryAttempt: runState.retryAttempt,
+        reviewComments,
         signal: runState.abortController.signal,
         onLog: (chunk) => {
           pubsub.publish('AGENT_LOG', task.id, {
@@ -542,7 +582,7 @@ export class Orchestrator {
   // Retry
   // -------------------------------------------------------------------------
 
-  private async scheduleRetry(task: TaskRow, error: string): Promise<void> {
+  private async scheduleRetry(task: TaskRow, _error: string): Promise<void> {
     const currentRetryCount = task.retry_count ?? 0
     const nextRetry = currentRetryCount + 1
     const baseDelay = 10_000 // 10 seconds

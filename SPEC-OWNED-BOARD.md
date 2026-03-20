@@ -1681,7 +1681,7 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] Move `src/github/client.ts` → `packages/api/src/github/client.ts`, keep only: auth setup, `createPullRequest()`, `fetchReviewComments()` (for revise action)
 - [x] PR creation: after successful `implement` or `implement-e2e`, run `gh pr create --title "{task.title}" --body "{task.body}" --base main --head task-{id}/{title-slug}` in workspace
 - [x] Parse PR URL + number from `gh pr create` output, write back to task
-- [ ] `revise` action: fetch PR review comments via GitHub API, include in agent prompt as context
+- [x] `revise` action: fetch PR review comments via GitHub API, include in agent prompt as context
 
 #### 3.9 Testing
 - [ ] `packages/api/test/orchestrator.test.ts` — Test dispatch flow: queued → running → success/failure. Test concurrency limit. Test retry scheduling
