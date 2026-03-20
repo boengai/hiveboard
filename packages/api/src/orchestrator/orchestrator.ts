@@ -1,6 +1,6 @@
 import { consola } from 'consola'
 import { db, generateId } from '../db'
-import { pubsub } from '../pubsub'
+import { pubsub, publishAgentLog } from '../pubsub'
 import type { Config } from '../config/schema'
 import { runAgent } from '../agent/runner'
 import type { WorkspaceManager } from '../workspace/manager'
@@ -382,6 +382,13 @@ export class Orchestrator {
     runId: string,
     result: { taskId: string; success: boolean; output: string; error?: string }
   ): Promise<void> {
+    // Publish [DONE] marker so frontend knows stream ended
+    publishAgentLog(task.id, {
+      taskId: task.id,
+      chunk: '[DONE]',
+      timestamp: new Date().toISOString(),
+    })
+
     if (result.success) {
       consola.info(`Task ${task.id} completed successfully`)
 

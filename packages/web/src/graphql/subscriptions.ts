@@ -1,3 +1,36 @@
+import { createClient } from 'graphql-sse'
+
+export const sseClient = createClient({
+  url: '/graphql',
+})
+
+/**
+ * Subscribe to a GraphQL subscription via SSE.
+ * Returns a dispose function to cancel the subscription.
+ */
+export function subscribe<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  onData: (data: T) => void,
+): () => void {
+  let disposed = false
+  const dispose = () => { disposed = true }
+
+  ;(async () => {
+    try {
+      const subscription = sseClient.iterate({ query, variables })
+      for await (const result of subscription) {
+        if (disposed) break
+        if (result.data) onData(result.data as T)
+      }
+    } catch (err) {
+      if (!disposed) console.error('Subscription error:', err)
+    }
+  })()
+
+  return dispose
+}
+
 export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
   subscription TaskUpdated($boardId: ID!) {
     taskUpdated(boardId: $boardId) {

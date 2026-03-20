@@ -388,9 +388,24 @@ export const resolvers = {
 
       const task = getTaskById(id)!
 
-      // Publish subscription event
+      // Publish subscription events
       const boardRow = db.query('SELECT board_id FROM tasks WHERE id = ?').get(id) as { board_id: string }
       pubsub.publish('TASK_UPDATED', boardRow.board_id, task as unknown as Record<string, unknown>)
+
+      // Publish the 'created' task event
+      const createdEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'created' ORDER BY created_at DESC LIMIT 1`)
+        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (createdEvent) {
+        pubsub.publish('TASK_EVENT', id, {
+          id: createdEvent.id,
+          type: createdEvent.type,
+          data: createdEvent.data,
+          createdAt: createdEvent.created_at,
+          isSystem: false,
+          _actor: createdEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
 
       return task
     },
@@ -466,6 +481,24 @@ export const resolvers = {
 
       const task = getTaskById(id)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENT for each change event recorded
+      for (const [eventId] of events) {
+        const ev = db
+          .query('SELECT * FROM task_events WHERE id = ?')
+          .get(eventId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        if (ev) {
+          pubsub.publish('TASK_EVENT', id, {
+            id: ev.id,
+            type: ev.type,
+            data: ev.data,
+            createdAt: ev.created_at,
+            isSystem: false,
+            _actor: ev.actor,
+          } as unknown as Record<string, unknown>)
+        }
+      }
+
       return task
     },
 
@@ -526,6 +559,22 @@ export const resolvers = {
 
       const task = getTaskById(id)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENT for the 'moved' event
+      const movedEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'moved' ORDER BY created_at DESC LIMIT 1`)
+        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (movedEvent) {
+        pubsub.publish('TASK_EVENT', id, {
+          id: movedEvent.id,
+          type: movedEvent.type,
+          data: movedEvent.data,
+          createdAt: movedEvent.created_at,
+          isSystem: false,
+          _actor: movedEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return task
     },
 
@@ -545,6 +594,22 @@ export const resolvers = {
 
       const task = getTaskById(id)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENT for the 'archived' event
+      const archivedEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'archived' ORDER BY created_at DESC LIMIT 1`)
+        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (archivedEvent) {
+        pubsub.publish('TASK_EVENT', id, {
+          id: archivedEvent.id,
+          type: archivedEvent.type,
+          data: archivedEvent.data,
+          createdAt: archivedEvent.created_at,
+          isSystem: false,
+          _actor: archivedEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return task
     },
 
@@ -564,6 +629,22 @@ export const resolvers = {
 
       const task = getTaskById(id)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENT for the 'unarchived' event
+      const unarchivedEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'unarchived' ORDER BY created_at DESC LIMIT 1`)
+        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (unarchivedEvent) {
+        pubsub.publish('TASK_EVENT', id, {
+          id: unarchivedEvent.id,
+          type: unarchivedEvent.type,
+          data: unarchivedEvent.data,
+          createdAt: unarchivedEvent.created_at,
+          isSystem: false,
+          _actor: unarchivedEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return task
     },
 
@@ -604,6 +685,21 @@ export const resolvers = {
       const comment = mapComment(row)
 
       pubsub.publish('COMMENT_ADDED', taskId, comment as unknown as Record<string, unknown>)
+
+      // Publish TASK_EVENT for the 'comment_added' event
+      const commentEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'comment_added' ORDER BY created_at DESC LIMIT 1`)
+        .get(taskId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (commentEvent) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          id: commentEvent.id,
+          type: commentEvent.type,
+          data: commentEvent.data,
+          createdAt: commentEvent.created_at,
+          isSystem: false,
+          _actor: commentEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
 
       return comment
     },
@@ -659,6 +755,22 @@ export const resolvers = {
 
       const task = getTaskById(taskId)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENTs for the action_set + status_changed events
+      const dispatchEvents = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type IN ('action_set', 'status_changed') ORDER BY created_at DESC LIMIT 2`)
+        .all(taskId) as Array<{ id: string; type: string; data: string | null; created_at: string; actor: string }>
+      for (const ev of dispatchEvents) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          id: ev.id,
+          type: ev.type,
+          data: ev.data,
+          createdAt: ev.created_at,
+          isSystem: false,
+          _actor: ev.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return task
     },
 
@@ -690,6 +802,22 @@ export const resolvers = {
 
       const task = getTaskById(taskId)!
       publishTaskUpdated(task)
+
+      // Publish TASK_EVENT for the 'status_changed' event (cancel → idle)
+      const cancelEvent = db
+        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1`)
+        .get(taskId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+      if (cancelEvent) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          id: cancelEvent.id,
+          type: cancelEvent.type,
+          data: cancelEvent.data,
+          createdAt: cancelEvent.created_at,
+          isSystem: false,
+          _actor: cancelEvent.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return task
     },
   },

@@ -3,6 +3,7 @@ import { graphqlClient } from '@/graphql/client'
 import { GET_COMMENTS } from '@/graphql/queries'
 import { ADD_COMMENT, UPDATE_COMMENT, DELETE_COMMENT } from '@/graphql/mutations'
 import { timeAgo } from './TaskTimeline'
+import { subscribe, COMMENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -288,6 +289,26 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
   useEffect(() => {
     fetchComments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId])
+
+  // Subscribe to new comments added by other sessions
+  useEffect(() => {
+    const dispose = subscribe<{ commentAdded: Comment }>(
+      COMMENT_ADDED_SUBSCRIPTION,
+      { taskId },
+      (data) => {
+        const incoming = data.commentAdded
+        if (!incoming) return
+        // Only top-level comments arrive here; skip replies (parentId set)
+        if (incoming.parentId) return
+        setComments((prev) => {
+          // Avoid duplicates (e.g. our own optimistic add)
+          if (prev.some((c) => c.id === incoming.id)) return prev
+          return [...prev, incoming]
+        })
+      }
+    )
+    return dispose
   }, [taskId])
 
   const handleAddComment = async () => {

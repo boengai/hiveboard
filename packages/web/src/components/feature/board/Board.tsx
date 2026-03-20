@@ -12,6 +12,7 @@ import {
 import { graphqlClient } from '@/graphql/client'
 import { GET_BOARDS } from '@/graphql/queries'
 import { MOVE_TASK } from '@/graphql/mutations'
+import { subscribe, TASK_UPDATED_SUBSCRIPTION } from '@/graphql/subscriptions'
 import { useBoardStore, type Task } from '@/store/boardStore'
 import { Column } from './Column'
 import { TaskCard } from './TaskCard'
@@ -22,6 +23,7 @@ export function Board() {
   const showArchived = useBoardStore((s) => s.showArchived)
   const toggleArchived = useBoardStore((s) => s.toggleArchived)
   const moveTaskOptimistic = useBoardStore((s) => s.moveTaskOptimistic)
+  const mergeTaskUpdate = useBoardStore((s) => s.mergeTaskUpdate)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +52,24 @@ export function Board() {
     }
     fetchBoard()
   }, [setBoard])
+
+  // Subscribe to real-time task updates once we have a board
+  useEffect(() => {
+    if (!board?.id) return
+
+    const dispose = subscribe<{ taskUpdated: Task }>(
+      TASK_UPDATED_SUBSCRIPTION,
+      { boardId: board.id },
+      (data) => {
+        if (data.taskUpdated) {
+          mergeTaskUpdate(data.taskUpdated)
+        }
+      }
+    )
+
+    return dispose
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board?.id])
 
   function findTaskById(taskId: string): Task | undefined {
     if (!board) return undefined
