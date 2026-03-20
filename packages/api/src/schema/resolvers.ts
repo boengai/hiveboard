@@ -1,5 +1,6 @@
 import { db, generateId } from '../db'
 import { pubsub } from '../pubsub'
+import { getOrchestrator } from '../orchestrator'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
@@ -621,6 +622,26 @@ export const resolvers = {
     dispatchAgent(_: unknown, { taskId, action }: { taskId: string; action: string }) {
       const user = getCurrentUser()
 
+      // Validate action is one of the allowed values
+      const validActions = ['plan', 'research', 'implement', 'implement-e2e', 'revise']
+      if (!validActions.includes(action)) {
+        throw new Error(`Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`)
+      }
+
+      // Fetch task and validate preconditions
+      const existingTask = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow | null
+      if (!existingTask) throw new Error(`Task ${taskId} not found`)
+
+      if (existingTask.agent_status !== 'idle' && existingTask.agent_status !== 'failed') {
+        throw new Error(`Cannot dispatch agent: task is currently '${existingTask.agent_status}'. Must be 'idle' or 'failed'.`)
+      }
+
+      if (action === 'implement' || action === 'implement-e2e' || action === 'revise') {
+        if (!existingTask.target_repo) {
+          throw new Error(`Action '${action}' requires target_repo to be set on the task.`)
+        }
+      }
+
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -641,7 +662,7 @@ export const resolvers = {
       return task
     },
 
-    cancelAgent(_: unknown, { taskId }: { taskId: string }) {
+    async cancelAgent(_: unknown, { taskId }: { taskId: string }) {
       const user = getCurrentUser()
 
       // Read the current agent_status before updating
@@ -649,6 +670,12 @@ export const resolvers = {
         .query('SELECT agent_status FROM tasks WHERE id = ?')
         .get(taskId) as { agent_status: string } | null
       const currentStatus = currentTaskRow?.agent_status ?? 'idle'
+
+      // Abort the running agent process if any
+      const orchestrator = getOrchestrator()
+      if (orchestrator) {
+        await orchestrator.cancelTask(taskId)
+      }
 
       db.transaction(() => {
         db.run(
