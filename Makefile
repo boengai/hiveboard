@@ -1,47 +1,25 @@
-.PHONY: help setup build fmt fmt-check lint test ci \
-       docker-up docker-down docker-logs docker-build docker-clean
+.PHONY: dev dev-api dev-web build start test lint fmt
 
-help:
-	@echo "Targets: setup, build, fmt, fmt-check, lint, test, ci"
-	@echo "Docker:  docker-build, docker-up, docker-down, docker-logs, docker-clean"
+dev:
+	bun run dev
 
-setup:
-	bun install
+dev-api:
+	bun run dev:api
+
+dev-web:
+	bun run dev:web
 
 build:
-	bun build src/index.ts --target bun --outdir dist
+	bun run build:web
 
-fmt:
-	bunx biome check --fix .
-
-fmt-check:
-	bunx biome check .
-
-lint:
-	bunx biome lint .
+start:
+	bun run start
 
 test:
 	bun test
 
-ci:
-	$(MAKE) setup
-	$(MAKE) fmt-check
-	$(MAKE) lint
-	bun run tsc
-	$(MAKE) test
+lint:
+	bunx biome lint .
 
-# ── Docker ──────────────────────────────────────────────────────
-docker-build:
-	docker compose build
-
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
-
-docker-logs:
-	docker compose logs -f
-
-docker-clean:
-	docker compose down --rmi all --volumes --remove-orphans
+fmt:
+	bunx biome check --fix .

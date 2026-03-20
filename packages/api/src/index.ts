@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { typeDefs } from './schema/typeDefs'
 import { resolvers } from './schema/resolvers'
@@ -5,6 +6,9 @@ import { db, migrate } from './db'
 import { loadWorkflow } from './config'
 import { WorkspaceManager } from './workspace'
 import { Orchestrator, setOrchestrator } from './orchestrator'
+
+const isProduction = process.env.NODE_ENV === 'production'
+const staticDir = isProduction ? path.join(import.meta.dir, '../../web/dist') : null
 
 // Run migrations on startup
 migrate(db)
@@ -44,6 +48,16 @@ Bun.serve({
     const url = new URL(req.url)
     if (url.pathname === '/health') {
       return Response.json({ ok: true, uptime: process.uptime() })
+    }
+    if (url.pathname.startsWith('/graphql')) {
+      return yoga.fetch(req)
+    }
+    if (isProduction && staticDir) {
+      const filePath = path.join(staticDir, url.pathname === '/' ? 'index.html' : url.pathname)
+      const file = Bun.file(filePath)
+      if (file.size > 0) return new Response(file)
+      // SPA fallback
+      return new Response(Bun.file(path.join(staticDir, 'index.html')))
     }
     return yoga.fetch(req)
   },
