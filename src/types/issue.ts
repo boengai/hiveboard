@@ -1,14 +1,12 @@
 /** Normalized issue model used across the system. */
 export interface Issue {
   id: string;
-  /** Project V2 item ID (PVTI_...) — needed for column moves */
-  projectItemId: string | null;
   number: number;
   title: string;
   body: string;
   state: string;
   labels: string[];
-  /** Label name → node ID map (from GraphQL, empty from webhooks) */
+  /** Label name → node ID map (from GraphQL) */
   labelIds: Record<string, string>;
   url: string;
   assignee: string | null;

@@ -1753,11 +1753,11 @@ GITHUB_TOKEN=ghp_your_token_here
 > **Blocked by:** Phase 3 (orchestrator must be fully ported before removing old code)
 
 #### 5.1 Remove GitHub Projects V2 Code
-- [ ] Delete `src/webhook/server.ts` and `src/webhook/handlers.ts` (webhook server no longer needed — board is local)
-- [ ] Delete `src/tunnel/cloudflare.ts` (no external webhook endpoint to expose)
-- [ ] Remove GitHub Projects V2 query code from `src/github/queries.ts`: delete `PROJECT_ITEMS_QUERY`, `ORG_PROJECT_ITEMS_QUERY`, `USER_PROJECT_ITEMS_QUERY`, `MOVE_ITEM_MUTATION`, `STATUS_FIELD_QUERY`, and all column/label mutation queries
-- [ ] Remove corresponding methods from `src/github/client.ts`: `fetchProjectItems()`, `findProjectItemId()`, `moveToColumn()`, `addLabels()`, `removeLabels()`, `setStatusLabel()`, `addComment()`, `refreshToken()` (keep only PR-related methods)
-- [ ] Remove `src/github/types.ts` types related to project items and labels (keep PR types)
+- [x] Delete `src/webhook/server.ts` and `src/webhook/handlers.ts` (webhook server no longer needed — board is local)
+- [x] Delete `src/tunnel/cloudflare.ts` (no external webhook endpoint to expose)
+- [x] Remove GitHub Projects V2 query code from `src/github/queries.ts`: delete `PROJECT_ITEMS_QUERY`, `ORG_PROJECT_ITEMS_QUERY`, `USER_PROJECT_ITEMS_QUERY`, `MOVE_ITEM_MUTATION`, `STATUS_FIELD_QUERY`, and all column/label mutation queries
+- [x] Remove corresponding methods from `src/github/client.ts`: `fetchProjectItems()`, `findProjectItemId()`, `moveToColumn()`, `addLabels()`, `removeLabels()`, `setStatusLabel()`, `addComment()`, `refreshToken()` (keep only PR-related methods)
+- [x] Remove `src/github/types.ts` types related to project items and labels (keep PR types)
 
 #### 5.2 Slim GitHub Client to PR-Only
 - [x] `packages/api/src/github/client.ts` — Keep only:

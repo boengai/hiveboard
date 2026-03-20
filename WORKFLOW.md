@@ -38,9 +38,6 @@ claude:
 agent:
   max_concurrent_agents: 5
   max_retry_backoff_ms: 300000
-webhook:
-  port: 8080
-  secret: $GITHUB_WEBHOOK_SECRET
 worker:
   ssh_hosts: []
 ---

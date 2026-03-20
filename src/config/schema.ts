@@ -152,12 +152,6 @@ export const HooksSchema = z.object({
   timeout_ms: z.number().int().positive().default(60_000),
 });
 
-export const WebhookSchema = z.object({
-  port: z.number().int().positive().default(8080),
-  host: z.string().default("0.0.0.0"),
-  secret: envString(),
-});
-
 // ---------------------------------------------------------------------------
 // Root schema
 // ---------------------------------------------------------------------------
@@ -170,7 +164,6 @@ export const ConfigSchema = z.object({
   claude: objectWithDefaults(ClaudeSchema),
   agent: objectWithDefaults(AgentSchema),
   hooks: objectWithDefaults(HooksSchema),
-  webhook: objectWithDefaults(WebhookSchema),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -183,4 +176,3 @@ export type WorkerConfig = z.infer<typeof WorkerSchema>;
 export type ClaudeConfig = z.infer<typeof ClaudeSchema>;
 export type AgentConfig = z.infer<typeof AgentSchema>;
 export type HooksConfig = z.infer<typeof HooksSchema>;
-export type WebhookConfig = z.infer<typeof WebhookSchema>;

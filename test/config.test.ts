@@ -20,7 +20,6 @@ describe("ConfigSchema", () => {
       expect(result.data.tracker.repo).toBe("testrepo");
       expect(result.data.polling.interval_ms).toBe(30_000);
       expect(result.data.agent.max_concurrent_agents).toBe(5);
-      expect(result.data.webhook.port).toBe(8080);
     }
   });
 
@@ -159,7 +158,6 @@ describe("ConfigSchema", () => {
         before_run: "echo before",
         timeout_ms: 30_000,
       },
-      webhook: { port: 8080, host: "127.0.0.1", secret: "s3cret" },
     });
 
     expect(result.success).toBe(true);
@@ -179,7 +177,6 @@ describe("loadWorkflow", () => {
     // Set required env vars for the test
     process.env.GITHUB_OWNER = "testorg";
     process.env.GITHUB_PROJECT_NUMBER = "5";
-    process.env.GITHUB_WEBHOOK_SECRET = "test_secret";
 
     const { config, promptTemplate } = await loadWorkflow(path);
 
@@ -192,7 +189,6 @@ describe("loadWorkflow", () => {
 
     delete process.env.GITHUB_OWNER;
     delete process.env.GITHUB_PROJECT_NUMBER;
-    delete process.env.GITHUB_WEBHOOK_SECRET;
   });
 
   test("rejects missing file", async () => {
