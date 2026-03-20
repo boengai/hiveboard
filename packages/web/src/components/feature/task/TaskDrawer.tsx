@@ -14,24 +14,9 @@ import {
   DISPATCH_AGENT,
   CANCEL_AGENT,
 } from '@/graphql/mutations'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+import { TaskTimeline } from './TaskTimeline'
+import { TaskComments } from './TaskComments'
+import { timeAgo } from './TaskTimeline'
 
 const ACTION_OPTIONS = [
   { value: '', label: 'None' },
@@ -597,6 +582,19 @@ export const TaskDrawer = () => {
           loading={loading}
           readOnly={isEditing}
         />
+      )}
+
+      {/* Timeline + Comments — view mode only, not during edit */}
+      {drawerMode === 'view' && task && !isEditing && (
+        <div className="flex flex-col gap-4 border-t border-border-default pt-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-body-xs font-medium uppercase tracking-wide text-text-secondary">
+              Activity
+            </span>
+            <TaskTimeline taskId={task.id} />
+          </div>
+          <TaskComments taskId={task.id} />
+        </div>
       )}
     </Drawer>
   )

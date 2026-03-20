@@ -138,8 +138,23 @@ export function Board() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center text-text-secondary">
-        Loading board...
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* Skeleton header */}
+        <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
+          <div className="h-5 w-40 animate-pulse rounded bg-surface-overlay" />
+          <div className="h-8 w-28 animate-pulse rounded-md bg-surface-overlay" />
+        </div>
+        {/* Skeleton columns */}
+        <div className="flex flex-1 gap-3 overflow-x-auto p-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3">
+              <div className="h-5 w-24 animate-pulse rounded bg-surface-overlay" />
+              {[0, 1, 2].map((j) => (
+                <div key={j} className="h-16 animate-pulse rounded-md bg-surface-overlay" />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -164,20 +179,18 @@ export function Board() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Board header */}
-      <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
-        <h1 className="text-heading-6 font-semibold text-text-primary">{board.name}</h1>
-        <button
-          onClick={toggleArchived}
-          className={[
-            'rounded-md border px-3 py-1.5 text-body-sm transition-colors',
-            showArchived
-              ? 'border-border-active text-honey-400'
-              : 'border-border-default text-text-secondary hover:border-border-hover hover:text-text-primary',
-          ].join(' ')}
-        >
-          {showArchived ? 'Hide archived' : 'Show archived'}
-        </button>
+      {/* Board sub-header */}
+      <div className="flex items-center justify-between border-b border-border-default px-4 py-2">
+        <h1 className="text-body font-medium text-text-primary">{board.name}</h1>
+        <label className="flex cursor-pointer items-center gap-2 text-body-xs text-text-secondary">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={toggleArchived}
+            className="h-3.5 w-3.5 rounded border-border-default bg-surface-base accent-honey-400 focus:outline-none focus:shadow-glow-honey"
+          />
+          Show Archived
+        </label>
       </div>
 
       {/* Board columns */}
