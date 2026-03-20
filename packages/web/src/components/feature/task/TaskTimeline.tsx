@@ -61,7 +61,7 @@ interface RawComment {
 
 export function timeAgo(dateStr: string): string {
   const now = Date.now()
-  const then = new Date(dateStr).getTime()
+  const then = new Date(dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`).getTime()
   const diff = now - then
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
@@ -70,7 +70,7 @@ export function timeAgo(dateStr: string): string {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function parseData(raw: string | null | undefined): Record<string, string | number> {
@@ -107,7 +107,7 @@ function eventDescription(eventType: string, data: string | null | undefined): s
     case 'created':
       return 'created this task'
     case 'moved':
-      return `moved this from ${d.from ?? '?'} to ${d.to ?? '?'}`
+      return `moved this from ${d.from_column ?? d.from ?? '?'} to ${d.to_column ?? d.to ?? '?'}`
     case 'status_changed':
       return `changed status to ${d.to ?? '?'}`
     case 'agent_started': {
