@@ -17,6 +17,7 @@ import {
 import { TaskTimeline } from './TaskTimeline'
 import { TaskComments } from './TaskComments'
 import { timeAgo } from './TaskTimeline'
+import { AgentLogStream } from '@/components/feature/agent'
 
 const ACTION_OPTIONS = [
   { value: '', label: 'None' },
@@ -582,6 +583,11 @@ export const TaskDrawer = () => {
           loading={loading}
           readOnly={isEditing}
         />
+      )}
+
+      {/* Agent log stream — visible when running or has been run */}
+      {drawerMode === 'view' && task && !isEditing && (task.agentStatus === 'RUNNING' || task.agentOutput) && (
+        <AgentLogStream taskId={task.id} agentStatus={task.agentStatus} />
       )}
 
       {/* Timeline + Comments — view mode only, not during edit */}

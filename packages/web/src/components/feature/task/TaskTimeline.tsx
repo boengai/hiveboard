@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { graphqlClient } from '@/graphql/client'
 import { GET_TASK_TIMELINE, GET_COMMENTS } from '@/graphql/queries'
 import { Badge } from '@/components/common/badge'
+import { subscribe, TASK_EVENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -286,6 +287,35 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
   useEffect(() => {
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId])
+
+  // Subscribe to new task events
+  useEffect(() => {
+    const dispose = subscribe<{ taskEventAdded: RawTimelineEvent }>(
+      TASK_EVENT_ADDED_SUBSCRIPTION,
+      { taskId },
+      (data) => {
+        const e = data.taskEventAdded
+        if (!e || e.type === 'comment_added') return
+        const newEntry: TimelineEntry = {
+          id: e.id,
+          type: 'event',
+          createdAt: e.createdAt,
+          eventType: e.type,
+          actor: e.actor,
+          isSystem: e.isSystem,
+          data: e.data,
+        }
+        setEntries((prev) => {
+          // Avoid duplicates
+          if (prev.some((x) => x.id === newEntry.id)) return prev
+          return [...prev, newEntry].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+        })
+      }
+    )
+    return dispose
   }, [taskId])
 
   const handleReply = (parentId: string) => {

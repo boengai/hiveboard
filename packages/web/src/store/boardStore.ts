@@ -50,6 +50,7 @@ interface BoardState {
   closeDrawer: () => void
   toggleArchived: () => void
   moveTaskOptimistic: (taskId: string, toColumnId: string, position: number) => void
+  mergeTaskUpdate: (updatedTask: Task) => void
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
@@ -83,6 +84,31 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     }),
 
   toggleArchived: () => set((s) => ({ showArchived: !s.showArchived })),
+
+  mergeTaskUpdate: (updatedTask) => {
+    const board = get().board
+    if (!board) return
+
+    const targetColumnId = updatedTask.column?.id
+    if (!targetColumnId) return
+
+    // Remove the task from whichever column it currently lives in
+    const columnsWithoutTask = board.columns.map((col) => ({
+      ...col,
+      tasks: col.tasks.filter((t) => t.id !== updatedTask.id),
+    }))
+
+    // Insert/update in the correct column
+    const updatedColumns = columnsWithoutTask.map((col) => {
+      if (col.id === targetColumnId) {
+        const tasks = [...col.tasks, updatedTask].sort((a, b) => a.position - b.position)
+        return { ...col, tasks }
+      }
+      return col
+    })
+
+    set({ board: { ...board, columns: updatedColumns } })
+  },
 
   moveTaskOptimistic: (taskId, toColumnId, position) => {
     const board = get().board
