@@ -1768,12 +1768,12 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] If keeping Octokit: remove `@octokit/webhooks` from `package.json` dependencies
 
 #### 5.3 Remove Old Orchestrator
-- [ ] Delete or archive `src/orchestrator/orchestrator.ts` (replaced by `packages/api/src/orchestrator/`)
-- [ ] Delete `src/orchestrator/state.ts` (state now in SQLite, not in-memory maps)
-- [ ] Delete `src/labels/parse-repo.ts` (no more label-based parsing — `target_repo` is a direct DB field)
-- [ ] Delete `src/types/issue.ts` `Issue` interface (replaced by `Task` type from DB)
-- [ ] Delete `src/config/schema.ts` fields: `tracker.labels`, `tracker.columns`, `webhook.*` (no longer used)
-- [ ] Delete `src/ssh/client.ts` if SSH worker support is deferred (or keep if still needed)
+- [x] Delete or archive `src/orchestrator/orchestrator.ts` (replaced by `packages/api/src/orchestrator/`)
+- [x] Delete `src/orchestrator/state.ts` (state now in SQLite, not in-memory maps)
+- [x] Delete `src/labels/parse-repo.ts` (no more label-based parsing — `target_repo` is a direct DB field)
+- [x] Delete `src/types/issue.ts` `Issue` interface (replaced by `Task` type from DB)
+- [x] Delete `src/config/schema.ts` fields: `tracker.labels`, `tracker.columns`, `webhook.*` (no longer used)
+- [x] Delete `src/ssh/client.ts` if SSH worker support is deferred (or keep if still needed)
 
 #### 5.4 Dependency Cleanup
 - [ ] Remove from root `package.json` dependencies:

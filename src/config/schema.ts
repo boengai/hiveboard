@@ -84,30 +84,12 @@ function objectWithDefaults<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
 // Sub-schemas
 // ---------------------------------------------------------------------------
 
-export const TrackerLabelsSchema = z.object({
-  action_prefix: z.string().default("action:"),
-  repo_prefix: z.string().default("repo:"),
-  status_prefix: z.string().default("status:"),
-  status_running: z.string().default("status:running"),
-  status_failed: z.string().default("status:failed"),
-});
-
-export const TrackerColumnsSchema = z.object({
-  backlog: z.string().default("Backlog"),
-  todo: z.string().default("Todo"),
-  in_progress: z.string().default("In Progress"),
-  review: z.string().default("Review"),
-  done: z.string().default("Done"),
-});
-
 export const TrackerSchema = z.object({
   kind: z.literal("github"),
   owner: envStringRequired(),
   /** Repository name. Required for repo-scoped projects, omit for org-scoped projects. */
   repo: envString(),
   project_number: envIntRequired(),
-  labels: objectWithDefaults(TrackerLabelsSchema),
-  columns: objectWithDefaults(TrackerColumnsSchema),
 });
 
 export const PollingSchema = z.object({
@@ -168,8 +150,6 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 export type TrackerConfig = z.infer<typeof TrackerSchema>;
-export type TrackerLabels = z.infer<typeof TrackerLabelsSchema>;
-export type TrackerColumns = z.infer<typeof TrackerColumnsSchema>;
 export type PollingConfig = z.infer<typeof PollingSchema>;
 export type WorkspaceConfig = z.infer<typeof WorkspaceSchema>;
 export type WorkerConfig = z.infer<typeof WorkerSchema>;
