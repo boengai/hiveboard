@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+
+/* Reset defaults */
+@theme {
+  --color-*: initial;
+  --text-*: initial;
+  --shadow-*: initial;
+  --breakpoint-*: initial;
+}
+
+/* Typography */
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --text-heading-1: 2.25rem;
+  --text-heading-2: 1.875rem;
+  --text-heading-3: 1.5rem;
+  --text-heading-4: 1.25rem;
+  --text-heading-5: 1.125rem;
+  --text-heading-6: 1rem;
+  --text-body-xl: 1.25rem;
+  --text-body-lg: 1.125rem;
+  --text-body: 0.875rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-xs: 0.75rem;
+}
+
+/* Bee Palette (OKLCH) */
+@theme {
+  /* Warm gray neutrals (hue 80) */
+  --color-gray-50:  oklch(0.98 0.005 80);
+  --color-gray-100: oklch(0.93 0.008 80);
+  --color-gray-200: oklch(0.85 0.010 80);
+  --color-gray-300: oklch(0.75 0.012 80);
+  --color-gray-400: oklch(0.64 0.012 80);
+  --color-gray-500: oklch(0.55 0.012 80);
+  --color-gray-600: oklch(0.45 0.010 80);
+  --color-gray-700: oklch(0.35 0.008 80);
+  --color-gray-800: oklch(0.24 0.006 80);
+  --color-gray-850: oklch(0.19 0.005 80);
+  --color-gray-900: oklch(0.15 0.005 80);
+  --color-gray-950: oklch(0.11 0.004 80);
+
+  /* Primary — Honey/Amber (hue ~85) */
+  --color-honey-50:  oklch(0.97 0.04 85);
+  --color-honey-100: oklch(0.93 0.08 85);
+  --color-honey-200: oklch(0.87 0.13 85);
+  --color-honey-300: oklch(0.80 0.16 85);
+  --color-honey-400: oklch(0.75 0.17 85);
+  --color-honey-500: oklch(0.68 0.16 85);
+  --color-honey-600: oklch(0.58 0.14 80);
+  --color-honey-700: oklch(0.48 0.12 78);
+  --color-honey-800: oklch(0.38 0.09 75);
+  --color-honey-900: oklch(0.28 0.06 75);
+  --color-honey-glow: oklch(0.75 0.17 85 / 0.15);
+
+  /* Semantic colors */
+  --color-success-400: oklch(0.72 0.15 165);
+  --color-success-500: oklch(0.62 0.14 165);
+  --color-error-400:   oklch(0.68 0.18 25);
+  --color-error-500:   oklch(0.58 0.17 25);
+  --color-info-400:    oklch(0.70 0.14 240);
+  --color-info-500:    oklch(0.60 0.13 240);
+  --color-warning-400: oklch(0.78 0.15 70);
+  --color-warning-500: oklch(0.68 0.14 70);
+  --color-purple-400:  oklch(0.68 0.16 310);
+  --color-purple-500:  oklch(0.58 0.15 310);
+  --color-teal-400:    oklch(0.72 0.12 195);
+  --color-teal-500:    oklch(0.62 0.11 195);
+}
+
+/* Surfaces & Borders */
+@theme {
+  --color-surface-page:    var(--color-gray-950);
+  --color-surface-raised:  var(--color-gray-900);
+  --color-surface-overlay: var(--color-gray-850);
+  --color-surface-inset:   oklch(0.09 0.004 80);
+  --color-border-default:  var(--color-gray-800);
+  --color-border-hover:    var(--color-gray-700);
+  --color-border-active:   var(--color-honey-400);
+  --color-text-primary:    var(--color-gray-100);
+  --color-text-secondary:  var(--color-gray-400);
+  --color-text-tertiary:   var(--color-gray-500);
+  --color-text-on-accent:  var(--color-gray-950);
+}
+
+/* Shadows */
+@theme {
+  --shadow-xs:  0 1px 2px oklch(0 0 0 / 0.2);
+  --shadow-sm:  0 2px 4px oklch(0 0 0 / 0.2);
+  --shadow-md:  0 4px 8px oklch(0 0 0 / 0.24);
+  --shadow-lg:  0 8px 16px oklch(0 0 0 / 0.28);
+  --shadow-xl:  0 16px 32px oklch(0 0 0 / 0.32);
+  --shadow-glow-honey: 0 0 12px var(--color-honey-glow);
+}
+
+/* Breakpoints */
+@theme {
+  --breakpoint-tablet: 48rem;
+  --breakpoint-laptop: 80rem;
+  --breakpoint-desktop: 120rem;
+}
+
+/* Border Radius */
+@theme {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+}
+
+/* Base Styles */
+:root {
+  color-scheme: dark;
+  font-size: 14px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface-page);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
