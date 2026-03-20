@@ -3,17 +3,6 @@ tracker:
   kind: github
   owner: $GITHUB_OWNER
   project_number: $GITHUB_PROJECT_NUMBER
-  labels:
-    action_prefix: "action:"
-    repo_prefix: "repo:"
-    status_running: "status:running"
-    status_failed: "status:failed"
-  columns:
-    backlog: "Backlog"
-    todo: "Todo"
-    in_progress: "In Progress"
-    review: "Review"
-    done: "Done"
 polling:
   interval_ms: 30000
 workspace:
