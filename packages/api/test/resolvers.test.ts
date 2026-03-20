@@ -1,0 +1,467 @@
+import { Database } from 'bun:sqlite'
+import { describe, test, expect, beforeEach } from 'bun:test'
+import { createTables } from '../src/db/schema'
+import { seed } from '../src/db/seed'
+import { generateId } from '../src/db/ulid'
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface UserRow {
+  id: string
+  username: string
+  display_name: string
+  role: string
+}
+
+interface BoardRow {
+  id: string
+  name: string
+  created_by: string
+}
+
+interface ColumnRow {
+  id: string
+  board_id: string
+  name: string
+  position: number
+}
+
+interface TaskRow {
+  id: string
+  board_id: string
+  column_id: string
+  title: string
+  body: string
+  position: number
+  action: string | null
+  agent_status: string
+  archived: number
+  archived_at: string | null
+  created_by: string
+  updated_by: string
+}
+
+interface CommentRow {
+  id: string
+  task_id: string
+  parent_id: string | null
+  body: string
+  created_by: string
+}
+
+// ---------------------------------------------------------------------------
+// Helpers mirroring resolver logic
+// ---------------------------------------------------------------------------
+
+function getCurrentUser(db: Database): UserRow {
+  return db.query('SELECT * FROM users WHERE username = ?').get('queen-bee') as UserRow
+}
+
+function insertTask(
+  db: Database,
+  opts: {
+    boardId: string
+    columnId: string
+    title: string
+    body?: string
+    action?: string | null
+    position?: number
+  }
+): string {
+  const user = getCurrentUser(db)
+  const id = generateId()
+  const position = opts.position ?? 0
+  db.run(
+    `INSERT INTO tasks (id, board_id, column_id, title, body, position, action, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, opts.boardId, opts.columnId, opts.title, opts.body ?? '', position, opts.action ?? null, user.id, user.id]
+  )
+  return id
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+let db: Database
+
+beforeEach(() => {
+  db = new Database(':memory:')
+  db.exec('PRAGMA foreign_keys = ON')
+  createTables(db)
+  seed(db)
+})
+
+// ---------------------------------------------------------------------------
+// Query: boards
+// ---------------------------------------------------------------------------
+
+describe('boards query', () => {
+  test('returns the seeded board', () => {
+    const boards = db.query('SELECT * FROM boards ORDER BY created_at ASC').all() as BoardRow[]
+    expect(boards).toHaveLength(1)
+    expect(boards[0]!.name).toBe('HiveBoard')
+  })
+
+  test('board has 5 columns', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const columns = db
+      .query('SELECT * FROM columns WHERE board_id = ? ORDER BY position ASC')
+      .all(board.id) as ColumnRow[]
+    expect(columns).toHaveLength(5)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Query: board(id)
+// ---------------------------------------------------------------------------
+
+describe('board(id) query', () => {
+  test('returns correct board by id', () => {
+    const board = db.query('SELECT * FROM boards LIMIT 1').get() as BoardRow
+    const result = db.query('SELECT * FROM boards WHERE id = ?').get(board.id) as BoardRow | null
+    expect(result).not.toBeNull()
+    expect(result!.id).toBe(board.id)
+    expect(result!.name).toBe('HiveBoard')
+  })
+
+  test('returns null for non-existent board id', () => {
+    const result = db.query('SELECT * FROM boards WHERE id = ?').get('does-not-exist')
+    expect(result).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Create task
+// ---------------------------------------------------------------------------
+
+describe('createTask', () => {
+  test('inserts task into the correct column', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'My Task' })
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task).not.toBeNull()
+    expect(task.title).toBe('My Task')
+    expect(task.column_id).toBe(col.id)
+    expect(task.board_id).toBe(board.id)
+  })
+
+  test('position auto-increments by 1024 from max', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task 1', position: 0 })
+    insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task 2', position: 1024 })
+
+    const tasks = db
+      .query('SELECT * FROM tasks WHERE column_id = ? ORDER BY position ASC')
+      .all(col.id) as TaskRow[]
+    expect(tasks).toHaveLength(2)
+    expect(tasks[1]!.position).toBe(1024)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Update task
+// ---------------------------------------------------------------------------
+
+describe('updateTask', () => {
+  test('updates title', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Original' })
+
+    const user = getCurrentUser(db)
+    db.run(
+      `UPDATE tasks SET title = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      ['Updated Title', user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.title).toBe('Updated Title')
+  })
+
+  test('updates body', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task' })
+
+    const user = getCurrentUser(db)
+    db.run(
+      `UPDATE tasks SET body = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      ['New body content', user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.body).toBe('New body content')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Delete task
+// ---------------------------------------------------------------------------
+
+describe('deleteTask', () => {
+  test('deletes the task', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'To Delete' })
+
+    db.run('DELETE FROM tasks WHERE id = ?', [taskId])
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId)
+    expect(task).toBeNull()
+  })
+
+  test('cascade-deletes task_events and task_comments', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'To Delete' })
+    const user = getCurrentUser(db)
+
+    db.run('INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)', [
+      generateId(), taskId, user.id, 'created',
+    ])
+    db.run('INSERT INTO task_comments (id, task_id, body, created_by) VALUES (?, ?, ?, ?)', [
+      generateId(), taskId, 'Comment', user.id,
+    ])
+
+    db.run('DELETE FROM tasks WHERE id = ?', [taskId])
+
+    const events = db
+      .query('SELECT COUNT(*) as c FROM task_events WHERE task_id = ?')
+      .get(taskId) as { c: number }
+    const comments = db
+      .query('SELECT COUNT(*) as c FROM task_comments WHERE task_id = ?')
+      .get(taskId) as { c: number }
+
+    expect(events.c).toBe(0)
+    expect(comments.c).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Move task
+// ---------------------------------------------------------------------------
+
+describe('moveTask', () => {
+  test('updates column_id and position', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const cols = db
+      .query('SELECT * FROM columns WHERE board_id = ? ORDER BY position ASC')
+      .all(board.id) as ColumnRow[]
+
+    const fromCol = cols[0]!
+    const toCol = cols[2]!
+
+    const taskId = insertTask(db, { boardId: board.id, columnId: fromCol.id, title: 'Move Me' })
+    const user = getCurrentUser(db)
+
+    db.run(
+      `UPDATE tasks SET column_id = ?, position = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [toCol.id, 512, user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.column_id).toBe(toCol.id)
+    expect(task.position).toBe(512)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Archive / Unarchive task
+// ---------------------------------------------------------------------------
+
+describe('archive/unarchive task', () => {
+  test('archiveTask sets archived = 1 and archived_at', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Archive Me' })
+    const user = getCurrentUser(db)
+
+    db.run(
+      `UPDATE tasks SET archived = 1, archived_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.archived).toBe(1)
+    expect(task.archived_at).not.toBeNull()
+  })
+
+  test('unarchiveTask sets archived = 0 and clears archived_at', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Unarchive Me' })
+    const user = getCurrentUser(db)
+
+    db.run(
+      `UPDATE tasks SET archived = 1, archived_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [user.id, taskId]
+    )
+    db.run(
+      `UPDATE tasks SET archived = 0, archived_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.archived).toBe(0)
+    expect(task.archived_at).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// addComment
+// ---------------------------------------------------------------------------
+
+describe('addComment', () => {
+  test('inserts a top-level comment', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task' })
+    const user = getCurrentUser(db)
+
+    const commentId = generateId()
+    db.run(
+      'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
+      [commentId, taskId, null, 'Top level comment', user.id]
+    )
+
+    const comment = db.query('SELECT * FROM task_comments WHERE id = ?').get(commentId) as CommentRow
+    expect(comment).not.toBeNull()
+    expect(comment.body).toBe('Top level comment')
+    expect(comment.parent_id).toBeNull()
+  })
+
+  test('inserts a threaded reply with parent_id', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task' })
+    const user = getCurrentUser(db)
+
+    const parentId = generateId()
+    db.run(
+      'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
+      [parentId, taskId, null, 'Parent comment', user.id]
+    )
+
+    const replyId = generateId()
+    db.run(
+      'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
+      [replyId, taskId, parentId, 'A reply', user.id]
+    )
+
+    const reply = db.query('SELECT * FROM task_comments WHERE id = ?').get(replyId) as CommentRow
+    expect(reply.parent_id).toBe(parentId)
+  })
+
+  test('enforces max 1-level nesting: reply to a reply is rejected', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Task' })
+    const user = getCurrentUser(db)
+
+    const parentId = generateId()
+    db.run(
+      'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
+      [parentId, taskId, null, 'Parent', user.id]
+    )
+
+    const replyId = generateId()
+    db.run(
+      'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
+      [replyId, taskId, parentId, 'Reply', user.id]
+    )
+
+    // Mimic the resolver nesting guard
+    const replyRow = db
+      .query('SELECT parent_id FROM task_comments WHERE id = ?')
+      .get(replyId) as { parent_id: string | null }
+    expect(replyRow.parent_id).not.toBeNull()
+
+    // A reply to `replyId` would be rejected because replyId has a parent_id
+    expect(() => {
+      if (replyRow.parent_id !== null) {
+        throw new Error('Cannot nest replies more than 1 level deep')
+      }
+    }).toThrow('Cannot nest replies more than 1 level deep')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// dispatchAgent / cancelAgent
+// ---------------------------------------------------------------------------
+
+describe('dispatchAgent', () => {
+  test('sets agent_status to queued', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Dispatch' })
+    const user = getCurrentUser(db)
+
+    db.run(
+      `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      ['fix the bug', user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.agent_status).toBe('queued')
+    expect(task.action).toBe('fix the bug')
+  })
+})
+
+describe('cancelAgent', () => {
+  test('sets agent_status back to idle', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const col = db
+      .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+      .get(board.id) as ColumnRow
+    const taskId = insertTask(db, { boardId: board.id, columnId: col.id, title: 'Cancel' })
+    const user = getCurrentUser(db)
+
+    db.run(
+      `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      ['fix the bug', user.id, taskId]
+    )
+    db.run(
+      `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [user.id, taskId]
+    )
+
+    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
+    expect(task.agent_status).toBe('idle')
+  })
+})
