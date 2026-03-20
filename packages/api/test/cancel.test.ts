@@ -1,0 +1,317 @@
+/**
+ * cancel.test.ts
+ *
+ * Tests for `cancelAgent` resolver logic and `Orchestrator.cancelTask`:
+ *  - Cancelling a queued task updates agent_status → idle
+ *  - Cancelling a running task aborts the in-flight agent and updates status
+ *  - Cancelling a task that has a pending retry clears the timer
+ *  - Cancelling a non-existent task still sets status to idle (idempotent)
+ *
+ * Same mocking strategy as orchestrator.test.ts – we inject an in-memory
+ * SQLite database and stub out the agent runner.
+ */
+
+import { Database } from 'bun:sqlite'
+import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
+import { createTables } from '../src/db/schema'
+import { seed } from '../src/db/seed'
+import { generateId } from '../src/db/ulid'
+
+// ---------------------------------------------------------------------------
+// In-memory database
+// ---------------------------------------------------------------------------
+
+const memDb = new Database(':memory:')
+memDb.exec('PRAGMA journal_mode = WAL')
+memDb.exec('PRAGMA foreign_keys = ON')
+createTables(memDb)
+seed(memDb)
+
+// ---------------------------------------------------------------------------
+// Module mocks
+// ---------------------------------------------------------------------------
+
+mock.module('../src/db', () => ({
+  db: memDb,
+  generateId,
+}))
+
+mock.module('../src/pubsub', () => ({
+  pubsub: { publish: () => {} },
+  publishTaskUpdated: () => {},
+  publishAgentLog: () => {},
+  publishCommentAdded: () => {},
+  publishTaskEvent: () => {},
+}))
+
+// Controllable runAgent mock
+let mockRunAgentImpl: (opts: unknown) => Promise<unknown> = async (opts) => {
+  const { task } = opts as { task: { id: string } }
+  return { taskId: task.id, success: true, output: 'ok' }
+}
+
+mock.module('../src/agent/runner', () => ({
+  runAgent: (opts: unknown) => mockRunAgentImpl(opts),
+}))
+
+// ---------------------------------------------------------------------------
+// Import orchestrator after mocks
+// ---------------------------------------------------------------------------
+
+const { Orchestrator } = await import('../src/orchestrator/orchestrator')
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
+  return {
+    polling: { interval_ms: 60_000 },
+    workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
+    claude: { command: 'claude', max_turns: 5, allowed_tools: [], permission_mode: undefined, model: undefined },
+    agent: {
+      max_concurrent_agents: 5,
+      max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
+    },
+    hooks: { timeout_ms: 5_000 },
+  }
+}
+
+function makeWorkspaceStub() {
+  return {
+    ttlMs: 0,
+    createForTask: async () => ({ path: '/tmp/fake-ws', created: true }),
+    sweepExpired: async () => {},
+  }
+}
+
+interface TaskRow {
+  id: string
+  agent_status: string
+  retry_count: number
+}
+
+function insertTask(opts: {
+  agentStatus?: string
+  action?: string
+  targetRepo?: string | null
+  retryCount?: number
+} = {}): string {
+  const user = memDb.query('SELECT id FROM users LIMIT 1').get() as { id: string }
+  const board = memDb.query('SELECT id FROM boards LIMIT 1').get() as { id: string }
+  const col = memDb.query('SELECT id FROM columns LIMIT 1').get() as { id: string }
+  const id = generateId()
+  memDb.run(
+    `INSERT INTO tasks (id, board_id, column_id, title, body, action, target_repo,
+                        agent_status, retry_count, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      board.id,
+      col.id,
+      'Cancel Test Task',
+      'body',
+      opts.action ?? 'plan',
+      opts.targetRepo ?? null,
+      opts.agentStatus ?? 'idle',
+      opts.retryCount ?? 0,
+      user.id,
+      user.id,
+    ]
+  )
+  return id
+}
+
+function getTask(id: string): TaskRow | null {
+  return memDb.query('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | null
+}
+
+async function flush(ms = 50) {
+  await new Promise<void>((r) => setTimeout(r, ms))
+}
+
+/** Mirror the cancelAgent resolver's DB-update logic. */
+async function cancelAgent(
+  orchestrator: InstanceType<typeof Orchestrator> | null,
+  taskId: string
+) {
+  const user = memDb.query('SELECT id FROM users WHERE username = ?').get('queen-bee') as {
+    id: string
+  }
+
+  const currentRow = memDb
+    .query('SELECT agent_status FROM tasks WHERE id = ?')
+    .get(taskId) as { agent_status: string } | null
+  const currentStatus = currentRow?.agent_status ?? 'idle'
+
+  if (orchestrator) {
+    await orchestrator.cancelTask(taskId)
+  }
+
+  memDb.transaction(() => {
+    memDb.run(
+      `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      [user.id, taskId]
+    )
+    memDb.run(
+      'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+      [
+        generateId(),
+        taskId,
+        user.id,
+        'status_changed',
+        JSON.stringify({ from: currentStatus, to: 'idle' }),
+      ]
+    )
+  })()
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+afterEach(() => {
+  memDb.run("DELETE FROM tasks WHERE title = 'Cancel Test Task'")
+  memDb.run("DELETE FROM task_events WHERE type = 'status_changed'")
+  memDb.run('DELETE FROM agent_runs')
+})
+
+describe('cancelAgent – queued task', () => {
+  it('transitions queued → idle', async () => {
+    const id = insertTask({ agentStatus: 'queued' })
+    await cancelAgent(null, id)
+    expect(getTask(id)!.agent_status).toBe('idle')
+  })
+
+  it('inserts a status_changed event recording the transition', async () => {
+    const id = insertTask({ agentStatus: 'queued' })
+    await cancelAgent(null, id)
+
+    const event = memDb
+      .query("SELECT data FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1")
+      .get(id) as { data: string } | null
+
+    expect(event).not.toBeNull()
+    const data = JSON.parse(event!.data)
+    expect(data.from).toBe('queued')
+    expect(data.to).toBe('idle')
+  })
+})
+
+describe('cancelAgent – running task', () => {
+  let orchestrator: InstanceType<typeof Orchestrator>
+  let releaseLatch: () => void = () => {}
+
+  beforeEach(() => {
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeWorkspaceStub() as never,
+      'prompt template'
+    )
+  })
+
+  afterEach(async () => {
+    releaseLatch()
+    await orchestrator.shutdown()
+  })
+
+  it('aborts the running agent and transitions to idle', async () => {
+    let agentAborted = false
+    const latch = new Promise<void>((resolve) => { releaseLatch = resolve })
+
+    mockRunAgentImpl = async (opts) => {
+      const { signal, task } = opts as { signal: AbortSignal; task: { id: string } }
+      // Wait for abort or latch release
+      await new Promise<void>((resolve) => {
+        signal.addEventListener('abort', () => {
+          agentAborted = true
+          resolve()
+        })
+        latch.then(resolve)
+      })
+      return { taskId: task.id, success: false, output: '', error: 'aborted' }
+    }
+
+    const id = insertTask({ agentStatus: 'queued' })
+    await orchestrator.poll()
+    await flush(50) // let agent start
+
+    // Task should now be running
+    expect(getTask(id)!.agent_status).toBe('running')
+
+    // Cancel via orchestrator + DB update
+    await cancelAgent(orchestrator, id)
+
+    expect(agentAborted).toBe(true)
+    expect(getTask(id)!.agent_status).toBe('idle')
+  })
+
+  it('marks the agent_run as failed after cancel', async () => {
+    const latch = new Promise<void>((resolve) => { releaseLatch = resolve })
+
+    mockRunAgentImpl = async (opts) => {
+      const { signal, task } = opts as { signal: AbortSignal; task: { id: string } }
+      await new Promise<void>((resolve) => {
+        signal.addEventListener('abort', resolve)
+        latch.then(resolve)
+      })
+      return { taskId: task.id, success: false, output: '', error: 'aborted' }
+    }
+
+    const id = insertTask({ agentStatus: 'queued' })
+    await orchestrator.poll()
+    await flush(50)
+
+    await orchestrator.cancelTask(id)
+    await flush(50) // let agent complete after abort
+
+    const run = memDb
+      .query("SELECT status FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC LIMIT 1")
+      .get(id) as { status: string } | null
+
+    // The agent_run row ends up as 'failed' (either via the onComplete path
+    // triggered by the abort mock result or via the orchestrator's cancel update)
+    expect(run).not.toBeNull()
+    expect(run!.status).toBe('failed')
+  })
+})
+
+describe('cancelAgent – retry timer cleared', () => {
+  it('clears the pending retry timer when a failed task is cancelled', async () => {
+    // Agent always fails so retry scheduling is triggered
+    mockRunAgentImpl = async (opts) => {
+      const { task } = opts as { task: { id: string } }
+      return { taskId: task.id, success: false, output: '', error: 'fail' }
+    }
+
+    // Use a long backoff so the timer does NOT fire before we call cancel
+    const orchestrator = new Orchestrator(
+      makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
+      makeWorkspaceStub() as never,
+      'prompt template'
+    )
+
+    const id = insertTask({ agentStatus: 'queued' })
+
+    await orchestrator.poll()
+    await flush(100)
+
+    // Task failed → retry timer is pending (baseDelay = 10s, backoff = min(10_000, 60_000))
+    expect(orchestrator.getStatus().pendingRetries).toBe(1)
+
+    // Cancel should clear the retry timer
+    await orchestrator.cancelTask(id)
+
+    expect(orchestrator.getStatus().pendingRetries).toBe(0)
+
+    await orchestrator.shutdown()
+  })
+})
+
+describe('cancelAgent – idle task (no-op)', () => {
+  it('keeps agent_status as idle and does not throw', async () => {
+    const id = insertTask({ agentStatus: 'idle' })
+    await expect(cancelAgent(null, id)).resolves.toBeUndefined()
+    expect(getTask(id)!.agent_status).toBe('idle')
+  })
+})

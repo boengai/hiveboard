@@ -1684,10 +1684,10 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] `revise` action: fetch PR review comments via GitHub API, include in agent prompt as context
 
 #### 3.9 Testing
-- [ ] `packages/api/test/orchestrator.test.ts` — Test dispatch flow: queued → running → success/failure. Test concurrency limit. Test retry scheduling
-- [ ] `packages/api/test/dispatch.test.ts` — Test `dispatchAgent` validation (missing action, missing repo for implement, etc.)
-- [ ] `packages/api/test/cancel.test.ts` — Test `cancelAgent` for queued vs running states
-- [ ] `bun test` passes for all orchestrator tests
+- [x] `packages/api/test/orchestrator.test.ts` — Test dispatch flow: queued → running → success/failure. Test concurrency limit. Test retry scheduling
+- [x] `packages/api/test/dispatch.test.ts` — Test `dispatchAgent` validation (missing action, missing repo for implement, etc.)
+- [x] `packages/api/test/cancel.test.ts` — Test `cancelAgent` for queued vs running states
+- [x] `bun test` passes for all orchestrator tests
 
 ---
 
