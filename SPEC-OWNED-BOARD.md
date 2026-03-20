@@ -1800,13 +1800,13 @@ GITHUB_TOKEN=ghp_your_token_here
 - [x] Update `Makefile` — Update `dev`, `build`, `start` targets to use new monorepo scripts
 
 #### 5.6 Documentation
-- [ ] Update `README.md`:
+- [x] Update `README.md`:
   - New architecture diagram (SQLite + GraphQL + React, no GitHub Projects dependency)
   - Simplified setup: `bun install && bun run dev` (starts both API + web)
   - Remove GitHub Projects setup steps (project creation, webhook config, Cloudflare tunnel)
   - Keep GitHub token setup (still needed for PR creation)
   - Document new env vars and config options
-- [ ] Archive `SPEC-OWNED-BOARD.md` or convert to `ARCHITECTURE.md` as living documentation
+- [x] Archive `SPEC-OWNED-BOARD.md` or convert to `ARCHITECTURE.md` as living documentation
 
 #### 5.7 Final Verification
 
