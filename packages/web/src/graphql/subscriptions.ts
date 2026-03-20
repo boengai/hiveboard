@@ -27,7 +27,7 @@ class ConnectionStateManager {
 export const connectionStateManager = new ConnectionStateManager()
 
 export const sseClient = createClient({
-  url: '/graphql',
+  url: `${window.location.origin}/graphql`,
 })
 
 const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000, 16000, 30000]

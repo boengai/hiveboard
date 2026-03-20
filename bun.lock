@@ -51,7 +51,7 @@
         "react-markdown": "^9.0.0",
         "rehype-highlight": "^7.0.0",
         "remark-gfm": "^4.0.0",
-        "tailwind-variants": "^0.3.0",
+        "tailwind-variants": "^3.2.0",
         "tailwindcss": "^4.0.0",
         "vaul": "^1.0.0",
         "vite": "^6.0.0",
@@ -732,9 +732,7 @@
 
     "style-to-object": ["style-to-object@1.0.14", "", { "dependencies": { "inline-style-parser": "0.2.7" } }, "sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw=="],
 
-    "tailwind-merge": ["tailwind-merge@2.5.4", "", {}, "sha512-0q8cfZHMu9nuYP/b5Shb7Y7Sh1B7Nnl5GqNr1U+n2p6+mybvRtayrQ+0042Z5byvTA8ihjlP8Odo8/VnHbZu4Q=="],
-
-    "tailwind-variants": ["tailwind-variants@0.3.1", "", { "dependencies": { "tailwind-merge": "2.5.4" }, "peerDependencies": { "tailwindcss": "*" } }, "sha512-krn67M3FpPwElg4FsZrOQd0U26o7UDH/QOkK8RNaiCCrr052f6YJPBUfNKnPo/s/xRzNPtv1Mldlxsg8Tb46BQ=="],
+    "tailwind-variants": ["tailwind-variants@3.2.2", "", { "peerDependencies": { "tailwind-merge": ">=3.0.0", "tailwindcss": "*" }, "optionalPeers": ["tailwind-merge"] }, "sha512-Mi4kHeMTLvKlM98XPnK+7HoBPmf4gygdFmqQPaDivc3DpYS6aIY6KiG/PgThrGvii5YZJqRsPz0aPyhoFzmZgg=="],
 
     "tailwindcss": ["tailwindcss@4.2.2", "", {}, "sha512-KWBIxs1Xb6NoLdMVqhbhgwZf2PGBpPEiwOqgI4pFIYbNTfBXiKYyWoTsXgBQ9WFg/OlhnvHaY+AEpW7wSmFo2Q=="],
 

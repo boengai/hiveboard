@@ -5,9 +5,11 @@ import { TaskCard } from './TaskCard'
 
 interface ColumnProps {
   column: ColumnType
+  /** The task id where the drop indicator should appear above, or null for end-of-column */
+  dropTargetTaskId?: string | null
 }
 
-export function Column({ column }: ColumnProps) {
+export function Column({ column, dropTargetTaskId }: ColumnProps) {
   const openDrawerCreate = useBoardStore((s) => s.openDrawerCreate)
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
   const showArchived = useBoardStore((s) => s.showArchived)
@@ -60,13 +62,24 @@ export function Column({ column }: ColumnProps) {
         ].join(' ')}
         style={{ minHeight: '4rem' }}
       >
+        {dropTargetTaskId === null && (
+          <div className="mx-1 mb-1 h-0.5 rounded-full bg-honey-400" />
+        )}
+
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {activeTasks.length === 0 && !showArchived ? (
             <div className="flex flex-1 items-center justify-center py-6 text-body-sm text-text-tertiary">
               No tasks
             </div>
           ) : (
-            activeTasks.map((task) => <TaskCard key={task.id} task={task} />)
+            activeTasks.map((task) => (
+              <div key={task.id}>
+                {dropTargetTaskId === task.id && (
+                  <div className="mx-1 mb-1 h-0.5 rounded-full bg-honey-400" />
+                )}
+                <TaskCard task={task} />
+              </div>
+            ))
           )}
         </SortableContext>
 

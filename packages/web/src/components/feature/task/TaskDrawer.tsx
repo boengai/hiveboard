@@ -410,11 +410,12 @@ export const TaskDrawer = () => {
   }
 
   const handleCreate = async () => {
-    if (!createForm.title.trim() || !createTaskColumnId) return
+    if (!createForm.title.trim() || !createTaskColumnId || !board) return
     setLoading(true)
     try {
       await graphqlClient.request(CREATE_TASK, {
         input: {
+          boardId: board.id,
           columnId: createTaskColumnId,
           title: createForm.title.trim(),
           body: createForm.body || null,

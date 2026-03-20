@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { graphqlClient } from '@/graphql/client'
@@ -28,6 +29,7 @@ export function Board() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<{ columnId: string; taskId: string | null } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -85,8 +87,36 @@ export function Board() {
     if (task) setActiveTask(task)
   }
 
+  function handleDragOver(event: DragOverEvent) {
+    const { over } = event
+    if (!over || !board) {
+      setDropIndicator(null)
+      return
+    }
+
+    const overId = String(over.id)
+
+    // Check if hovering over a column
+    const isColumn = board.columns.some((c) => c.id === overId)
+    if (isColumn) {
+      setDropIndicator({ columnId: overId, taskId: null })
+      return
+    }
+
+    // Hovering over a task — find its column
+    for (const col of board.columns) {
+      if (col.tasks.some((t) => t.id === overId)) {
+        setDropIndicator({ columnId: col.id, taskId: overId })
+        return
+      }
+    }
+
+    setDropIndicator(null)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setActiveTask(null)
+    setDropIndicator(null)
     const { active, over } = event
     if (!over || !board) return
 
@@ -218,11 +248,16 @@ export function Board() {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="flex flex-1 gap-3 overflow-x-auto p-4">
           {sortedColumns.map((col) => (
-            <Column key={col.id} column={col} />
+            <Column
+              key={col.id}
+              column={col}
+              dropTargetTaskId={dropIndicator?.columnId === col.id ? dropIndicator.taskId : undefined}
+            />
           ))}
         </div>
 
