@@ -3,10 +3,7 @@ import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 import type { MarkdownPreviewProps } from '@/types/components/common/markdown'
 
-export const MarkdownPreview = ({
-  content,
-  className,
-}: MarkdownPreviewProps) => {
+export const MarkdownPreview = ({ content }: MarkdownPreviewProps) => {
   if (!content) {
     return <p className="text-body-sm text-text-tertiary">No description</p>
   }
@@ -34,10 +31,7 @@ export const MarkdownPreview = ({
         'prose-hr:border-border-default',
         // strong
         'prose-strong:text-text-primary',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      ].join(' ')}
     >
       <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
         {content}

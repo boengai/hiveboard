@@ -153,9 +153,9 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
 
       {/* Actor */}
       {entry.isSystem ? (
-        <Badge className="shrink-0 bg-gray-800 font-mono text-body-xs">
-          SYSTEM
-        </Badge>
+        <span className="shrink-0 font-mono">
+          <Badge>SYSTEM</Badge>
+        </span>
       ) : entry.actor ? (
         <span className="shrink-0 text-body-xs font-medium text-text-primary">
           {entry.actor.username}

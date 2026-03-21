@@ -1,6 +1,5 @@
 export type MarkdownPreviewProps = {
   content: string
-  className?: string
 }
 
 export type MarkdownEditorProps = {
