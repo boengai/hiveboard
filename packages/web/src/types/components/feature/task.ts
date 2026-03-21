@@ -14,21 +14,21 @@ export type ActionColor =
   | 'error'
   | 'honey'
 
-export interface FormState {
+export type FormState = {
   title: string
   body: string
   action: string
   targetRepo: string
 }
 
-export interface CreateModeProps {
+export type CreateModeProps = {
   form: FormState
   setForm: (f: FormState) => void
   onSubmit: () => Promise<void>
   loading: boolean
 }
 
-export interface ViewModeProps {
+export type ViewModeProps = {
   task: Task
   onEdit: () => void
   onArchive: () => Promise<void>
@@ -36,7 +36,7 @@ export interface ViewModeProps {
   loading: boolean
 }
 
-export interface AgentPanelProps {
+export type AgentPanelProps = {
   task: Task
   onDispatch: (action: string) => Promise<void>
   onCancel: () => Promise<void>
@@ -44,7 +44,7 @@ export interface AgentPanelProps {
   readOnly?: boolean
 }
 
-export interface EditModeProps {
+export type EditModeProps = {
   form: FormState
   setForm: (f: FormState) => void
   onSave: () => Promise<void>
@@ -56,13 +56,13 @@ export interface EditModeProps {
 // TaskComments
 // ---------------------------------------------------------------------------
 
-export interface CommentUser {
+export type CommentUser = {
   id: string
   username: string
   displayName: string
 }
 
-export interface Reply {
+export type Reply = {
   id: string
   body: string
   parentId: string | null
@@ -71,7 +71,7 @@ export interface Reply {
   createdBy: CommentUser
 }
 
-export interface Comment {
+export type Comment = {
   id: string
   body: string
   parentId: string | null
@@ -81,7 +81,7 @@ export interface Comment {
   replies: Reply[]
 }
 
-export interface CommentBlockProps {
+export type CommentBlockProps = {
   taskId: string
   comment: Comment
   onDeleted: (id: string) => void
@@ -89,7 +89,7 @@ export interface CommentBlockProps {
   onReplyAdded: (parentId: string, reply: Reply) => void
 }
 
-export interface TaskCommentsProps {
+export type TaskCommentsProps = {
   taskId: string
 }
 
@@ -97,7 +97,7 @@ export interface TaskCommentsProps {
 // TaskTimeline
 // ---------------------------------------------------------------------------
 
-export interface TimelineEntry {
+export type TimelineEntry = {
   id: string
   type: 'event' | 'comment'
   createdAt: string
@@ -118,7 +118,7 @@ export interface TimelineEntry {
   }>
 }
 
-export interface RawTimelineEvent {
+export type RawTimelineEvent = {
   id: string
   type: string
   isSystem: boolean
@@ -127,7 +127,7 @@ export interface RawTimelineEvent {
   actor: { id: string; username: string; displayName: string } | null
 }
 
-export interface RawComment {
+export type RawComment = {
   id: string
   body: string
   parentId: string | null
@@ -144,7 +144,7 @@ export interface RawComment {
   }>
 }
 
-export interface TaskTimelineProps {
+export type TaskTimelineProps = {
   taskId: string
   /** Called when a comment is added/updated so parent can refresh */
   onCommentMutation?: () => void

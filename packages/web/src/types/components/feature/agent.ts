@@ -1,4 +1,4 @@
-export interface AgentLogChunk {
+export type AgentLogChunk = {
   agentLogStream: {
     taskId: string
     chunk: string
@@ -6,7 +6,7 @@ export interface AgentLogChunk {
   }
 }
 
-export interface AgentLogStreamProps {
+export type AgentLogStreamProps = {
   taskId: string
   agentStatus: string
 }
@@ -29,6 +29,6 @@ export type BadgeColor =
   | 'error'
   | 'honey'
 
-export interface AgentStatusBadgeProps {
+export type AgentStatusBadgeProps = {
   status: AgentStatus
 }

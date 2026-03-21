@@ -3,7 +3,7 @@ import Mustache from 'mustache'
 /** Disable Mustache's default HTML escaping — we output plain text. */
 Mustache.escape = (text: string) => text
 
-export interface TaskForPrompt {
+export type TaskForPrompt = {
   id: string
   title: string
   body: string
@@ -11,7 +11,7 @@ export interface TaskForPrompt {
   targetRepo: string | null
 }
 
-export interface PromptContext {
+export type PromptContext = {
   issue: {
     number: string
     title: string
@@ -32,7 +32,7 @@ export function renderPrompt(
   template: string,
   task: TaskForPrompt,
   attempt?: number,
-  reviewComments?: string
+  reviewComments?: string,
 ): string {
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 

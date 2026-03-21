@@ -1,16 +1,16 @@
 import { consola } from 'consola'
-import { db, generateId } from '../db'
-import { pubsub, publishAgentLog } from '../pubsub'
-import type { Config } from '../config/schema'
 import { runAgent } from '../agent/runner'
-import type { WorkspaceManager } from '../workspace/manager'
+import type { Config } from '../config/schema'
+import { db, generateId } from '../db'
 import { GitHubClient, type ReviewComment } from '../github/client'
+import { publishAgentLog, pubsub } from '../pubsub'
+import type { WorkspaceManager } from '../workspace/manager'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface TaskRow {
+type TaskRow = {
   id: string
   board_id: string
   column_id: string
@@ -25,7 +25,7 @@ interface TaskRow {
   updated_at: string
 }
 
-interface RunState {
+type RunState = {
   taskId: string
   workspacePath: string
   retryAttempt: number
@@ -67,7 +67,7 @@ function mapTask(row: TaskRow) {
 function findColumnId(boardId: string, preferredName: string): string | null {
   const row = db
     .query(
-      `SELECT id FROM columns WHERE board_id = ? AND lower(name) = lower(?) ORDER BY position ASC LIMIT 1`
+      `SELECT id FROM columns WHERE board_id = ? AND lower(name) = lower(?) ORDER BY position ASC LIMIT 1`,
     )
     .get(boardId, preferredName) as { id: string } | null
   return row?.id ?? null
@@ -81,7 +81,8 @@ function formatReviewComments(comments: ReviewComment[]): string {
   for (const comment of comments) {
     lines.push(`### Comment by @${comment.author}`)
     if (comment.path) {
-      const location = comment.line != null ? `${comment.path}:${comment.line}` : comment.path
+      const location =
+        comment.line != null ? `${comment.path}:${comment.line}` : comment.path
       lines.push(`File: \`${location}\``)
     }
     if (comment.diffHunk) {
@@ -106,7 +107,7 @@ export class Orchestrator {
   constructor(
     private config: Config,
     private workspace: WorkspaceManager,
-    private promptTemplate: string
+    private promptTemplate: string,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -115,7 +116,7 @@ export class Orchestrator {
 
   start(): void {
     consola.info(
-      `Orchestrator started (poll every ${this.config.polling.interval_ms}ms, max ${this.config.agent.max_concurrent_agents} agents)`
+      `Orchestrator started (poll every ${this.config.polling.interval_ms}ms, max ${this.config.agent.max_concurrent_agents} agents)`,
     )
     this.schedulePoll()
     this.scheduleSweep()
@@ -139,7 +140,9 @@ export class Orchestrator {
     }
     this.retryTimers.clear()
 
-    consola.info(`Shutting down... waiting for ${this.running.size} running agents`)
+    consola.info(
+      `Shutting down... waiting for ${this.running.size} running agents`,
+    )
 
     for (const rs of this.running.values()) {
       rs.abortController.abort()
@@ -153,7 +156,9 @@ export class Orchestrator {
     }
 
     if (this.running.size > 0) {
-      consola.warn(`Shutdown timeout: ${this.running.size} agents still running`)
+      consola.warn(
+        `Shutdown timeout: ${this.running.size} agents still running`,
+      )
     }
 
     consola.info('Orchestrator shut down')
@@ -204,21 +209,24 @@ export class Orchestrator {
       }
 
       // 2. Pick up queued tasks
-      const available = (this.config.agent.max_concurrent_agents ?? 5) - this.running.size
+      const available =
+        (this.config.agent.max_concurrent_agents ?? 5) - this.running.size
       if (available <= 0) {
         consola.debug(
-          `Concurrency limit reached (${this.running.size}/${this.config.agent.max_concurrent_agents})`
+          `Concurrency limit reached (${this.running.size}/${this.config.agent.max_concurrent_agents})`,
         )
         return
       }
 
       const queued = db
         .query(
-          `SELECT * FROM tasks WHERE agent_status = ? ORDER BY updated_at ASC LIMIT ?`
+          `SELECT * FROM tasks WHERE agent_status = ? ORDER BY updated_at ASC LIMIT ?`,
         )
         .all('queued', available) as TaskRow[]
 
-      consola.debug(`Polled: ${queued.length} queued task(s), ${this.running.size} running`)
+      consola.debug(
+        `Polled: ${queued.length} queued task(s), ${this.running.size} running`,
+      )
 
       for (const task of queued) {
         await this.dispatchTask(task)
@@ -239,7 +247,7 @@ export class Orchestrator {
       // 1. UPDATE tasks SET agent_status = 'running'
       db.run(
         `UPDATE tasks SET agent_status = 'running', updated_at = datetime('now') WHERE id = ?`,
-        [task.id]
+        [task.id],
       )
 
       // 2. INSERT task_events: agent_started
@@ -252,14 +260,14 @@ export class Orchestrator {
           'SYSTEM',
           'agent_started',
           JSON.stringify({ action: task.action, retry: task.retry_count }),
-        ]
+        ],
       )
 
       // 3. INSERT agent_runs: status='running'
       const runId = generateId()
       db.run(
         `INSERT INTO agent_runs (id, task_id, action, status, started_at) VALUES (?, ?, ?, 'running', datetime('now'))`,
-        [runId, task.id, task.action ?? '']
+        [runId, task.id, task.action ?? ''],
       )
 
       // 4. Move to "In Progress" (skip for plan/research)
@@ -268,7 +276,7 @@ export class Orchestrator {
         if (inProgressColId) {
           db.run(
             `UPDATE tasks SET column_id = ?, updated_at = datetime('now') WHERE id = ?`,
-            [inProgressColId, task.id]
+            [inProgressColId, task.id],
           )
 
           // 5. INSERT task_events: moved
@@ -280,7 +288,7 @@ export class Orchestrator {
               'SYSTEM',
               'moved',
               JSON.stringify({ to_column: 'In Progress' }),
-            ]
+            ],
           )
         }
       }
@@ -294,13 +302,19 @@ export class Orchestrator {
       pubsub.publish(
         'TASK_UPDATED',
         updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>
+        mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
 
       // Publish the agent_started event
       const startedEvent = db
         .query('SELECT * FROM task_events WHERE id = ?')
-        .get(agentStartedEventId) as { id: string; type: string; data: string | null; created_at: string; actor: string }
+        .get(agentStartedEventId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      }
       if (startedEvent) {
         pubsub.publish('TASK_EVENT', task.id, {
           id: startedEvent.id,
@@ -324,7 +338,9 @@ export class Orchestrator {
       const retryAttempt = task.retry_count ?? 0
 
       let resolveDone!: () => void
-      const done = new Promise<void>((resolve) => { resolveDone = resolve })
+      const done = new Promise<void>((resolve) => {
+        resolveDone = resolve
+      })
 
       const runState: RunState = {
         taskId: task.id,
@@ -346,7 +362,7 @@ export class Orchestrator {
       // Reset to queued so it can be retried
       db.run(
         `UPDATE tasks SET agent_status = 'queued', updated_at = datetime('now') WHERE id = ?`,
-        [task.id]
+        [task.id],
       )
     }
   }
@@ -355,7 +371,11 @@ export class Orchestrator {
   // Agent execution
   // -------------------------------------------------------------------------
 
-  private async runAgentAsync(task: TaskRow, runId: string, runState: RunState): Promise<void> {
+  private async runAgentAsync(
+    task: TaskRow,
+    runId: string,
+    runState: RunState,
+  ): Promise<void> {
     try {
       // For revise action, fetch PR review comments to include in the agent prompt
       let reviewComments: string | undefined
@@ -365,12 +385,18 @@ export class Orchestrator {
           const comments = await github.fetchReviewComments(task.pr_url)
           if (comments.length > 0) {
             reviewComments = formatReviewComments(comments)
-            consola.info(`Fetched ${comments.length} review comment(s) for task ${task.id}`)
+            consola.info(
+              `Fetched ${comments.length} review comment(s) for task ${task.id}`,
+            )
           } else {
-            consola.info(`No review comments found for task ${task.id} (${task.pr_url})`)
+            consola.info(
+              `No review comments found for task ${task.id} (${task.pr_url})`,
+            )
           }
         } catch (err) {
-          consola.warn(`Failed to fetch review comments for task ${task.id}: ${err}`)
+          consola.warn(
+            `Failed to fetch review comments for task ${task.id}: ${err}`,
+          )
           // Continue without review comments rather than failing the whole run
         }
       }
@@ -420,7 +446,12 @@ export class Orchestrator {
   private async onComplete(
     task: TaskRow,
     runId: string,
-    result: { taskId: string; success: boolean; output: string; error?: string }
+    result: {
+      taskId: string
+      success: boolean
+      output: string
+      error?: string
+    },
   ): Promise<void> {
     // Publish [DONE] marker so frontend knows stream ended
     publishAgentLog(task.id, {
@@ -435,8 +466,14 @@ export class Orchestrator {
       // Parse PR URL from output if applicable
       let prUrl: string | null = null
       let prNumber: number | null = null
-      if (task.action === 'implement' || task.action === 'implement-e2e' || task.action === 'revise') {
-        const prMatch = result.output.match(/https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/)
+      if (
+        task.action === 'implement' ||
+        task.action === 'implement-e2e' ||
+        task.action === 'revise'
+      ) {
+        const prMatch = result.output.match(
+          /https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/,
+        )
         if (prMatch) {
           prUrl = prMatch[0] ?? null
           prNumber = prMatch[1] ? Number.parseInt(prMatch[1], 10) : null
@@ -481,12 +518,15 @@ export class Orchestrator {
         }
 
         setValues.push(task.id)
-        db.run(`UPDATE tasks SET ${setParts.join(', ')} WHERE id = ?`, setValues)
+        db.run(
+          `UPDATE tasks SET ${setParts.join(', ')} WHERE id = ?`,
+          setValues,
+        )
 
         // UPDATE agent_runs
         db.run(
           `UPDATE agent_runs SET status = 'success', output = ?, finished_at = datetime('now') WHERE id = ?`,
-          [result.output, runId]
+          [result.output, runId],
         )
 
         // INSERT event: agent_succeeded
@@ -499,7 +539,7 @@ export class Orchestrator {
             'SYSTEM',
             'agent_succeeded',
             JSON.stringify({ action: task.action, pr_url: prUrl }),
-          ]
+          ],
         )
 
         // INSERT event: moved (if column changed)
@@ -512,16 +552,18 @@ export class Orchestrator {
               'SYSTEM',
               'moved',
               JSON.stringify({ to_column: targetColumnName }),
-            ]
+            ],
           )
         }
       })()
 
-      const updatedTask = db.query('SELECT * FROM tasks WHERE id = ?').get(task.id) as TaskRow
+      const updatedTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(task.id) as TaskRow
       pubsub.publish(
         'TASK_UPDATED',
         updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>
+        mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
 
       // Publish agent_succeeded event
@@ -538,12 +580,12 @@ export class Orchestrator {
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET agent_status = 'failed', agent_error = ?, updated_at = datetime('now') WHERE id = ?`,
-          [result.error ?? null, task.id]
+          [result.error ?? null, task.id],
         )
 
         db.run(
           `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-          [result.error ?? null, runId]
+          [result.error ?? null, runId],
         )
 
         db.run(
@@ -554,15 +596,17 @@ export class Orchestrator {
             'SYSTEM',
             'agent_failed',
             JSON.stringify({ action: task.action, error: result.error }),
-          ]
+          ],
         )
       })()
 
-      const updatedTask = db.query('SELECT * FROM tasks WHERE id = ?').get(task.id) as TaskRow
+      const updatedTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(task.id) as TaskRow
       pubsub.publish(
         'TASK_UPDATED',
         updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>
+        mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
 
       pubsub.publish('TASK_EVENT', task.id, {
@@ -588,17 +632,19 @@ export class Orchestrator {
     const baseDelay = 10_000 // 10 seconds
     const delay = Math.min(
       baseDelay * 2 ** currentRetryCount,
-      this.config.agent.max_retry_backoff_ms
+      this.config.agent.max_retry_backoff_ms,
     )
 
-    consola.info(`Scheduling retry #${nextRetry} for task ${task.id} in ${delay}ms`)
+    consola.info(
+      `Scheduling retry #${nextRetry} for task ${task.id} in ${delay}ms`,
+    )
 
     const timer = setTimeout(() => {
       this.retryTimers.delete(task.id)
       // Re-queue the task
       db.run(
         `UPDATE tasks SET agent_status = 'queued', retry_count = ?, agent_error = NULL, updated_at = datetime('now') WHERE id = ?`,
-        [nextRetry, task.id]
+        [nextRetry, task.id],
       )
       db.run(
         'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
@@ -608,14 +654,16 @@ export class Orchestrator {
           'SYSTEM',
           'retry_scheduled',
           JSON.stringify({ attempt: nextRetry, delay }),
-        ]
+        ],
       )
 
-      const updatedTask = db.query('SELECT * FROM tasks WHERE id = ?').get(task.id) as TaskRow
+      const updatedTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(task.id) as TaskRow
       pubsub.publish(
         'TASK_UPDATED',
         updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>
+        mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
     }, delay)
 
@@ -635,15 +683,12 @@ export class Orchestrator {
 
       // Wait for the agent process to finish (10s timeout)
       const timeout = 10_000
-      await Promise.race([
-        runState.done,
-        Bun.sleep(timeout),
-      ])
+      await Promise.race([runState.done, Bun.sleep(timeout)])
 
       // Update agent_runs to reflect cancellation
       db.run(
         `UPDATE agent_runs SET status = 'failed', error = 'Cancelled by user', finished_at = datetime('now') WHERE task_id = ? AND status = 'running'`,
-        [taskId]
+        [taskId],
       )
     }
 

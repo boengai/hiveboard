@@ -2,7 +2,7 @@ import { consola } from 'consola'
 import type { Config } from '../config/schema'
 import { renderPrompt } from './prompt'
 
-export interface TaskForAgent {
+export type TaskForAgent = {
   id: string
   title: string
   body: string
@@ -10,14 +10,14 @@ export interface TaskForAgent {
   targetRepo: string | null
 }
 
-export interface AgentResult {
+export type AgentResult = {
   taskId: string
   success: boolean
   output: string
   error?: string
 }
 
-export interface RunAgentOptions {
+export type RunAgentOptions = {
   task: TaskForAgent
   workspacePath: string
   promptTemplate: string
@@ -30,7 +30,12 @@ export interface RunAgentOptions {
 
 /** Build Claude CLI arguments from config. */
 function buildClaudeArgs(config: Config, prompt: string): string[] {
-  const args: string[] = [config.claude.command, '--print', '--output-format', 'json']
+  const args: string[] = [
+    config.claude.command,
+    '--print',
+    '--output-format',
+    'json',
+  ]
 
   if (config.claude.model) {
     args.push('--model', config.claude.model)
@@ -53,19 +58,29 @@ function buildClaudeArgs(config: Config, prompt: string): string[] {
 
 /** Run Claude CLI for a task (local only). */
 export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
-  const { task, workspacePath, promptTemplate, config, retryAttempt, reviewComments, signal, onLog } =
-    options
+  const {
+    task,
+    workspacePath,
+    promptTemplate,
+    config,
+    retryAttempt,
+    reviewComments,
+    signal,
+    onLog,
+  } = options
 
   const prompt = renderPrompt(
     promptTemplate,
     task,
     retryAttempt && retryAttempt > 0 ? retryAttempt : undefined,
-    reviewComments
+    reviewComments,
   )
 
   const args = buildClaudeArgs(config, prompt)
 
-  consola.info(`Starting Claude CLI for task ${task.id} (action: ${task.action})`)
+  consola.info(
+    `Starting Claude CLI for task ${task.id} (action: ${task.action})`,
+  )
 
   const proc = Bun.spawn(args, {
     cwd: workspacePath,
@@ -120,7 +135,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   if (exitCode !== 0) {
     consola.error(
-      `Claude CLI failed for task ${task.id} (exit ${exitCode}): ${stderr.slice(0, 200)}`
+      `Claude CLI failed for task ${task.id} (exit ${exitCode}): ${stderr.slice(0, 200)}`,
     )
     return {
       taskId: task.id,

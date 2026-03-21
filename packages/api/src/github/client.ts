@@ -1,6 +1,6 @@
 import { consola } from 'consola'
 
-export interface ReviewComment {
+export type ReviewComment = {
   author: string
   body: string
   path: string | null
@@ -28,16 +28,28 @@ export class GitHubClient {
     title: string,
     body: string,
     baseBranch: string,
-    headBranch: string
+    headBranch: string,
   ): Promise<string> {
     const proc = Bun.spawn(
-      ['gh', 'pr', 'create', '--title', title, '--body', body, '--base', baseBranch, '--head', headBranch],
+      [
+        'gh',
+        'pr',
+        'create',
+        '--title',
+        title,
+        '--body',
+        body,
+        '--base',
+        baseBranch,
+        '--head',
+        headBranch,
+      ],
       {
         cwd: workspacePath,
         env: { ...process.env, GITHUB_TOKEN: this.token },
         stdout: 'pipe',
         stderr: 'pipe',
-      }
+      },
     )
 
     const exitCode = await proc.exited
@@ -79,7 +91,7 @@ export class GitHubClient {
         env: { ...process.env, GITHUB_TOKEN: this.token },
         stdout: 'pipe',
         stderr: 'pipe',
-      }
+      },
     )
 
     const exitCode = await proc.exited
@@ -95,7 +107,9 @@ export class GitHubClient {
       consola.info(`Fetched ${comments.length} review comments from ${prUrl}`)
       return comments
     } catch {
-      consola.warn(`Failed to parse review comments from ${prUrl}: ${stdout.slice(0, 200)}`)
+      consola.warn(
+        `Failed to parse review comments from ${prUrl}: ${stdout.slice(0, 200)}`,
+      )
       return []
     }
   }

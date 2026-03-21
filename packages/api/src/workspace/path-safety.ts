@@ -35,7 +35,9 @@ export async function resolvePathSafe(filePath: string): Promise<string> {
     // Check if current segment is a symlink
     try {
       const target = await readlink(current)
-      const resolved = isAbsolute(target) ? target : resolve(dirname(current), target)
+      const resolved = isAbsolute(target)
+        ? target
+        : resolve(dirname(current), target)
       // Re-resolve with remaining segments
       const remaining = segments.slice(i + 1)
       if (remaining.length > 0) {
@@ -56,7 +58,10 @@ export async function resolvePathSafe(filePath: string): Promise<string> {
  * - Must not equal root
  * - Must not escape via symlinks
  */
-export async function validateWorkspacePath(workspacePath: string, root: string): Promise<void> {
+export async function validateWorkspacePath(
+  workspacePath: string,
+  root: string,
+): Promise<void> {
   const canonicalRoot = await resolvePathSafe(root)
   const canonicalPath = await resolvePathSafe(workspacePath)
 
@@ -66,7 +71,7 @@ export async function validateWorkspacePath(workspacePath: string, root: string)
 
   if (!canonicalPath.startsWith(`${canonicalRoot}/`)) {
     throw new Error(
-      `Workspace path escapes root: ${workspacePath} → ${canonicalPath} (root: ${canonicalRoot})`
+      `Workspace path escapes root: ${workspacePath} → ${canonicalPath} (root: ${canonicalRoot})`,
     )
   }
 }

@@ -1,9 +1,9 @@
-export interface MarkdownPreviewProps {
+export type MarkdownPreviewProps = {
   content: string
   className?: string
 }
 
-export interface MarkdownEditorProps {
+export type MarkdownEditorProps = {
   value: string
   onChange: (value: string) => void
   placeholder?: string

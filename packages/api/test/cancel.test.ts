@@ -12,7 +12,7 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -68,7 +68,13 @@ function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
   return {
     polling: { interval_ms: 60_000 },
     workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
-    claude: { command: 'claude', max_turns: 5, allowed_tools: [], permission_mode: undefined, model: undefined },
+    claude: {
+      command: 'claude',
+      max_turns: 5,
+      allowed_tools: [],
+      permission_mode: undefined,
+      model: undefined,
+    },
     agent: {
       max_concurrent_agents: 5,
       max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
@@ -85,21 +91,29 @@ function makeWorkspaceStub() {
   }
 }
 
-interface TaskRow {
+type TaskRow = {
   id: string
   agent_status: string
   retry_count: number
 }
 
-function insertTask(opts: {
-  agentStatus?: string
-  action?: string
-  targetRepo?: string | null
-  retryCount?: number
-} = {}): string {
-  const user = memDb.query('SELECT id FROM users LIMIT 1').get() as { id: string }
-  const board = memDb.query('SELECT id FROM boards LIMIT 1').get() as { id: string }
-  const col = memDb.query('SELECT id FROM columns LIMIT 1').get() as { id: string }
+function insertTask(
+  opts: {
+    agentStatus?: string
+    action?: string
+    targetRepo?: string | null
+    retryCount?: number
+  } = {},
+): string {
+  const user = memDb.query('SELECT id FROM users LIMIT 1').get() as {
+    id: string
+  }
+  const board = memDb.query('SELECT id FROM boards LIMIT 1').get() as {
+    id: string
+  }
+  const col = memDb.query('SELECT id FROM columns LIMIT 1').get() as {
+    id: string
+  }
   const id = generateId()
   memDb.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, action, target_repo,
@@ -117,13 +131,15 @@ function insertTask(opts: {
       opts.retryCount ?? 0,
       user.id,
       user.id,
-    ]
+    ],
   )
   return id
 }
 
 function getTask(id: string): TaskRow | null {
-  return memDb.query('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | null
+  return memDb
+    .query('SELECT * FROM tasks WHERE id = ?')
+    .get(id) as TaskRow | null
 }
 
 async function flush(ms = 50) {
@@ -133,9 +149,11 @@ async function flush(ms = 50) {
 /** Mirror the cancelAgent resolver's DB-update logic. */
 async function cancelAgent(
   orchestrator: InstanceType<typeof Orchestrator> | null,
-  taskId: string
+  taskId: string,
 ) {
-  const user = memDb.query('SELECT id FROM users WHERE username = ?').get('queen-bee') as {
+  const user = memDb
+    .query('SELECT id FROM users WHERE username = ?')
+    .get('queen-bee') as {
     id: string
   }
 
@@ -151,7 +169,7 @@ async function cancelAgent(
   memDb.transaction(() => {
     memDb.run(
       `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-      [user.id, taskId]
+      [user.id, taskId],
     )
     memDb.run(
       'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
@@ -161,7 +179,7 @@ async function cancelAgent(
         user.id,
         'status_changed',
         JSON.stringify({ from: currentStatus, to: 'idle' }),
-      ]
+      ],
     )
   })()
 }
@@ -188,7 +206,9 @@ describe('cancelAgent – queued task', () => {
     await cancelAgent(null, id)
 
     const event = memDb
-      .query("SELECT data FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1")
+      .query(
+        "SELECT data FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1",
+      )
       .get(id) as { data: string } | null
 
     expect(event).not.toBeNull()
@@ -206,7 +226,7 @@ describe('cancelAgent – running task', () => {
     orchestrator = new Orchestrator(
       makeConfig() as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
   })
 
@@ -217,10 +237,15 @@ describe('cancelAgent – running task', () => {
 
   it('aborts the running agent and transitions to idle', async () => {
     let agentAborted = false
-    const latch = new Promise<void>((resolve) => { releaseLatch = resolve })
+    const latch = new Promise<void>((resolve) => {
+      releaseLatch = resolve
+    })
 
     mockRunAgentImpl = async (opts) => {
-      const { signal, task } = opts as { signal: AbortSignal; task: { id: string } }
+      const { signal, task } = opts as {
+        signal: AbortSignal
+        task: { id: string }
+      }
       // Wait for abort or latch release
       await new Promise<void>((resolve) => {
         signal.addEventListener('abort', () => {
@@ -247,10 +272,15 @@ describe('cancelAgent – running task', () => {
   })
 
   it('marks the agent_run as failed after cancel', async () => {
-    const latch = new Promise<void>((resolve) => { releaseLatch = resolve })
+    const latch = new Promise<void>((resolve) => {
+      releaseLatch = resolve
+    })
 
     mockRunAgentImpl = async (opts) => {
-      const { signal, task } = opts as { signal: AbortSignal; task: { id: string } }
+      const { signal, task } = opts as {
+        signal: AbortSignal
+        task: { id: string }
+      }
       await new Promise<void>((resolve) => {
         signal.addEventListener('abort', resolve)
         latch.then(resolve)
@@ -266,7 +296,9 @@ describe('cancelAgent – running task', () => {
     await flush(50) // let agent complete after abort
 
     const run = memDb
-      .query("SELECT status FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC LIMIT 1")
+      .query(
+        'SELECT status FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC LIMIT 1',
+      )
       .get(id) as { status: string } | null
 
     // The agent_run row ends up as 'failed' (either via the onComplete path
@@ -288,7 +320,7 @@ describe('cancelAgent – retry timer cleared', () => {
     const orchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
 
     const id = insertTask({ agentStatus: 'queued' })

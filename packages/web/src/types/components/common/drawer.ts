@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export interface DrawerProps {
+export type DrawerProps = {
   children: ReactNode
   title: string
   description?: string

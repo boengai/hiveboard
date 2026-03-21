@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export interface BadgeProps {
+export type BadgeProps = {
   children: ReactNode
   color?:
     | 'default'

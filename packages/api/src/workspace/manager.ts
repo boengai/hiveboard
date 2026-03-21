@@ -5,13 +5,13 @@ import Mustache from 'mustache'
 import type { Config } from '../config/schema'
 import { validateWorkspacePath } from './path-safety'
 
-export interface TaskForWorkspace {
+export type TaskForWorkspace = {
   id: string
   title: string
   targetRepo: string | null
 }
 
-export interface WorkspaceResult {
+export type WorkspaceResult = {
   path: string
   created: boolean
 }
@@ -61,7 +61,10 @@ export class WorkspaceManager {
   }
 
   /** Create a workspace for a task (local only). */
-  async createForTask(task: TaskForWorkspace, accessToken?: string): Promise<WorkspaceResult> {
+  async createForTask(
+    task: TaskForWorkspace,
+    accessToken?: string,
+  ): Promise<WorkspaceResult> {
     const wsPath = this.pathForTask(task)
     return this.createLocal(wsPath, task, accessToken)
   }
@@ -69,7 +72,7 @@ export class WorkspaceManager {
   private async createLocal(
     wsPath: string,
     task: TaskForWorkspace,
-    accessToken?: string
+    accessToken?: string,
   ): Promise<WorkspaceResult> {
     await validateWorkspacePath(wsPath, this.root)
 
@@ -163,7 +166,7 @@ export class WorkspaceManager {
   private hookEnv(
     wsPath: string,
     task: TaskForWorkspace,
-    accessToken?: string
+    accessToken?: string,
   ): Record<string, string> {
     const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
     const env: Record<string, string> = {
@@ -183,7 +186,7 @@ export class WorkspaceManager {
     name: keyof Config['hooks'],
     wsPath: string,
     task: TaskForWorkspace,
-    accessToken?: string
+    accessToken?: string,
   ): Promise<void> {
     if (name === 'timeout_ms') return
     const rawScript = this.hooks[name]
@@ -212,7 +215,9 @@ export class WorkspaceManager {
     const timeout = this.hooks.timeout_ms
     const result = await Promise.race([
       proc.exited,
-      new Promise<'timeout'>((res) => setTimeout(() => res('timeout'), timeout)),
+      new Promise<'timeout'>((res) =>
+        setTimeout(() => res('timeout'), timeout),
+      ),
     ])
 
     if (result === 'timeout') {
