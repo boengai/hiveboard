@@ -4,6 +4,7 @@ import { GET_COMMENTS } from '@/graphql/queries'
 import { ADD_COMMENT, UPDATE_COMMENT, DELETE_COMMENT } from '@/graphql/mutations'
 import { timeAgo } from './TaskTimeline'
 import { subscribe, COMMENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
+import { TextAreaInput } from '@/components/common/input'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -137,8 +138,8 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
       {/* Body or edit textarea */}
       {editing ? (
         <div className="flex flex-col gap-1.5">
-          <textarea
-            className="min-h-[60px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400 focus:shadow-glow-honey"
+          <TextAreaInput
+            rows={2}
             value={editBody}
             onChange={(e) => setEditBody(e.target.value)}
           />
@@ -191,8 +192,8 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
       {/* Inline reply input */}
       {showReplyInput && (
         <div className="ml-4 flex flex-col gap-1.5 border-l border-border-default pl-3">
-          <textarea
-            className="min-h-[60px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400 focus:shadow-glow-honey"
+          <TextAreaInput
+            rows={2}
             placeholder="Write a reply…"
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
@@ -385,8 +386,8 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
 
       {/* New comment input */}
       <div className="flex flex-col gap-1.5 pt-1">
-        <textarea
-          className="min-h-[72px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400 focus:shadow-glow-honey"
+        <TextAreaInput
+          rows={3}
           placeholder="Leave a comment…"
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}

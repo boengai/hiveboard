@@ -338,7 +338,7 @@ describe('Orchestrator – concurrency limit', () => {
 
     // Release first wave, wait for completion
     pass1Latch?.()
-    releaseLatch = pass1Latch!
+    releaseLatch = pass1Latch as () => void
     await flushMicrotasks(100)
 
     // Second poll can now pick up t3
@@ -381,10 +381,10 @@ describe('Orchestrator – retry scheduling', () => {
     // Wait long enough for the agent to complete AND for the retry timer to fire
     await flushMicrotasks(250)
 
-    const task = getTask(taskId)!
+    const task = getTask(taskId)
     // After the retry timer fires the task is re-queued with incremented count
-    expect(task.agent_status).toBe('queued')
-    expect(task.retry_count).toBe(1)
+    expect(task?.agent_status).toBe('queued')
+    expect(task?.retry_count).toBe(1)
   })
 
   it('inserts a retry_scheduled event', async () => {

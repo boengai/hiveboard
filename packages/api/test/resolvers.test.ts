@@ -272,8 +272,8 @@ describe('moveTask', () => {
       .query('SELECT * FROM columns WHERE board_id = ? ORDER BY position ASC')
       .all(board.id) as ColumnRow[]
 
-    const fromCol = cols[0]!
-    const toCol = cols[2]!
+    const fromCol = cols[0] as ColumnRow
+    const toCol = cols[2] as ColumnRow
 
     const taskId = insertTask(db, { boardId: board.id, columnId: fromCol.id, title: 'Move Me' })
     const user = getCurrentUser(db)

@@ -369,7 +369,7 @@ export const resolvers = {
           [
             id,
             input.boardId,
-            columnId!,
+            columnId as string,
             input.title,
             input.body ?? '',
             position,
@@ -386,7 +386,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(id)!
+      const task = getTaskById(id)
+      if (!task) throw new Error(`Task ${id} not found`)
 
       // Publish subscription events
       const boardRow = db.query('SELECT board_id FROM tasks WHERE id = ?').get(id) as { board_id: string }
@@ -479,7 +480,8 @@ export const resolvers = {
         }
       })()
 
-      const task = getTaskById(id)!
+      const task = getTaskById(id)
+      if (!task) throw new Error(`Task ${id} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENT for each change event recorded
@@ -557,7 +559,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(id)!
+      const task = getTaskById(id)
+      if (!task) throw new Error(`Task ${id} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENT for the 'moved' event
@@ -592,7 +595,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(id)!
+      const task = getTaskById(id)
+      if (!task) throw new Error(`Task ${id} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENT for the 'archived' event
@@ -627,7 +631,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(id)!
+      const task = getTaskById(id)
+      if (!task) throw new Error(`Task ${id} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENT for the 'unarchived' event
@@ -753,7 +758,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(taskId)!
+      const task = getTaskById(taskId)
+      if (!task) throw new Error(`Task ${taskId} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENTs for the action_set + status_changed events
@@ -800,7 +806,8 @@ export const resolvers = {
         )
       })()
 
-      const task = getTaskById(taskId)!
+      const task = getTaskById(taskId)
+      if (!task) throw new Error(`Task ${taskId} not found`)
       publishTaskUpdated(task)
 
       // Publish TASK_EVENT for the 'status_changed' event (cancel → idle)

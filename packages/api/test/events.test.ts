@@ -209,8 +209,8 @@ describe('task events', () => {
       .query('SELECT id, name FROM columns WHERE board_id = ? ORDER BY position ASC')
       .all(board.id) as ColumnRow[]
 
-    const fromCol = cols[0]!
-    const toCol = cols[2]!
+    const fromCol = cols[0] as ColumnRow
+    const toCol = cols[2] as ColumnRow
     const user = getCurrentUser(db)
     const taskId = insertTask(db, board.id, fromCol.id)
 
@@ -365,10 +365,10 @@ describe('task events', () => {
     )
 
     const events = getEventsForTask(db, taskId)
-    const cancelEvent = events[events.length - 1]!
-    expect(cancelEvent.type).toBe('status_changed')
+    const cancelEvent = events[events.length - 1]
+    expect(cancelEvent?.type).toBe('status_changed')
 
-    const data = JSON.parse(cancelEvent.data!)
+    const data = JSON.parse(cancelEvent?.data ?? '{}')
     expect(data.from).toBe('queued')
     expect(data.to).toBe('idle')
 

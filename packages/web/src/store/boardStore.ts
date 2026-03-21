@@ -132,7 +132,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     // Add to target column at the right position
     const updatedColumns = newColumns.map((col) => {
       if (col.id === toColumnId) {
-        const updatedTask = { ...task!, position, column: { id: col.id, name: col.name } }
+        const updatedTask = { ...task, position, column: { id: col.id, name: col.name } }
         const tasks = [...col.tasks, updatedTask].sort((a, b) => a.position - b.position)
         return { ...col, tasks }
       }
