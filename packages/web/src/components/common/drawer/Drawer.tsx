@@ -1,41 +1,32 @@
-import { Drawer as VaulDrawer } from 'vaul'
-import { m } from 'motion/react'
-import { tv } from '@/utils/tailwind-variants'
+import { m } from "motion/react";
+import { Drawer as VaulDrawer } from "vaul";
+import { tv } from "@/utils/tailwind-variants";
+import type { DrawerProps } from "@/types/components/common/drawer";
 
 const overlayVariants = tv({
-  base: 'fixed inset-0 z-40 bg-black/40 backdrop-blur-xs',
-})
+  base: "fixed inset-0 z-40 bg-black/40 backdrop-blur-xs",
+});
 
 const contentVariants = tv({
   base: [
-    'fixed z-50 flex h-full flex-col bg-surface-raised border-l border-border-default outline-none',
-    'data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0',
+    "fixed z-50 flex h-full flex-col bg-surface-raised border-l border-border-default outline-none",
+    "data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0",
   ],
   variants: {
     size: {
-      default: 'w-[480px] max-w-[90vw]',
-      narrow: 'w-[360px] max-w-[85vw]',
-      wide: 'w-[640px] max-w-[95vw]',
+      default: "w-[480px] max-w-[90vw]",
+      narrow: "w-[360px] max-w-[85vw]",
+      wide: "w-[640px] max-w-[95vw]",
     },
   },
-  defaultVariants: { size: 'default' },
-})
-
-interface DrawerProps {
-  children: React.ReactNode
-  title: string
-  description?: string
-  size?: 'default' | 'narrow' | 'wide'
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  trigger?: React.ReactNode
-}
+  defaultVariants: { size: "default" },
+});
 
 export const Drawer = ({
   children,
   title,
   description,
-  size = 'default',
+  size = "default",
   open,
   onOpenChange,
   trigger,
@@ -62,10 +53,13 @@ export const Drawer = ({
             {description ?? title}
           </VaulDrawer.Description>
         </div>
-        <div data-vaul-no-drag className="flex size-full grow flex-col overflow-y-auto p-4">
+        <div
+          data-vaul-no-drag
+          className="flex size-full grow flex-col overflow-y-auto p-4"
+        >
           {children}
         </div>
       </VaulDrawer.Content>
     </VaulDrawer.Portal>
   </VaulDrawer.Root>
-)
+);

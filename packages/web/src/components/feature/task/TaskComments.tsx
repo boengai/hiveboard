@@ -7,47 +7,12 @@ import { subscribe, COMMENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
 import { TextAreaInput } from '@/components/common/input'
 import { Button } from '@/components/common/button'
 import { MarkdownPreview } from '@/components/common/markdown'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface CommentUser {
-  id: string
-  username: string
-  displayName: string
-}
-
-interface Reply {
-  id: string
-  body: string
-  parentId: string | null
-  createdAt: string
-  updatedAt: string
-  createdBy: CommentUser
-}
-
-interface Comment {
-  id: string
-  body: string
-  parentId: string | null
-  createdAt: string
-  updatedAt: string
-  createdBy: CommentUser
-  replies: Reply[]
-}
-
-// ---------------------------------------------------------------------------
-// CommentBlock
-// ---------------------------------------------------------------------------
-
-interface CommentBlockProps {
-  taskId: string
-  comment: Comment
-  onDeleted: (id: string) => void
-  onUpdated: (id: string, body: string) => void
-  onReplyAdded: (parentId: string, reply: Reply) => void
-}
+import type {
+  Comment,
+  Reply,
+  CommentBlockProps,
+  TaskCommentsProps,
+} from '@/types/components/feature/task'
 
 function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: CommentBlockProps) {
   const [editing, setEditing] = useState(false)
@@ -276,10 +241,6 @@ function ReplyBlock({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-
-interface TaskCommentsProps {
-  taskId: string
-}
 
 export function TaskComments({ taskId }: TaskCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([])

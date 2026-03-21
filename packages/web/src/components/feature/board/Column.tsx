@@ -1,14 +1,9 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useBoardStore, type Column as ColumnType } from '@/store/boardStore'
+import { useBoardStore } from '@/store/boardStore'
 import { TaskCard } from './TaskCard'
 import { PlusIcon } from '@/components/common/icon'
-
-interface ColumnProps {
-  column: ColumnType
-  /** The task id where the drop indicator should appear above, or null for end-of-column */
-  dropTargetTaskId?: string | null
-}
+import type { ColumnProps } from '@/types/components/feature/board'
 
 export function Column({ column, dropTargetTaskId }: ColumnProps) {
   const openDrawerCreate = useBoardStore((s) => s.openDrawerCreate)
