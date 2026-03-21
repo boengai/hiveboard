@@ -1,5 +1,5 @@
-import * as SwitchPrimitive from "@radix-ui/react-switch";
-import type { SwitchInputProps } from "@/types/components/common/input";
+import * as SwitchPrimitive from '@radix-ui/react-switch'
+import type { SwitchInputProps } from '@/types/components/common/input'
 
 export const SwitchInput = ({
   checked,
@@ -16,4 +16,4 @@ export const SwitchInput = ({
   >
     <SwitchPrimitive.Thumb className="block h-3.5 w-3.5 rounded-full bg-text-primary shadow-sm transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0.5" />
   </SwitchPrimitive.Root>
-);
+)

@@ -1,6 +1,6 @@
-import * as SelectPrimitive from "@radix-ui/react-select";
-import { ChevronDownIcon } from "@/components/common/icon";
-import type { SelectInputProps } from "@/types/components/common/input";
+import * as SelectPrimitive from '@radix-ui/react-select'
+import { ChevronDownIcon } from '@/components/common/icon'
+import type { SelectInputProps } from '@/types/components/common/input'
 
 export const SelectInput = ({
   value,
@@ -15,7 +15,7 @@ export const SelectInput = ({
     disabled={disabled}
   >
     <SelectPrimitive.Trigger className="inline-flex w-full items-center justify-between rounded-md border border-border-default bg-surface-inset px-3 py-2 text-body-sm text-text-primary outline-none transition-colors focus:border-honey-400 focus:shadow-glow-honey disabled:opacity-50 data-[placeholder]:text-text-tertiary">
-      <SelectPrimitive.Value placeholder={placeholder ?? "Select…"} />
+      <SelectPrimitive.Value placeholder={placeholder ?? 'Select…'} />
       <SelectPrimitive.Icon className="ml-2 text-text-tertiary">
         <ChevronDownIcon />
       </SelectPrimitive.Icon>
@@ -41,4 +41,4 @@ export const SelectInput = ({
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   </SelectPrimitive.Root>
-);
+)

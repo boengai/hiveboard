@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
-import { connectionStateManager, type ConnectionState } from '@/graphql/subscriptions'
+import {
+  type ConnectionState,
+  connectionStateManager,
+} from '@/graphql/subscriptions'
 
-const STATE_CONFIG: Record<ConnectionState, { color: string; label: string; pulse: boolean }> = {
+const STATE_CONFIG: Record<
+  ConnectionState,
+  { color: string; label: string; pulse: boolean }
+> = {
   connected: {
     color: 'bg-success-400',
     label: 'Connected',
@@ -20,7 +26,9 @@ const STATE_CONFIG: Record<ConnectionState, { color: string; label: string; puls
 }
 
 export function ConnectionIndicator() {
-  const [state, setState] = useState<ConnectionState>(connectionStateManager.getState())
+  const [state, setState] = useState<ConnectionState>(
+    connectionStateManager.getState(),
+  )
 
   useEffect(() => {
     return connectionStateManager.subscribe(setState)
@@ -41,9 +49,13 @@ export function ConnectionIndicator() {
             className={`absolute inline-flex size-full animate-ping rounded-full opacity-75 ${config.color}`}
           />
         )}
-        <span className={`relative inline-flex size-2 rounded-full ${config.color}`} />
+        <span
+          className={`relative inline-flex size-2 rounded-full ${config.color}`}
+        />
       </span>
-      <span className="hidden text-body-xs text-text-secondary tablet:inline">{config.label}</span>
+      <span className="hidden text-body-xs text-text-secondary tablet:inline">
+        {config.label}
+      </span>
     </div>
   )
 }

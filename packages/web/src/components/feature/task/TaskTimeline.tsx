@@ -1,5 +1,5 @@
-import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/common/badge";
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { Badge } from '@/components/common/badge'
 import {
   ArchiveIcon,
   ArrowRightIcon,
@@ -14,86 +14,86 @@ import {
   PlusIcon,
   RefreshIcon,
   XMarkIcon,
-} from "@/components/common/icon";
-import { graphqlClient } from "@/graphql/client";
-import { GET_COMMENTS, GET_TASK_TIMELINE } from "@/graphql/queries";
+} from '@/components/common/icon'
+import { graphqlClient } from '@/graphql/client'
+import { GET_COMMENTS, GET_TASK_TIMELINE } from '@/graphql/queries'
 import {
   subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
-} from "@/graphql/subscriptions";
+} from '@/graphql/subscriptions'
 import type {
-  TimelineEntry,
-  RawTimelineEvent,
   RawComment,
+  RawTimelineEvent,
   TaskTimelineProps,
-} from "@/types/components/feature/task";
+  TimelineEntry,
+} from '@/types/components/feature/task'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 export function timeAgo(dateStr: string): string {
-  const now = Date.now();
+  const now = Date.now()
   const then = new Date(
-    dateStr.endsWith("Z") ? dateStr : `${dateStr}Z`,
-  ).getTime();
-  const diff = now - then;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
+    dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`,
+  ).getTime()
+  const diff = now - then
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
   return new Date(
-    dateStr.endsWith("Z") ? dateStr : `${dateStr}Z`,
-  ).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`,
+  ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function parseData(
   raw: string | null | undefined,
 ): Record<string, string | number> {
-  if (!raw) return {};
+  if (!raw) return {}
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw)
   } catch {
-    return {};
+    return {}
   }
 }
 
 function eventIcon(eventType: string): ReactNode {
-  const s = 14;
+  const s = 14
   switch (eventType) {
-    case "created":
-      return <PlusIcon size={s} />;
-    case "moved":
-      return <ArrowRightIcon size={s} />;
-    case "status_changed":
-      return <RefreshIcon size={s} />;
-    case "agent_started":
-      return <PlayIcon size={s} />;
-    case "agent_succeeded":
-      return <CheckIcon size={s} />;
-    case "agent_failed":
-      return <XMarkIcon size={s} />;
-    case "pr_opened":
-      return <GitPullRequestIcon size={s} />;
-    case "archived":
-      return <ArchiveIcon size={s} />;
-    case "unarchived":
-      return <ArchiveIcon size={s} />;
-    case "title_changed":
-      return <PencilIcon size={s} />;
-    case "body_changed":
-      return <FileTextIcon size={s} />;
-    case "action_set":
-      return <BoltIcon size={s} />;
-    case "action_cleared":
-      return <BoltIcon size={s} />;
-    case "comment_added":
-      return <MessageIcon size={s} />;
+    case 'created':
+      return <PlusIcon size={s} />
+    case 'moved':
+      return <ArrowRightIcon size={s} />
+    case 'status_changed':
+      return <RefreshIcon size={s} />
+    case 'agent_started':
+      return <PlayIcon size={s} />
+    case 'agent_succeeded':
+      return <CheckIcon size={s} />
+    case 'agent_failed':
+      return <XMarkIcon size={s} />
+    case 'pr_opened':
+      return <GitPullRequestIcon size={s} />
+    case 'archived':
+      return <ArchiveIcon size={s} />
+    case 'unarchived':
+      return <ArchiveIcon size={s} />
+    case 'title_changed':
+      return <PencilIcon size={s} />
+    case 'body_changed':
+      return <FileTextIcon size={s} />
+    case 'action_set':
+      return <BoltIcon size={s} />
+    case 'action_cleared':
+      return <BoltIcon size={s} />
+    case 'comment_added':
+      return <MessageIcon size={s} />
     default:
-      return <DotIcon size={s} />;
+      return <DotIcon size={s} />
   }
 }
 
@@ -101,38 +101,38 @@ function eventDescription(
   eventType: string,
   data: string | null | undefined,
 ): string {
-  const d = parseData(data);
+  const d = parseData(data)
   switch (eventType) {
-    case "created":
-      return "created this task";
-    case "moved":
-      return `moved this from ${d.from_column ?? d.from ?? "?"} to ${d.to_column ?? d.to ?? "?"}`;
-    case "status_changed":
-      return `changed status to ${d.to ?? "?"}`;
-    case "agent_started": {
-      const retry = Number(d.retry ?? 0);
-      return `agent started (${d.action ?? "?"}, attempt #${retry + 1})`;
+    case 'created':
+      return 'created this task'
+    case 'moved':
+      return `moved this from ${d.from_column ?? d.from ?? '?'} to ${d.to_column ?? d.to ?? '?'}`
+    case 'status_changed':
+      return `changed status to ${d.to ?? '?'}`
+    case 'agent_started': {
+      const retry = Number(d.retry ?? 0)
+      return `agent started (${d.action ?? '?'}, attempt #${retry + 1})`
     }
-    case "agent_succeeded":
-      return `agent succeeded${d.duration ? ` (took ${d.duration})` : ""}`;
-    case "agent_failed":
-      return `agent failed${d.error ? `: ${d.error}` : ""}`;
-    case "pr_opened":
-      return `opened PR #${d.pr_number ?? "?"}`;
-    case "archived":
-      return "archived this task";
-    case "unarchived":
-      return "unarchived this task";
-    case "title_changed":
-      return `changed title from "${d.from ?? "?"}" to "${d.to ?? "?"}"`;
-    case "body_changed":
-      return "updated task body";
-    case "action_set":
-      return `set action to ${d.action ?? "?"}`;
-    case "action_cleared":
-      return "cleared action";
+    case 'agent_succeeded':
+      return `agent succeeded${d.duration ? ` (took ${d.duration})` : ''}`
+    case 'agent_failed':
+      return `agent failed${d.error ? `: ${d.error}` : ''}`
+    case 'pr_opened':
+      return `opened PR #${d.pr_number ?? '?'}`
+    case 'archived':
+      return 'archived this task'
+    case 'unarchived':
+      return 'unarchived this task'
+    case 'title_changed':
+      return `changed title from "${d.from ?? '?'}" to "${d.to ?? '?'}"`
+    case 'body_changed':
+      return 'updated task body'
+    case 'action_set':
+      return `set action to ${d.action ?? '?'}`
+    case 'action_cleared':
+      return 'cleared action'
     default:
-      return eventType;
+      return eventType
   }
 }
 
@@ -141,8 +141,8 @@ function eventDescription(
 // ---------------------------------------------------------------------------
 
 function EventRow({ entry }: { entry: TimelineEntry }) {
-  const icon = eventIcon(entry.eventType ?? "");
-  const description = eventDescription(entry.eventType ?? "", entry.data);
+  const icon = eventIcon(entry.eventType ?? '')
+  const description = eventDescription(entry.eventType ?? '', entry.data)
 
   return (
     <div className="flex items-start gap-2.5 py-1.5">
@@ -172,22 +172,22 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
         {timeAgo(entry.createdAt)}
       </span>
     </div>
-  );
+  )
 }
 
 function CommentRow({
   entry,
   onReply,
 }: {
-  entry: TimelineEntry;
-  onReply?: (parentId: string) => void;
+  entry: TimelineEntry
+  onReply?: (parentId: string) => void
 }) {
   return (
     <div className="flex flex-col gap-1 py-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-body-xs font-medium text-text-primary">
-          {entry.createdBy?.username ?? "unknown"}
+          {entry.createdBy?.username ?? 'unknown'}
         </span>
         <span className="text-body-xs text-text-tertiary">
           {timeAgo(entry.createdAt)}
@@ -231,7 +231,7 @@ function CommentRow({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -239,12 +239,12 @@ function CommentRow({
 // ---------------------------------------------------------------------------
 
 export function TaskTimeline({ taskId }: TaskTimelineProps) {
-  const [entries, setEntries] = useState<TimelineEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [replyParentId, setReplyParentId] = useState<string | null>(null);
+  const [entries, setEntries] = useState<TimelineEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [replyParentId, setReplyParentId] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const [timelineData, commentsData] = await Promise.all([
         graphqlClient.request<{ taskTimeline: RawTimelineEvent[] }>(
@@ -254,26 +254,26 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
         graphqlClient.request<{ comments: RawComment[] }>(GET_COMMENTS, {
           taskId,
         }),
-      ]);
+      ])
 
       const eventEntries: TimelineEntry[] = timelineData.taskTimeline
-        .filter((e) => e.type !== "comment_added")
+        .filter((e) => e.type !== 'comment_added')
         .map((e) => ({
           id: e.id,
-          type: "event" as const,
+          type: 'event' as const,
           createdAt: e.createdAt,
           eventType: e.type,
           actor: e.actor,
           isSystem: e.isSystem,
           data: e.data,
-        }));
+        }))
 
       // Only top-level comments in the timeline (parentId === null)
       const commentEntries: TimelineEntry[] = commentsData.comments
         .filter((c) => !c.parentId)
         .map((c) => ({
           id: c.id,
-          type: "comment" as const,
+          type: 'comment' as const,
           createdAt: c.createdAt,
           body: c.body,
           createdBy: c.createdBy,
@@ -284,23 +284,23 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
             createdBy: r.createdBy,
             createdAt: r.createdAt,
           })),
-        }));
+        }))
 
       const merged = [...eventEntries, ...commentEntries].sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
-      setEntries(merged);
+      )
+      setEntries(merged)
     } catch (err) {
-      console.error("TaskTimeline fetch error", err);
+      console.error('TaskTimeline fetch error', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [taskId]);
+  }, [taskId])
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData()
+  }, [fetchData])
 
   // Subscribe to new task events
   useEffect(() => {
@@ -308,33 +308,33 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
       TASK_EVENT_ADDED_SUBSCRIPTION,
       { taskId },
       (data) => {
-        const e = data.taskEventAdded;
-        if (!e || e.type === "comment_added") return;
+        const e = data.taskEventAdded
+        if (!e || e.type === 'comment_added') return
         const newEntry: TimelineEntry = {
           id: e.id,
-          type: "event",
+          type: 'event',
           createdAt: e.createdAt,
           eventType: e.type,
           actor: e.actor,
           isSystem: e.isSystem,
           data: e.data,
-        };
+        }
         setEntries((prev) => {
           // Avoid duplicates
-          if (prev.some((x) => x.id === newEntry.id)) return prev;
+          if (prev.some((x) => x.id === newEntry.id)) return prev
           return [...prev, newEntry].sort(
             (a, b) =>
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          );
-        });
+          )
+        })
       },
-    );
-    return dispose;
-  }, [taskId]);
+    )
+    return dispose
+  }, [taskId])
 
   const handleReply = (parentId: string) => {
-    setReplyParentId(replyParentId === parentId ? null : parentId);
-  };
+    setReplyParentId(replyParentId === parentId ? null : parentId)
+  }
 
   if (loading) {
     return (
@@ -347,19 +347,19 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
           />
         ))}
       </div>
-    );
+    )
   }
 
   if (entries.length === 0) {
     return (
       <p className="py-2 text-body-xs text-text-tertiary">No activity yet.</p>
-    );
+    )
   }
 
   return (
     <div className="flex flex-col divide-y divide-border-default/50">
       {entries.map((entry) =>
-        entry.type === "event" ? (
+        entry.type === 'event' ? (
           <EventRow key={entry.id} entry={entry} />
         ) : (
           <CommentRow key={entry.id} entry={entry} onReply={handleReply} />
@@ -371,21 +371,21 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
           taskId={taskId}
           parentId={replyParentId}
           onDone={() => {
-            setReplyParentId(null);
-            fetchData();
+            setReplyParentId(null)
+            fetchData()
           }}
           onCancel={() => setReplyParentId(null)}
         />
       )}
     </div>
-  );
+  )
 }
 
 // ---------------------------------------------------------------------------
 // ReplyInput (inline)
 // ---------------------------------------------------------------------------
 
-import { ADD_COMMENT } from "@/graphql/mutations";
+import { ADD_COMMENT } from '@/graphql/mutations'
 
 function ReplyInput({
   taskId,
@@ -393,32 +393,32 @@ function ReplyInput({
   onDone,
   onCancel,
 }: {
-  taskId: string;
-  parentId: string;
-  onDone: () => void;
-  onCancel: () => void;
+  taskId: string
+  parentId: string
+  onDone: () => void
+  onCancel: () => void
 }) {
-  const [body, setBody] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [body, setBody] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async () => {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    setSubmitting(true);
+    const trimmed = body.trim()
+    if (!trimmed) return
+    setSubmitting(true)
     try {
       await graphqlClient.request(ADD_COMMENT, {
         taskId,
         body: trimmed,
         parentId,
-      });
-      setBody("");
-      onDone();
+      })
+      setBody('')
+      onDone()
     } catch (err) {
-      console.error("ReplyInput submit error", err);
+      console.error('ReplyInput submit error', err)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="ml-4 mt-1 flex flex-col gap-1.5 border-l border-border-default pl-3 py-2">
@@ -435,7 +435,7 @@ function ReplyInput({
           onClick={handleSubmit}
           className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
         >
-          {submitting ? "Replying…" : "Reply"}
+          {submitting ? 'Replying…' : 'Reply'}
         </button>
         <button
           type="button"
@@ -446,5 +446,5 @@ function ReplyInput({
         </button>
       </div>
     </div>
-  );
+  )
 }

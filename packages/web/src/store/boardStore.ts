@@ -49,7 +49,11 @@ interface BoardState {
   openDrawerView: (taskId: string) => void
   closeDrawer: () => void
   toggleArchived: () => void
-  moveTaskOptimistic: (taskId: string, toColumnId: string, position: number) => void
+  moveTaskOptimistic: (
+    taskId: string,
+    toColumnId: string,
+    position: number,
+  ) => void
   mergeTaskUpdate: (updatedTask: Task) => void
 }
 
@@ -101,7 +105,9 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     // Insert/update in the correct column
     const updatedColumns = columnsWithoutTask.map((col) => {
       if (col.id === targetColumnId) {
-        const tasks = [...col.tasks, updatedTask].sort((a, b) => a.position - b.position)
+        const tasks = [...col.tasks, updatedTask].sort(
+          (a, b) => a.position - b.position,
+        )
         return { ...col, tasks }
       }
       return col
@@ -132,8 +138,14 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     // Add to target column at the right position
     const updatedColumns = newColumns.map((col) => {
       if (col.id === toColumnId) {
-        const updatedTask = { ...task, position, column: { id: col.id, name: col.name } }
-        const tasks = [...col.tasks, updatedTask].sort((a, b) => a.position - b.position)
+        const updatedTask = {
+          ...task,
+          position,
+          column: { id: col.id, name: col.name },
+        }
+        const tasks = [...col.tasks, updatedTask].sort(
+          (a, b) => a.position - b.position,
+        )
         return { ...col, tasks }
       }
       return col

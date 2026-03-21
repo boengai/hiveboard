@@ -1,25 +1,31 @@
-import type { ReactNode } from "react";
-import { useState } from "react";
-import * as Tabs from "@radix-ui/react-tabs";
-import type { MarkdownEditorProps } from "@/types/components/common/markdown";
-import { MarkdownPreview } from "./MarkdownPreview";
+import * as Tabs from '@radix-ui/react-tabs'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
+import type { MarkdownEditorProps } from '@/types/components/common/markdown'
+import { MarkdownPreview } from './MarkdownPreview'
 
-const TabTrigger = ({ value, children }: { value: string; children: ReactNode }) => (
+const TabTrigger = ({
+  value,
+  children,
+}: {
+  value: string
+  children: ReactNode
+}) => (
   <Tabs.Trigger
     value={value}
     className="relative px-3 py-1.5 text-body-sm text-text-tertiary transition-colors hover:text-text-secondary data-[state=active]:text-text-primary after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-honey-400 after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
   >
     {children}
   </Tabs.Trigger>
-);
+)
 
 export const MarkdownEditor = ({
   value,
   onChange,
-  placeholder = "Write a description…",
+  placeholder = 'Write a description…',
   rows = 8,
 }: MarkdownEditorProps) => {
-  const [tab, setTab] = useState("write");
+  const [tab, setTab] = useState('write')
 
   return (
     <Tabs.Root value={tab} onValueChange={setTab} className="flex flex-col">
@@ -44,5 +50,5 @@ export const MarkdownEditor = ({
         </div>
       </Tabs.Content>
     </Tabs.Root>
-  );
-};
+  )
+}

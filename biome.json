@@ -22,6 +22,13 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "asNeeded"
+    }
+  },
   "files": {
     "includes": ["src/**/*.ts", "test/**/*.ts", "packages/api/src/**/*.ts", "packages/api/test/**/*.ts", "packages/web/src/**/*.ts", "packages/web/src/**/*.tsx", "!tmp"]
   }

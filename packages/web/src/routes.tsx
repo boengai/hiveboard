@@ -1,4 +1,9 @@
-import { createRouter, createRootRoute, createRoute, lazyRouteComponent } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+} from '@tanstack/react-router'
 import { App } from './App'
 
 const rootRoute = createRootRoute({ component: App })
