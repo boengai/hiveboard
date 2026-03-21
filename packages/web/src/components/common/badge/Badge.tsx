@@ -18,6 +18,6 @@ const badgeVariants = tv({
   defaultVariants: { color: 'default' },
 })
 
-export const Badge = ({ children, color, className }: BadgeProps) => (
-  <span className={badgeVariants({ color, className })}>{children}</span>
+export const Badge = ({ children, color }: BadgeProps) => (
+  <span className={badgeVariants({ color })}>{children}</span>
 )

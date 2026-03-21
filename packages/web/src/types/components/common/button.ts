@@ -1,7 +1,9 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-// interface: extends native HTML attributes
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export type ButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'className' | 'style'
+> & {
   size?: 'small' | 'default' | 'large'
   color?: 'default' | 'primary' | 'danger' | 'ghost'
   block?: boolean

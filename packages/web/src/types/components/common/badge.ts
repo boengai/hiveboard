@@ -11,5 +11,4 @@ export type BadgeProps = {
     | 'warning'
     | 'error'
     | 'honey'
-  className?: string
 }

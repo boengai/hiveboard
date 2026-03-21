@@ -101,7 +101,6 @@ function CommentBlock({
               <Button
                 size="small"
                 color="ghost"
-                className="text-body-xs"
                 onClick={() => {
                   setEditBody(comment.body)
                   setEditing(true)
@@ -112,7 +111,6 @@ function CommentBlock({
               <Button
                 size="small"
                 color="danger"
-                className="text-body-xs"
                 disabled={deleting}
                 onClick={handleDelete}
               >
@@ -158,14 +156,15 @@ function CommentBlock({
 
       {/* Reply button */}
       {!editing && (
-        <Button
-          size="small"
-          color="ghost"
-          className="self-start text-body-xs"
-          onClick={() => setShowReplyInput(!showReplyInput)}
-        >
-          {showReplyInput ? 'Cancel' : 'Reply'}
-        </Button>
+        <div className="self-start">
+          <Button
+            size="small"
+            color="ghost"
+            onClick={() => setShowReplyInput(!showReplyInput)}
+          >
+            {showReplyInput ? 'Cancel' : 'Reply'}
+          </Button>
+        </div>
       )}
 
       {/* Threaded replies (max 1 level) */}
@@ -397,15 +396,16 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
         />
-        <Button
-          size="small"
-          color="primary"
-          className="self-start"
-          disabled={!newBody.trim() || submitting}
-          onClick={handleAddComment}
-        >
-          {submitting ? 'Commenting…' : 'Comment'}
-        </Button>
+        <div className="self-start">
+          <Button
+            size="small"
+            color="primary"
+            disabled={!newBody.trim() || submitting}
+            onClick={handleAddComment}
+          >
+            {submitting ? 'Commenting…' : 'Comment'}
+          </Button>
+        </div>
       </div>
     </div>
   )

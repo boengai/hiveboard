@@ -22,15 +22,9 @@ const buttonVariants = tv({
   defaultVariants: { size: 'default', color: 'default' },
 })
 
-export const Button = ({
-  size,
-  color,
-  block,
-  className,
-  ...props
-}: ButtonProps) => (
+export const Button = ({ size, color, block, ...props }: ButtonProps) => (
   <m.button
-    className={buttonVariants({ size, color, block, className })}
+    className={buttonVariants({ size, color, block })}
     whileHover={{ y: -1 }}
     whileTap={{ scale: 0.98 }}
     {...(props as ComponentProps<typeof m.button>)}
