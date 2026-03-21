@@ -269,67 +269,6 @@ describe('updateTask', () => {
 // ---------------------------------------------------------------------------
 // Delete task
 // ---------------------------------------------------------------------------
-
-describe('deleteTask', () => {
-  test('deletes the task', () => {
-    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-    const col = db
-      .query(
-        'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
-      )
-      .get(board.id) as ColumnRow
-
-    const taskId = insertTask(db, {
-      boardId: board.id,
-      columnId: col.id,
-      title: 'To Delete',
-    })
-
-    db.run('DELETE FROM tasks WHERE id = ?', [taskId])
-
-    const task = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId)
-    expect(task).toBeNull()
-  })
-
-  test('cascade-deletes task_events and task_comments', () => {
-    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-    const col = db
-      .query(
-        'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
-      )
-      .get(board.id) as ColumnRow
-
-    const taskId = insertTask(db, {
-      boardId: board.id,
-      columnId: col.id,
-      title: 'To Delete',
-    })
-    const user = getCurrentUser(db)
-
-    db.run(
-      'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
-      [generateId(), taskId, user.id, 'created'],
-    )
-    db.run(
-      'INSERT INTO task_comments (id, task_id, body, created_by) VALUES (?, ?, ?, ?)',
-      [generateId(), taskId, 'Comment', user.id],
-    )
-
-    db.run('DELETE FROM tasks WHERE id = ?', [taskId])
-
-    const events = db
-      .query('SELECT COUNT(*) as c FROM task_events WHERE task_id = ?')
-      .get(taskId) as { c: number }
-    const comments = db
-      .query('SELECT COUNT(*) as c FROM task_comments WHERE task_id = ?')
-      .get(taskId) as { c: number }
-
-    expect(events.c).toBe(0)
-    expect(comments.c).toBe(0)
-  })
-})
-
-// ---------------------------------------------------------------------------
 // Move task
 // ---------------------------------------------------------------------------
 

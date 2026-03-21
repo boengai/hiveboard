@@ -577,35 +577,6 @@ export const resolvers = {
       return task
     },
 
-    deleteTask(_: unknown, { id }: { id: string }) {
-      const user = getCurrentUser()
-
-      // Fetch task + board_id before deletion for subscription
-      const existing = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(id) as TaskRow | null
-      if (!existing) throw new Error(`Task ${id} not found`)
-
-      const task = mapTask(existing)
-
-      db.transaction(() => {
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
-          [generateId(), id, user.id, 'deleted'],
-        )
-        db.run('DELETE FROM tasks WHERE id = ?', [id])
-      })()
-
-      // Publish subscription so other clients remove the task
-      pubsub.publish(
-        'TASK_UPDATED',
-        existing.board_id,
-        { ...task, deleted: true } as unknown as Record<string, unknown>,
-      )
-
-      return true
-    },
-
     moveTask(
       _: unknown,
       {

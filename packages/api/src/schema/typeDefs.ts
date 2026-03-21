@@ -13,7 +13,7 @@ export const typeDefs = /* GraphQL */ `
     createBoard(name: String!): Board!
     createTask(input: CreateTaskInput!): Task!
     updateTask(id: ID!, input: UpdateTaskInput!): Task!
-    deleteTask(id: ID!): Boolean!
+
     moveTask(id: ID!, columnId: ID!, position: Float!): Task!
     archiveTask(id: ID!): Task!
     unarchiveTask(id: ID!): Task!
