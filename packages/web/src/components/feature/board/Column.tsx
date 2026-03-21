@@ -43,10 +43,8 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
       {/* Task list drop zone */}
       <div
         ref={setNodeRef}
-        className={[
-          'flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2',
-          isOver ? 'rounded-b-lg bg-surface-overlay/40' : '',
-        ].join(' ')}
+        className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 data-[is-over=true]:rounded-b-lg data-[is-over=true]:bg-surface-overlay/40 pt-1"
+        data-is-over={isOver ? 'true' : 'false'}
         style={{ minHeight: '4rem' }}
       >
         {dropTargetTaskId === null && (
