@@ -35,6 +35,7 @@
     "rehype-highlight": "^7.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8"
+    "@biomejs/biome": "^2.4.8",
+    "@tailwindcss/typography": "^0.5.19"
   }
 }

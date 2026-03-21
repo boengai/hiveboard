@@ -341,7 +341,7 @@ const EditMode = ({
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
-          rows={5}
+          rows={10}
         />
       </div>
 
@@ -596,6 +596,7 @@ export const TaskDrawer = () => {
       onOpenChange={(open) => {
         if (!open) closeDrawer()
       }}
+      size="wide"
     >
       {drawerMode === 'create' && (
         <CreateMode

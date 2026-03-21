@@ -45,8 +45,14 @@ export const MarkdownEditor = ({
       </Tabs.Content>
 
       <Tabs.Content value="preview" className="pt-2">
-        <div className="min-h-[120px] rounded-md border border-border-default bg-surface-inset p-3">
-          <MarkdownPreview content={value} />
+        <div className="min-h-[120px] p-3">
+          {value ? (
+            <MarkdownPreview content={value} />
+          ) : (
+            <p className="text-body-sm text-text-tertiary">
+              Nothing to preview
+            </p>
+          )}
         </div>
       </Tabs.Content>
     </Tabs.Root>
