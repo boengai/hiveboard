@@ -407,12 +407,23 @@ export const TaskDrawer = () => {
   // Fetch task when opening in view mode
   useEffect(() => {
     if (drawerMode === 'view' && selectedTaskId) {
+      let cancelled = false
+      setTask(null)
       setLoading(true)
       graphqlClient
         .request<{ task: Task }>(GET_TASK, { id: selectedTaskId })
-        .then((data) => setTask(data.task))
-        .catch(console.error)
-        .finally(() => setLoading(false))
+        .then((data) => {
+          if (!cancelled) setTask(data.task)
+        })
+        .catch((err) => {
+          if (!cancelled) console.error(err)
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+      return () => {
+        cancelled = true
+      }
     }
   }, [drawerMode, selectedTaskId])
 
@@ -421,6 +432,7 @@ export const TaskDrawer = () => {
     if (drawerMode === 'closed') {
       setIsEditing(false)
       setTask(null)
+      setLoading(false)
       setCreateForm(emptyForm)
       setEditForm(emptyForm)
     }
