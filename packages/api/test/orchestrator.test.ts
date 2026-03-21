@@ -13,7 +13,7 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -69,14 +69,19 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 // ---------------------------------------------------------------------------
 
 /** Build the minimal Config object the orchestrator needs. */
-function makeConfig(overrides: {
-  maxAgents?: number
-  maxRetryBackoffMs?: number
-} = {}) {
+function makeConfig(
+  overrides: { maxAgents?: number; maxRetryBackoffMs?: number } = {},
+) {
   return {
     polling: { interval_ms: 60_000 },
     workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
-    claude: { command: 'claude', max_turns: 5, allowed_tools: [], permission_mode: undefined, model: undefined },
+    claude: {
+      command: 'claude',
+      max_turns: 5,
+      allowed_tools: [],
+      permission_mode: undefined,
+      model: undefined,
+    },
     agent: {
       max_concurrent_agents: overrides.maxAgents ?? 5,
       max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
@@ -94,7 +99,7 @@ function makeWorkspaceStub() {
   }
 }
 
-interface TaskRow {
+type TaskRow = {
   id: string
   board_id: string
   column_id: string
@@ -109,14 +114,22 @@ interface TaskRow {
 }
 
 /** Insert a queued task into the in-memory DB and return its id. */
-function insertQueuedTask(opts: {
-  action?: string
-  targetRepo?: string | null
-  retryCount?: number
-} = {}): string {
-  const user = memDb.query('SELECT id FROM users LIMIT 1').get() as { id: string }
-  const board = memDb.query('SELECT id FROM boards LIMIT 1').get() as { id: string }
-  const col = memDb.query('SELECT id FROM columns LIMIT 1').get() as { id: string }
+function insertQueuedTask(
+  opts: {
+    action?: string
+    targetRepo?: string | null
+    retryCount?: number
+  } = {},
+): string {
+  const user = memDb.query('SELECT id FROM users LIMIT 1').get() as {
+    id: string
+  }
+  const board = memDb.query('SELECT id FROM boards LIMIT 1').get() as {
+    id: string
+  }
+  const col = memDb.query('SELECT id FROM columns LIMIT 1').get() as {
+    id: string
+  }
   const id = generateId()
   memDb.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, action, target_repo,
@@ -133,14 +146,16 @@ function insertQueuedTask(opts: {
       opts.retryCount ?? 0,
       user.id,
       user.id,
-    ]
+    ],
   )
   return id
 }
 
 /** Read a task row from the in-memory DB. */
 function getTask(id: string): TaskRow | null {
-  return memDb.query('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | null
+  return memDb
+    .query('SELECT * FROM tasks WHERE id = ?')
+    .get(id) as TaskRow | null
 }
 
 /** Wait for all currently running async operations to flush. */
@@ -164,7 +179,7 @@ describe('Orchestrator – dispatch flow', () => {
     orchestrator = new Orchestrator(
       makeConfig() as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
   })
 
@@ -173,7 +188,7 @@ describe('Orchestrator – dispatch flow', () => {
     // Clean up tasks created during the test
     memDb.run("DELETE FROM tasks WHERE title = 'Test Task'")
     memDb.run('DELETE FROM agent_runs')
-    memDb.run('DELETE FROM task_events WHERE type NOT IN (\'created\')')
+    memDb.run("DELETE FROM task_events WHERE type NOT IN ('created')")
   })
 
   it('transitions task from queued → running → success', async () => {
@@ -199,7 +214,12 @@ describe('Orchestrator – dispatch flow', () => {
   it('transitions task from queued → running → failed when agent errors', async () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: false, output: '', error: 'something broke' }
+      return {
+        taskId: task.id,
+        success: false,
+        output: '',
+        error: 'something broke',
+      }
     }
 
     const taskId = insertQueuedTask({ action: 'plan' })
@@ -223,7 +243,9 @@ describe('Orchestrator – dispatch flow', () => {
     await flushMicrotasks(100)
 
     const event = memDb
-      .query("SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_started'")
+      .query(
+        "SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_started'",
+      )
       .get(taskId) as { type: string } | null
     expect(event).not.toBeNull()
   })
@@ -234,7 +256,9 @@ describe('Orchestrator – dispatch flow', () => {
     await flushMicrotasks(100)
 
     const event = memDb
-      .query("SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_succeeded'")
+      .query(
+        "SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_succeeded'",
+      )
       .get(taskId) as { type: string } | null
     expect(event).not.toBeNull()
   })
@@ -250,7 +274,9 @@ describe('Orchestrator – dispatch flow', () => {
     await flushMicrotasks(100)
 
     const event = memDb
-      .query("SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_failed'")
+      .query(
+        "SELECT * FROM task_events WHERE task_id = ? AND type = 'agent_failed'",
+      )
       .get(taskId) as { type: string } | null
     expect(event).not.toBeNull()
   })
@@ -267,7 +293,7 @@ describe('Orchestrator – concurrency limit', () => {
     orchestrator = new Orchestrator(
       makeConfig({ maxAgents: 2 }) as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
   })
 
@@ -276,7 +302,7 @@ describe('Orchestrator – concurrency limit', () => {
     await orchestrator.shutdown()
     memDb.run("DELETE FROM tasks WHERE title = 'Test Task'")
     memDb.run('DELETE FROM agent_runs')
-    memDb.run('DELETE FROM task_events WHERE type NOT IN (\'created\')')
+    memDb.run("DELETE FROM task_events WHERE type NOT IN ('created')")
   })
 
   it('does not exceed max_concurrent_agents', async () => {
@@ -284,7 +310,9 @@ describe('Orchestrator – concurrency limit', () => {
     let activeAgents = 0
     let peakAgents = 0
 
-    const latch = new Promise<void>((resolve) => { releaseLatch = resolve })
+    const latch = new Promise<void>((resolve) => {
+      releaseLatch = resolve
+    })
 
     mockRunAgentImpl = async (opts: unknown) => {
       activeAgents++
@@ -316,7 +344,9 @@ describe('Orchestrator – concurrency limit', () => {
   it('picks up remaining queued tasks in subsequent poll cycles', async () => {
     // First pass: block 2 agents
     let pass1Latch: (() => void) | undefined
-    const firstWave = new Promise<void>((r) => { pass1Latch = r })
+    const firstWave = new Promise<void>((r) => {
+      pass1Latch = r
+    })
     let firstWaveCount = 0
 
     mockRunAgentImpl = async (opts: unknown) => {
@@ -355,12 +385,17 @@ describe('Orchestrator – retry scheduling', () => {
   beforeEach(() => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: false, output: '', error: 'transient error' }
+      return {
+        taskId: task.id,
+        success: false,
+        output: '',
+        error: 'transient error',
+      }
     }
     orchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 50 }) as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
   })
 
@@ -368,7 +403,7 @@ describe('Orchestrator – retry scheduling', () => {
     await orchestrator.shutdown()
     memDb.run("DELETE FROM tasks WHERE title = 'Test Task'")
     memDb.run('DELETE FROM agent_runs')
-    memDb.run('DELETE FROM task_events WHERE type NOT IN (\'created\')')
+    memDb.run("DELETE FROM task_events WHERE type NOT IN ('created')")
   })
 
   it('schedules a retry and increments retry_count after failure', async () => {
@@ -394,7 +429,9 @@ describe('Orchestrator – retry scheduling', () => {
     await flushMicrotasks(200)
 
     const event = memDb
-      .query("SELECT * FROM task_events WHERE task_id = ? AND type = 'retry_scheduled'")
+      .query(
+        "SELECT * FROM task_events WHERE task_id = ? AND type = 'retry_scheduled'",
+      )
       .get(taskId) as { data: string } | null
     expect(event).not.toBeNull()
     const data = JSON.parse(event?.data)
@@ -407,7 +444,7 @@ describe('Orchestrator – retry scheduling', () => {
     const longBackoffOrchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
       makeWorkspaceStub() as never,
-      'prompt template'
+      'prompt template',
     )
 
     const taskId = insertQueuedTask({ action: 'plan', retryCount: 0 })

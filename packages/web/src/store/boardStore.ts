@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export interface Board {
+export type Board = {
   id: string
   name: string
   columns: Array<Column>
@@ -8,14 +8,14 @@ export interface Board {
   createdAt: string
 }
 
-export interface Column {
+export type Column = {
   id: string
   name: string
   position: number
   tasks: Array<Task>
 }
 
-export interface Task {
+export type Task = {
   id: string
   title: string
   body: string
@@ -37,7 +37,7 @@ export interface Task {
   column: { id: string; name: string }
 }
 
-interface BoardState {
+type BoardState = {
   board: Board | null
   selectedTaskId: string | null
   showArchived: boolean

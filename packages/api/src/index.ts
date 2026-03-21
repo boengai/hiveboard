@@ -1,14 +1,16 @@
 import path from 'node:path'
 import { createSchema, createYoga } from 'graphql-yoga'
-import { typeDefs } from './schema/typeDefs'
-import { resolvers } from './schema/resolvers'
-import { db, migrate } from './db'
 import { loadWorkflow } from './config'
-import { WorkspaceManager } from './workspace'
+import { db, migrate } from './db'
 import { Orchestrator, setOrchestrator } from './orchestrator'
+import { resolvers } from './schema/resolvers'
+import { typeDefs } from './schema/typeDefs'
+import { WorkspaceManager } from './workspace'
 
 const isProduction = process.env.NODE_ENV === 'production'
-const staticDir = isProduction ? path.join(import.meta.dir, '../../web/dist') : null
+const staticDir = isProduction
+  ? path.join(import.meta.dir, '../../web/dist')
+  : null
 
 // Run migrations on startup
 migrate(db)
@@ -24,7 +26,7 @@ async function startOrchestrator() {
     orchestrator.start()
   } catch (err) {
     console.warn(
-      `Orchestrator not started (WORKFLOW.md not found or invalid): ${(err as Error).message}`
+      `Orchestrator not started (WORKFLOW.md not found or invalid): ${(err as Error).message}`,
     )
   }
 }
@@ -53,7 +55,10 @@ Bun.serve({
       return yoga.fetch(req)
     }
     if (isProduction && staticDir) {
-      const filePath = path.join(staticDir, url.pathname === '/' ? 'index.html' : url.pathname)
+      const filePath = path.join(
+        staticDir,
+        url.pathname === '/' ? 'index.html' : url.pathname,
+      )
       const file = Bun.file(filePath)
       if (file.size > 0) return new Response(file)
       // SPA fallback

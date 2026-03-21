@@ -1,20 +1,22 @@
 import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
+// interface: extends native HTML attributes
 export interface TextInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'style'> {}
 
+// interface: extends native HTML attributes
 export interface TextAreaInputProps
   extends Omit<
     TextareaHTMLAttributes<HTMLTextAreaElement>,
     'className' | 'style'
   > {}
 
-export interface SelectOption {
+export type SelectOption = {
   value: string
   label: string
 }
 
-export interface SelectInputProps {
+export type SelectInputProps = {
   value?: string
   onValueChange?: (value: string) => void
   options: SelectOption[]
@@ -23,7 +25,7 @@ export interface SelectInputProps {
   id?: string
 }
 
-export interface SwitchInputProps {
+export type SwitchInputProps = {
   checked?: boolean
   onCheckedChange?: (checked: boolean) => void
   disabled?: boolean

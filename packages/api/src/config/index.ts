@@ -1,11 +1,11 @@
-export { loadWorkflow } from './loader'
 export type { LoadedWorkflow } from './loader'
-export { ConfigSchema } from './schema'
+export { loadWorkflow } from './loader'
 export type {
+  AgentConfig,
+  ClaudeConfig,
   Config,
+  HooksConfig,
   PollingConfig,
   WorkspaceConfig,
-  ClaudeConfig,
-  AgentConfig,
-  HooksConfig,
 } from './schema'
+export { ConfigSchema } from './schema'

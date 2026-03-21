@@ -1,12 +1,12 @@
 import { db, generateId } from '../db'
-import { pubsub } from '../pubsub'
 import { getOrchestrator } from '../orchestrator'
+import { pubsub } from '../pubsub'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
 // ---------------------------------------------------------------------------
 
-interface UserRow {
+type UserRow = {
   id: string
   username: string
   display_name: string
@@ -14,7 +14,7 @@ interface UserRow {
   created_at: string
 }
 
-interface BoardRow {
+type BoardRow = {
   id: string
   name: string
   created_by: string
@@ -22,7 +22,7 @@ interface BoardRow {
   updated_at: string
 }
 
-interface ColumnRow {
+type ColumnRow = {
   id: string
   board_id: string
   name: string
@@ -30,7 +30,7 @@ interface ColumnRow {
   created_at: string
 }
 
-interface TaskRow {
+type TaskRow = {
   id: string
   board_id: string
   column_id: string
@@ -53,7 +53,7 @@ interface TaskRow {
   updated_at: string
 }
 
-interface CommentRow {
+type CommentRow = {
   id: string
   task_id: string
   parent_id: string | null
@@ -63,7 +63,7 @@ interface CommentRow {
   updated_at: string
 }
 
-interface TaskEventRow {
+type TaskEventRow = {
   id: string
   task_id: string
   actor: string
@@ -72,7 +72,7 @@ interface TaskEventRow {
   created_at: string
 }
 
-interface AgentRunRow {
+type AgentRunRow = {
   id: string
   task_id: string
   action: string
@@ -88,7 +88,9 @@ interface AgentRunRow {
 // ---------------------------------------------------------------------------
 
 function getCurrentUser(): UserRow {
-  const user = db.query('SELECT * FROM users WHERE username = ?').get('queen-bee') as UserRow | null
+  const user = db
+    .query('SELECT * FROM users WHERE username = ?')
+    .get('queen-bee') as UserRow | null
   if (!user) throw new Error('Queen-bee user not found. Run migrations first.')
   return user
 }
@@ -103,7 +105,9 @@ function mapUser(row: UserRow) {
 }
 
 function getUserById(id: string) {
-  const row = db.query('SELECT * FROM users WHERE id = ?').get(id) as UserRow | null
+  const row = db
+    .query('SELECT * FROM users WHERE id = ?')
+    .get(id) as UserRow | null
   if (!row) return null
   return mapUser(row)
 }
@@ -160,33 +164,43 @@ function mapBoard(row: BoardRow) {
 }
 
 function getColumnsForBoard(boardId: string) {
-  const rows = db.query('SELECT * FROM columns WHERE board_id = ? ORDER BY position ASC').all(boardId) as ColumnRow[]
+  const rows = db
+    .query('SELECT * FROM columns WHERE board_id = ? ORDER BY position ASC')
+    .all(boardId) as ColumnRow[]
   return rows.map(mapColumn)
 }
 
 function getTasksForColumn(columnId: string) {
   const rows = db
-    .query('SELECT * FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC')
+    .query(
+      'SELECT * FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC',
+    )
     .all(columnId) as TaskRow[]
   return rows.map(mapTask)
 }
 
 function getTopLevelCommentsForTask(taskId: string) {
   const rows = db
-    .query('SELECT * FROM task_comments WHERE task_id = ? AND parent_id IS NULL ORDER BY created_at ASC')
+    .query(
+      'SELECT * FROM task_comments WHERE task_id = ? AND parent_id IS NULL ORDER BY created_at ASC',
+    )
     .all(taskId) as CommentRow[]
   return rows.map(mapComment)
 }
 
 function getRepliesForComment(parentId: string) {
   const rows = db
-    .query('SELECT * FROM task_comments WHERE parent_id = ? ORDER BY created_at ASC')
+    .query(
+      'SELECT * FROM task_comments WHERE parent_id = ? ORDER BY created_at ASC',
+    )
     .all(parentId) as CommentRow[]
   return rows.map(mapComment)
 }
 
 function getTaskById(id: string) {
-  const row = db.query('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | null
+  const row = db
+    .query('SELECT * FROM tasks WHERE id = ?')
+    .get(id) as TaskRow | null
   if (!row) return null
   return mapTask(row)
 }
@@ -196,7 +210,11 @@ function publishTaskUpdated(task: ReturnType<typeof mapTask>) {
     .query('SELECT board_id FROM tasks WHERE id = ?')
     .get(task.id) as { board_id: string } | null
   if (boardRow) {
-    pubsub.publish('TASK_UPDATED', boardRow.board_id, task as unknown as Record<string, unknown>)
+    pubsub.publish(
+      'TASK_UPDATED',
+      boardRow.board_id,
+      task as unknown as Record<string, unknown>,
+    )
   }
 }
 
@@ -207,12 +225,16 @@ function publishTaskUpdated(task: ReturnType<typeof mapTask>) {
 export const resolvers = {
   Query: {
     boards() {
-      const rows = db.query('SELECT * FROM boards ORDER BY created_at ASC').all() as BoardRow[]
+      const rows = db
+        .query('SELECT * FROM boards ORDER BY created_at ASC')
+        .all() as BoardRow[]
       return rows.map(mapBoard)
     },
 
     board(_: unknown, { id }: { id: string }) {
-      const row = db.query('SELECT * FROM boards WHERE id = ?').get(id) as BoardRow | null
+      const row = db
+        .query('SELECT * FROM boards WHERE id = ?')
+        .get(id) as BoardRow | null
       if (!row) return null
       return mapBoard(row)
     },
@@ -223,9 +245,11 @@ export const resolvers = {
 
     agentRuns(_: unknown, { taskId }: { taskId: string }) {
       const rows = db
-        .query('SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC')
+        .query(
+          'SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC',
+        )
         .all(taskId) as AgentRunRow[]
-      return rows.map(row => ({
+      return rows.map((row) => ({
         id: row.id,
         action: row.action,
         status: row.status,
@@ -238,9 +262,11 @@ export const resolvers = {
 
     taskTimeline(_: unknown, { taskId }: { taskId: string }) {
       const rows = db
-        .query('SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at ASC')
+        .query(
+          'SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at ASC',
+        )
         .all(taskId) as TaskEventRow[]
-      return rows.map(row => ({
+      return rows.map((row) => ({
         id: row.id,
         type: row.type,
         data: row.data,
@@ -280,7 +306,9 @@ export const resolvers = {
 
   Task: {
     column(task: ReturnType<typeof mapTask>) {
-      const row = db.query('SELECT * FROM columns WHERE id = ?').get(task._columnId) as ColumnRow | null
+      const row = db
+        .query('SELECT * FROM columns WHERE id = ?')
+        .get(task._columnId) as ColumnRow | null
       if (!row) throw new Error(`Column ${task._columnId} not found`)
       return mapColumn(row)
     },
@@ -322,8 +350,14 @@ export const resolvers = {
     createBoard(_: unknown, { name }: { name: string }) {
       const user = getCurrentUser()
       const id = generateId()
-      db.run('INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)', [id, name, user.id])
-      const row = db.query('SELECT * FROM boards WHERE id = ?').get(id) as BoardRow
+      db.run('INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)', [
+        id,
+        name,
+        user.id,
+      ])
+      const row = db
+        .query('SELECT * FROM boards WHERE id = ?')
+        .get(id) as BoardRow
       return mapBoard(row)
     },
 
@@ -340,7 +374,7 @@ export const resolvers = {
           action?: string | null
           targetRepo?: string | null
         }
-      }
+      },
     ) {
       const user = getCurrentUser()
 
@@ -348,7 +382,9 @@ export const resolvers = {
       let columnId = input.columnId
       if (!columnId) {
         const col = db
-          .query('SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1')
+          .query(
+            'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
+          )
           .get(input.boardId) as { id: string } | null
         if (!col) throw new Error('Board has no columns')
         columnId = col.id
@@ -377,12 +413,12 @@ export const resolvers = {
             input.targetRepo ?? null,
             user.id,
             user.id,
-          ]
+          ],
         )
 
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
-          [generateId(), id, user.id, 'created']
+          [generateId(), id, user.id, 'created'],
         )
       })()
 
@@ -390,13 +426,27 @@ export const resolvers = {
       if (!task) throw new Error(`Task ${id} not found`)
 
       // Publish subscription events
-      const boardRow = db.query('SELECT board_id FROM tasks WHERE id = ?').get(id) as { board_id: string }
-      pubsub.publish('TASK_UPDATED', boardRow.board_id, task as unknown as Record<string, unknown>)
+      const boardRow = db
+        .query('SELECT board_id FROM tasks WHERE id = ?')
+        .get(id) as { board_id: string }
+      pubsub.publish(
+        'TASK_UPDATED',
+        boardRow.board_id,
+        task as unknown as Record<string, unknown>,
+      )
 
       // Publish the 'created' task event
       const createdEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'created' ORDER BY created_at DESC LIMIT 1`)
-        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'created' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(id) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (createdEvent) {
         pubsub.publish('TASK_EVENT', id, {
           id: createdEvent.id,
@@ -424,24 +474,41 @@ export const resolvers = {
           action?: string | null
           targetRepo?: string | null
         }
-      }
+      },
     ) {
       const user = getCurrentUser()
-      const existing = db.query('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | null
+      const existing = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(id) as TaskRow | null
       if (!existing) throw new Error(`Task ${id} not found`)
 
       const events: Array<[string, string, string | null]> = []
 
-      const setClauses: string[] = ['updated_by = ?', 'updated_at = datetime(\'now\')']
+      const setClauses: string[] = [
+        'updated_by = ?',
+        "updated_at = datetime('now')",
+      ]
       const values: (string | number | null | boolean)[] = [user.id]
 
-      if (input.title !== undefined && input.title !== null && input.title !== existing.title) {
+      if (
+        input.title !== undefined &&
+        input.title !== null &&
+        input.title !== existing.title
+      ) {
         setClauses.push('title = ?')
         values.push(input.title)
-        events.push([generateId(), 'title_changed', JSON.stringify({ from: existing.title, to: input.title })])
+        events.push([
+          generateId(),
+          'title_changed',
+          JSON.stringify({ from: existing.title, to: input.title }),
+        ])
       }
 
-      if (input.body !== undefined && input.body !== null && input.body !== existing.body) {
+      if (
+        input.body !== undefined &&
+        input.body !== null &&
+        input.body !== existing.body
+      ) {
         setClauses.push('body = ?')
         values.push(input.body)
         events.push([generateId(), 'body_changed', null])
@@ -475,7 +542,7 @@ export const resolvers = {
         for (const [eventId, type, data] of events) {
           db.run(
             'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-            [eventId, id, user.id, type, data]
+            [eventId, id, user.id, type, data],
           )
         }
       })()
@@ -488,7 +555,13 @@ export const resolvers = {
       for (const [eventId] of events) {
         const ev = db
           .query('SELECT * FROM task_events WHERE id = ?')
-          .get(eventId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+          .get(eventId) as {
+          id: string
+          type: string
+          data: string | null
+          created_at: string
+          actor: string
+        } | null
         if (ev) {
           pubsub.publish('TASK_EVENT', id, {
             id: ev.id,
@@ -511,30 +584,38 @@ export const resolvers = {
 
     moveTask(
       _: unknown,
-      { id, columnId, position }: { id: string; columnId: string; position: number }
+      {
+        id,
+        columnId,
+        position,
+      }: { id: string; columnId: string; position: number },
     ) {
       const user = getCurrentUser()
 
       // Look up the old column name before the update
       const oldColumnRow = db
-        .query('SELECT c.name FROM columns c INNER JOIN tasks t ON t.column_id = c.id WHERE t.id = ?')
+        .query(
+          'SELECT c.name FROM columns c INNER JOIN tasks t ON t.column_id = c.id WHERE t.id = ?',
+        )
         .get(id) as { name: string } | null
       const fromColumnName = oldColumnRow?.name ?? null
 
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET column_id = ?, position = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [columnId, position, user.id, id]
+          [columnId, position, user.id, id],
         )
 
         // Check if re-indexing is needed (gap < 1.0 between adjacent tasks)
         const siblings = db
-          .query('SELECT id, position FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC')
+          .query(
+            'SELECT id, position FROM tasks WHERE column_id = ? AND archived = 0 ORDER BY position ASC',
+          )
           .all(columnId) as Array<{ id: string; position: number }>
 
         let needsReindex = false
         for (let i = 1; i < siblings.length; i++) {
-          const gap = (siblings[i]?.position) - (siblings[i - 1]?.position)
+          const gap = siblings[i]?.position - siblings[i - 1]?.position
           if (gap < 1.0) {
             needsReindex = true
             break
@@ -543,7 +624,10 @@ export const resolvers = {
 
         if (needsReindex) {
           for (let i = 0; i < siblings.length; i++) {
-            db.run('UPDATE tasks SET position = ? WHERE id = ?', [(i + 1) * 1024, siblings[i]?.id])
+            db.run('UPDATE tasks SET position = ? WHERE id = ?', [
+              (i + 1) * 1024,
+              siblings[i]?.id,
+            ])
           }
         }
 
@@ -555,7 +639,16 @@ export const resolvers = {
 
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [generateId(), id, user.id, 'moved', JSON.stringify({ from_column: fromColumnName, to_column: toColumnName })]
+          [
+            generateId(),
+            id,
+            user.id,
+            'moved',
+            JSON.stringify({
+              from_column: fromColumnName,
+              to_column: toColumnName,
+            }),
+          ],
         )
       })()
 
@@ -565,8 +658,16 @@ export const resolvers = {
 
       // Publish TASK_EVENT for the 'moved' event
       const movedEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'moved' ORDER BY created_at DESC LIMIT 1`)
-        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'moved' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(id) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (movedEvent) {
         pubsub.publish('TASK_EVENT', id, {
           id: movedEvent.id,
@@ -587,11 +688,11 @@ export const resolvers = {
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET archived = 1, archived_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [user.id, id]
+          [user.id, id],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
-          [generateId(), id, user.id, 'archived']
+          [generateId(), id, user.id, 'archived'],
         )
       })()
 
@@ -601,8 +702,16 @@ export const resolvers = {
 
       // Publish TASK_EVENT for the 'archived' event
       const archivedEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'archived' ORDER BY created_at DESC LIMIT 1`)
-        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'archived' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(id) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (archivedEvent) {
         pubsub.publish('TASK_EVENT', id, {
           id: archivedEvent.id,
@@ -623,11 +732,11 @@ export const resolvers = {
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET archived = 0, archived_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [user.id, id]
+          [user.id, id],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
-          [generateId(), id, user.id, 'unarchived']
+          [generateId(), id, user.id, 'unarchived'],
         )
       })()
 
@@ -637,8 +746,16 @@ export const resolvers = {
 
       // Publish TASK_EVENT for the 'unarchived' event
       const unarchivedEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'unarchived' ORDER BY created_at DESC LIMIT 1`)
-        .get(id) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'unarchived' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(id) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (unarchivedEvent) {
         pubsub.publish('TASK_EVENT', id, {
           id: unarchivedEvent.id,
@@ -659,7 +776,7 @@ export const resolvers = {
         taskId,
         body,
         parentId,
-      }: { taskId: string; body: string; parentId?: string | null }
+      }: { taskId: string; body: string; parentId?: string | null },
     ) {
       const user = getCurrentUser()
 
@@ -678,23 +795,43 @@ export const resolvers = {
       db.transaction(() => {
         db.run(
           'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
-          [id, taskId, parentId ?? null, body, user.id]
+          [id, taskId, parentId ?? null, body, user.id],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [generateId(), taskId, user.id, 'comment_added', JSON.stringify({ comment_id: id })]
+          [
+            generateId(),
+            taskId,
+            user.id,
+            'comment_added',
+            JSON.stringify({ comment_id: id }),
+          ],
         )
       })()
 
-      const row = db.query('SELECT * FROM task_comments WHERE id = ?').get(id) as CommentRow
+      const row = db
+        .query('SELECT * FROM task_comments WHERE id = ?')
+        .get(id) as CommentRow
       const comment = mapComment(row)
 
-      pubsub.publish('COMMENT_ADDED', taskId, comment as unknown as Record<string, unknown>)
+      pubsub.publish(
+        'COMMENT_ADDED',
+        taskId,
+        comment as unknown as Record<string, unknown>,
+      )
 
       // Publish TASK_EVENT for the 'comment_added' event
       const commentEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'comment_added' ORDER BY created_at DESC LIMIT 1`)
-        .get(taskId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'comment_added' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(taskId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (commentEvent) {
         pubsub.publish('TASK_EVENT', taskId, {
           id: commentEvent.id,
@@ -710,8 +847,13 @@ export const resolvers = {
     },
 
     updateComment(_: unknown, { id, body }: { id: string; body: string }) {
-      db.run(`UPDATE task_comments SET body = ?, updated_at = datetime('now') WHERE id = ?`, [body, id])
-      const row = db.query('SELECT * FROM task_comments WHERE id = ?').get(id) as CommentRow
+      db.run(
+        `UPDATE task_comments SET body = ?, updated_at = datetime('now') WHERE id = ?`,
+        [body, id],
+      )
+      const row = db
+        .query('SELECT * FROM task_comments WHERE id = ?')
+        .get(id) as CommentRow
       return mapComment(row)
     },
 
@@ -720,41 +862,77 @@ export const resolvers = {
       return true
     },
 
-    dispatchAgent(_: unknown, { taskId, action }: { taskId: string; action: string }) {
+    dispatchAgent(
+      _: unknown,
+      { taskId, action }: { taskId: string; action: string },
+    ) {
       const user = getCurrentUser()
 
       // Validate action is one of the allowed values
-      const validActions = ['plan', 'research', 'implement', 'implement-e2e', 'revise']
+      const validActions = [
+        'plan',
+        'research',
+        'implement',
+        'implement-e2e',
+        'revise',
+      ]
       if (!validActions.includes(action)) {
-        throw new Error(`Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`)
+        throw new Error(
+          `Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`,
+        )
       }
 
       // Fetch task and validate preconditions
-      const existingTask = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow | null
+      const existingTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
       if (!existingTask) throw new Error(`Task ${taskId} not found`)
 
-      if (existingTask.agent_status !== 'idle' && existingTask.agent_status !== 'failed') {
-        throw new Error(`Cannot dispatch agent: task is currently '${existingTask.agent_status}'. Must be 'idle' or 'failed'.`)
+      if (
+        existingTask.agent_status !== 'idle' &&
+        existingTask.agent_status !== 'failed'
+      ) {
+        throw new Error(
+          `Cannot dispatch agent: task is currently '${existingTask.agent_status}'. Must be 'idle' or 'failed'.`,
+        )
       }
 
-      if (action === 'implement' || action === 'implement-e2e' || action === 'revise') {
+      if (
+        action === 'implement' ||
+        action === 'implement-e2e' ||
+        action === 'revise'
+      ) {
         if (!existingTask.target_repo) {
-          throw new Error(`Action '${action}' requires target_repo to be set on the task.`)
+          throw new Error(
+            `Action '${action}' requires target_repo to be set on the task.`,
+          )
         }
       }
 
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [action, user.id, taskId]
+          [action, user.id, taskId],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [generateId(), taskId, user.id, 'action_set', JSON.stringify({ action })]
+          [
+            generateId(),
+            taskId,
+            user.id,
+            'action_set',
+            JSON.stringify({ action }),
+          ],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [generateId(), taskId, user.id, 'status_changed', JSON.stringify({ from: 'idle', to: 'queued' })]
+          [
+            generateId(),
+            taskId,
+            user.id,
+            'status_changed',
+            JSON.stringify({ from: 'idle', to: 'queued' }),
+          ],
         )
       })()
 
@@ -764,8 +942,16 @@ export const resolvers = {
 
       // Publish TASK_EVENTs for the action_set + status_changed events
       const dispatchEvents = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type IN ('action_set', 'status_changed') ORDER BY created_at DESC LIMIT 2`)
-        .all(taskId) as Array<{ id: string; type: string; data: string | null; created_at: string; actor: string }>
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type IN ('action_set', 'status_changed') ORDER BY created_at DESC LIMIT 2`,
+        )
+        .all(taskId) as Array<{
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      }>
       for (const ev of dispatchEvents) {
         pubsub.publish('TASK_EVENT', taskId, {
           id: ev.id,
@@ -798,11 +984,17 @@ export const resolvers = {
       db.transaction(() => {
         db.run(
           `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [user.id, taskId]
+          [user.id, taskId],
         )
         db.run(
           'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [generateId(), taskId, user.id, 'status_changed', JSON.stringify({ from: currentStatus, to: 'idle' })]
+          [
+            generateId(),
+            taskId,
+            user.id,
+            'status_changed',
+            JSON.stringify({ from: currentStatus, to: 'idle' }),
+          ],
         )
       })()
 
@@ -812,8 +1004,16 @@ export const resolvers = {
 
       // Publish TASK_EVENT for the 'status_changed' event (cancel → idle)
       const cancelEvent = db
-        .query(`SELECT * FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1`)
-        .get(taskId) as { id: string; type: string; data: string | null; created_at: string; actor: string } | null
+        .query(
+          `SELECT * FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1`,
+        )
+        .get(taskId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
       if (cancelEvent) {
         pubsub.publish('TASK_EVENT', taskId, {
           id: cancelEvent.id,

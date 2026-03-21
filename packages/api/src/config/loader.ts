@@ -2,7 +2,7 @@ import { consola } from 'consola'
 import { parse as parseYaml } from 'yaml'
 import { type Config, ConfigSchema } from './schema'
 
-export interface LoadedWorkflow {
+export type LoadedWorkflow = {
   config: Config
   promptTemplate: string
 }
@@ -28,7 +28,9 @@ function splitFrontMatter(content: string): { yaml: string; body: string } {
 }
 
 /** Load and validate a WORKFLOW.md file. */
-export async function loadWorkflow(path = 'WORKFLOW.md'): Promise<LoadedWorkflow> {
+export async function loadWorkflow(
+  path = 'WORKFLOW.md',
+): Promise<LoadedWorkflow> {
   const file = Bun.file(path)
   const exists = await file.exists()
   if (!exists) {

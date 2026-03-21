@@ -1,5 +1,5 @@
-export { generateId } from './ulid'
 export { db } from './client'
+export { migrate } from './migrate'
 export { createTables } from './schema'
 export { seed } from './seed'
-export { migrate } from './migrate'
+export { generateId } from './ulid'
