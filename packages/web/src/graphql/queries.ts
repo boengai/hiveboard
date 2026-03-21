@@ -20,6 +20,7 @@ export const GET_BOARDS = /* GraphQL */ `
           position
           action
           targetRepo
+          targetBranch
           agentStatus
           agentOutput
           agentError
@@ -68,6 +69,7 @@ export const GET_BOARD = /* GraphQL */ `
           position
           action
           targetRepo
+          targetBranch
           agentStatus
           agentOutput
           agentError

@@ -94,6 +94,7 @@ function makeWorkspaceStub() {
 type TaskRow = {
   id: string
   agent_status: string
+  target_branch: string | null
   retry_count: number
 }
 

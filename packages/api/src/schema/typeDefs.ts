@@ -61,6 +61,7 @@ export const typeDefs = /* GraphQL */ `
     position: Float!
     action: String
     targetRepo: String
+    targetBranch: String
     agentStatus: AgentStatus!
     agentOutput: String
     agentError: String
@@ -126,6 +127,7 @@ export const typeDefs = /* GraphQL */ `
     body: String
     action: String
     targetRepo: String
+    targetBranch: String
   }
 
   input UpdateTaskInput {
@@ -133,5 +135,6 @@ export const typeDefs = /* GraphQL */ `
     body: String
     action: String
     targetRepo: String
+    targetBranch: String
   }
 `

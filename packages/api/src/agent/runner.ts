@@ -8,6 +8,7 @@ export type TaskForAgent = {
   body: string
   action: string | null
   targetRepo: string | null
+  targetBranch: string | null
 }
 
 export type AgentResult = {

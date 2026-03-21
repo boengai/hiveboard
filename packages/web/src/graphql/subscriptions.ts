@@ -122,6 +122,7 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       position
       action
       targetRepo
+      targetBranch
       agentStatus
       agentOutput
       agentError

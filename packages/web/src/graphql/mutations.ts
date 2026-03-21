@@ -7,6 +7,7 @@ export const CREATE_TASK = /* GraphQL */ `
       position
       action
       targetRepo
+      targetBranch
       agentStatus
       agentOutput
       agentError
@@ -44,6 +45,7 @@ export const UPDATE_TASK = /* GraphQL */ `
       position
       action
       targetRepo
+      targetBranch
       agentStatus
       agentOutput
       agentError

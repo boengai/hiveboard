@@ -9,6 +9,7 @@ export type TaskForPrompt = {
   body: string
   action: string | null
   targetRepo: string | null
+  targetBranch: string | null
 }
 
 export type PromptContext = {
@@ -19,6 +20,7 @@ export type PromptContext = {
     action: string
     repo_owner: string
     repo_name: string
+    target_branch: string
     labels: string
     url: string
   }
@@ -44,6 +46,7 @@ export function renderPrompt(
       action: task.action ?? '',
       repo_owner: repoOwner ?? '',
       repo_name: repoName ?? '',
+      target_branch: task.targetBranch ?? 'main',
       labels: '',
       url: '',
     },

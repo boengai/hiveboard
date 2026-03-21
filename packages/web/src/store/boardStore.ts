@@ -22,6 +22,7 @@ export type Task = {
   position: number
   action: string | null
   targetRepo: string | null
+  targetBranch: string | null
   agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'
   agentOutput: string | null
   agentError: string | null

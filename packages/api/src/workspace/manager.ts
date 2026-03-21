@@ -9,6 +9,7 @@ export type TaskForWorkspace = {
   id: string
   title: string
   targetRepo: string | null
+  targetBranch: string | null
 }
 
 export type WorkspaceResult = {
@@ -175,6 +176,7 @@ export class WorkspaceManager {
       HIVEBOARD_WORKSPACE: wsPath,
       HIVEBOARD_REPO_OWNER: repoOwner ?? '',
       HIVEBOARD_REPO_NAME: repoName ?? '',
+      HIVEBOARD_TARGET_BRANCH: task.targetBranch ?? 'main',
     }
     if (accessToken) {
       env.GITHUB_TOKEN = accessToken
