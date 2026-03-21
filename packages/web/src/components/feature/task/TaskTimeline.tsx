@@ -8,7 +8,6 @@ import {
   DotIcon,
   FileTextIcon,
   GitPullRequestIcon,
-  MessageIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
@@ -16,14 +15,12 @@ import {
   XMarkIcon,
 } from '@/components/common'
 import {
-  GET_COMMENTS,
   GET_TASK_TIMELINE,
   graphqlClient,
   subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
 } from '@/graphql'
 import type {
-  RawComment,
   RawTimelineEvent,
   TaskTimelineProps,
   TimelineEntry,
@@ -176,65 +173,6 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
   )
 }
 
-function CommentRow({
-  entry,
-  onReply,
-}: {
-  entry: TimelineEntry
-  onReply?: (parentId: string) => void
-}) {
-  return (
-    <div className="flex flex-col gap-1 py-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="text-body-xs font-medium text-text-primary">
-          {entry.createdBy?.username ?? 'unknown'}
-        </span>
-        <span className="text-body-xs text-text-tertiary">
-          {timeAgo(entry.createdAt)}
-        </span>
-      </div>
-
-      {/* Body */}
-      <p className="whitespace-pre-wrap text-body-sm text-text-secondary">
-        {entry.body}
-      </p>
-
-      {/* Reply button */}
-      {onReply && (
-        <button
-          type="button"
-          className="self-start text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none focus:shadow-glow-honey"
-          onClick={() => onReply(entry.id)}
-        >
-          Reply
-        </button>
-      )}
-
-      {/* Threaded replies */}
-      {entry.replies && entry.replies.length > 0 && (
-        <div className="ml-4 mt-1 flex flex-col gap-2 border-l border-border-default pl-3">
-          {entry.replies.map((reply) => (
-            <div key={reply.id} className="flex flex-col gap-0.5">
-              <div className="flex items-center justify-between">
-                <span className="text-body-xs font-medium text-text-primary">
-                  {reply.createdBy.username}
-                </span>
-                <span className="text-body-xs text-text-tertiary">
-                  {timeAgo(reply.createdAt)}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap text-body-sm text-text-secondary">
-                {reply.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -242,20 +180,13 @@ function CommentRow({
 export function TaskTimeline({ taskId }: TaskTimelineProps) {
   const [entries, setEntries] = useState<TimelineEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [replyParentId, setReplyParentId] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [timelineData, commentsData] = await Promise.all([
-        graphqlClient.request<{ taskTimeline: RawTimelineEvent[] }>(
-          GET_TASK_TIMELINE,
-          { taskId },
-        ),
-        graphqlClient.request<{ comments: RawComment[] }>(GET_COMMENTS, {
-          taskId,
-        }),
-      ])
+      const timelineData = await graphqlClient.request<{
+        taskTimeline: RawTimelineEvent[]
+      }>(GET_TASK_TIMELINE, { taskId })
 
       const eventEntries: TimelineEntry[] = timelineData.taskTimeline
         .filter((e) => e.type !== 'comment_added')
@@ -268,30 +199,12 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
           isSystem: e.isSystem,
           data: e.data,
         }))
+        .sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )
 
-      // Only top-level comments in the timeline (parentId === null)
-      const commentEntries: TimelineEntry[] = commentsData.comments
-        .filter((c) => !c.parentId)
-        .map((c) => ({
-          id: c.id,
-          type: 'comment' as const,
-          createdAt: c.createdAt,
-          body: c.body,
-          createdBy: c.createdBy,
-          parentId: c.parentId,
-          replies: c.replies.map((r) => ({
-            id: r.id,
-            body: r.body,
-            createdBy: r.createdBy,
-            createdAt: r.createdAt,
-          })),
-        }))
-
-      const merged = [...eventEntries, ...commentEntries].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      )
-      setEntries(merged)
+      setEntries(eventEntries)
     } catch (err) {
       console.error('TaskTimeline fetch error', err)
     } finally {
@@ -333,10 +246,6 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
     return dispose
   }, [taskId])
 
-  const handleReply = (parentId: string) => {
-    setReplyParentId(replyParentId === parentId ? null : parentId)
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col gap-1 pt-2">
@@ -359,93 +268,9 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
 
   return (
     <div className="flex flex-col divide-y divide-border-default/50">
-      {entries.map((entry) =>
-        entry.type === 'event' ? (
-          <EventRow key={entry.id} entry={entry} />
-        ) : (
-          <CommentRow key={entry.id} entry={entry} onReply={handleReply} />
-        ),
-      )}
-      {/* Reply input — shown inline below the relevant comment */}
-      {replyParentId && (
-        <ReplyInput
-          taskId={taskId}
-          parentId={replyParentId}
-          onDone={() => {
-            setReplyParentId(null)
-            fetchData()
-          }}
-          onCancel={() => setReplyParentId(null)}
-        />
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// ReplyInput (inline)
-// ---------------------------------------------------------------------------
-
-import { ADD_COMMENT } from '@/graphql'
-
-function ReplyInput({
-  taskId,
-  parentId,
-  onDone,
-  onCancel,
-}: {
-  taskId: string
-  parentId: string
-  onDone: () => void
-  onCancel: () => void
-}) {
-  const [body, setBody] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const handleSubmit = async () => {
-    const trimmed = body.trim()
-    if (!trimmed) return
-    setSubmitting(true)
-    try {
-      await graphqlClient.request(ADD_COMMENT, {
-        taskId,
-        body: trimmed,
-        parentId,
-      })
-      setBody('')
-      onDone()
-    } catch (err) {
-      console.error('ReplyInput submit error', err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="ml-4 mt-1 flex flex-col gap-1.5 border-l border-border-default pl-3 py-2">
-      <textarea
-        className="min-h-[60px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400 focus:shadow-glow-honey"
-        placeholder="Write a reply…"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={!body.trim() || submitting}
-          onClick={handleSubmit}
-          className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
-        >
-          {submitting ? 'Replying…' : 'Reply'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
-        >
-          Cancel
-        </button>
-      </div>
+      {entries.map((entry) => (
+        <EventRow key={entry.id} entry={entry} />
+      ))}
     </div>
   )
 }

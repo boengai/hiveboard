@@ -36,7 +36,7 @@ export const Drawer = ({
     <VaulDrawer.Portal>
       <VaulDrawer.Overlay className={overlayVariants()} />
       <VaulDrawer.Content className={contentVariants({ size })}>
-        <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-default px-4 py-3">
+        <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-default bg-surface-overlay/50 px-5 py-3.5">
           <VaulDrawer.Close asChild>
             <m.button
               className="size-3 shrink-0 rounded-full bg-error-400"
@@ -46,7 +46,7 @@ export const Drawer = ({
               <span className="sr-only">Close</span>
             </m.button>
           </VaulDrawer.Close>
-          <VaulDrawer.Title className="grow truncate text-body-sm text-text-secondary">
+          <VaulDrawer.Title className="grow truncate text-body-sm font-medium text-text-secondary">
             {title}
           </VaulDrawer.Title>
           <VaulDrawer.Description className="hidden">
@@ -55,7 +55,7 @@ export const Drawer = ({
         </div>
         <div
           data-vaul-no-drag
-          className="flex size-full grow flex-col overflow-y-auto p-4"
+          className="flex size-full grow flex-col gap-5 overflow-y-auto p-5"
         >
           {children}
         </div>

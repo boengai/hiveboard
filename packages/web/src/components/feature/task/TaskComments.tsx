@@ -85,90 +85,91 @@ function CommentBlock({
   }
 
   return (
-    <div className="flex flex-col gap-1.5 py-2">
+    <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-body-xs font-medium text-text-primary">
-          {comment.createdBy.username}
-        </span>
         <div className="flex items-center gap-2">
+          <div className="flex size-6 items-center justify-center rounded-full bg-honey-400/15 text-body-xs font-semibold text-honey-400">
+            {comment.createdBy.username.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-body-sm font-medium text-text-primary">
+            {comment.createdBy.username}
+          </span>
           <span className="text-body-xs text-text-tertiary">
             {timeAgo(comment.createdAt)}
           </span>
-          {!editing && (
-            <>
-              <Button
-                size="small"
-                color="ghost"
-                onClick={() => {
-                  setEditBody(comment.body)
-                  setEditing(true)
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                size="small"
-                color="danger"
-                disabled={deleting}
-                onClick={handleDelete}
-              >
-                {deleting ? '…' : 'Delete'}
-              </Button>
-            </>
-          )}
         </div>
-      </div>
-
-      {/* Body or edit textarea */}
-      {editing ? (
-        <div className="flex flex-col gap-1.5">
-          <TextAreaInput
-            rows={2}
-            value={editBody}
-            onChange={(e) => setEditBody(e.target.value)}
-          />
-          <div className="flex gap-2">
+        {!editing && (
+          <div className="flex items-center gap-1">
             <Button
               size="small"
-              color="primary"
-              disabled={!editBody.trim() || saving}
-              onClick={handleSave}
+              color="ghost"
+              onClick={() => setShowReplyInput(!showReplyInput)}
             >
-              {saving ? 'Saving…' : 'Save'}
+              Reply
             </Button>
             <Button
               size="small"
               color="ghost"
               onClick={() => {
-                setEditing(false)
                 setEditBody(comment.body)
+                setEditing(true)
               }}
             >
-              Cancel
+              Edit
+            </Button>
+            <Button
+              size="small"
+              color="danger"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? '…' : 'Delete'}
             </Button>
           </div>
-        </div>
-      ) : (
-        <MarkdownPreview content={comment.body} />
-      )}
+        )}
+      </div>
 
-      {/* Reply button */}
-      {!editing && (
-        <div className="self-start">
-          <Button
-            size="small"
-            color="ghost"
-            onClick={() => setShowReplyInput(!showReplyInput)}
-          >
-            {showReplyInput ? 'Cancel' : 'Reply'}
-          </Button>
-        </div>
-      )}
+      {/* Body or edit textarea */}
+      <div className="mt-2">
+        {editing ? (
+          <div className="flex flex-col gap-2">
+            <TextAreaInput
+              rows={2}
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button
+                size="small"
+                color="primary"
+                disabled={!editBody.trim() || saving}
+                onClick={handleSave}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+              <Button
+                size="small"
+                color="ghost"
+                onClick={() => {
+                  setEditing(false)
+                  setEditBody(comment.body)
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-body-sm text-text-secondary">
+            <MarkdownPreview content={comment.body} />
+          </div>
+        )}
+      </div>
 
       {/* Threaded replies (max 1 level) */}
       {comment.replies.length > 0 && (
-        <div className="ml-4 flex flex-col gap-2 border-l border-border-default pl-3">
+        <div className="mt-3 flex flex-col gap-2 border-l-2 border-border-default pl-3">
           {comment.replies.map((reply) => (
             <ReplyBlock
               key={reply.id}
@@ -181,7 +182,7 @@ function CommentBlock({
 
       {/* Inline reply input */}
       {showReplyInput && (
-        <div className="ml-4 flex flex-col gap-1.5 border-l border-border-default pl-3">
+        <div className="mt-3 flex flex-col gap-2 border-l-2 border-honey-400/30 pl-3">
           <TextAreaInput
             rows={2}
             placeholder="Write a reply…"
@@ -240,27 +241,29 @@ function ReplyBlock({
   }
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-1 py-1">
+      <div className="flex items-center gap-2">
+        <div className="flex size-5 items-center justify-center rounded-full bg-gray-700 text-[10px] font-semibold text-text-secondary">
+          {reply.createdBy.username.charAt(0).toUpperCase()}
+        </div>
         <span className="text-body-xs font-medium text-text-primary">
           {reply.createdBy.username}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-body-xs text-text-tertiary">
-            {timeAgo(reply.createdAt)}
-          </span>
-          <Button
-            size="small"
-            color="danger"
-            className="text-body-xs"
-            disabled={deleting}
-            onClick={handleDelete}
-          >
-            {deleting ? '…' : 'Delete'}
-          </Button>
-        </div>
+        <span className="text-body-xs text-text-tertiary">
+          {timeAgo(reply.createdAt)}
+        </span>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={handleDelete}
+          className="ml-auto text-body-xs text-text-tertiary opacity-0 transition-opacity hover:text-error-400 group-hover/reply:opacity-100"
+        >
+          {deleting ? '…' : 'Delete'}
+        </button>
       </div>
-      <MarkdownPreview content={reply.body} />
+      <div className="pl-7 text-body-sm text-text-secondary">
+        <MarkdownPreview content={reply.body} />
+      </div>
     </div>
   )
 }
@@ -357,23 +360,19 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-body-xs font-medium text-text-secondary uppercase tracking-wide">
-        Comments
-      </span>
-
       {loading ? (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           {[0, 1].map((i) => (
             <div
               key={i}
-              className="h-12 animate-pulse rounded bg-surface-overlay"
+              className="h-16 animate-pulse rounded-lg bg-surface-overlay"
             />
           ))}
         </div>
       ) : comments.length === 0 ? (
         <p className="text-body-xs text-text-tertiary">No comments yet.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-border-default/50">
+        <div className="flex flex-col gap-2">
           {comments.map((comment) => (
             <CommentBlock
               key={comment.id}
@@ -388,14 +387,14 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
       )}
 
       {/* New comment input */}
-      <div className="flex flex-col gap-1.5 pt-1">
+      <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/20 p-3">
         <TextAreaInput
-          rows={3}
+          rows={2}
           placeholder="Leave a comment…"
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
         />
-        <div className="self-start">
+        <div className="flex justify-end">
           <Button
             size="small"
             color="primary"
