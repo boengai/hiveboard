@@ -60,9 +60,12 @@ export function subscribe<T>(
     }
   }
 
+  let activeIterator: AsyncIterableIterator<unknown> | null = null
+
   const run = async () => {
     try {
       const subscription = sseClient.iterate({ query, variables })
+      activeIterator = subscription as AsyncIterableIterator<unknown>
       for await (const result of subscription) {
         if (disposed) break
         // Successful data means we are connected
@@ -77,6 +80,8 @@ export function subscribe<T>(
       console.error('Subscription error:', err)
       connectionStateManager.setState('error')
       scheduleReconnect()
+    } finally {
+      activeIterator = null
     }
 
     // Iterable ended without error (server closed cleanly) — reconnect too
@@ -100,6 +105,11 @@ export function subscribe<T>(
   return () => {
     disposed = true
     clearTimer()
+    // Close the SSE connection immediately instead of waiting for the next
+    // data event to break the for-await loop.
+    if (activeIterator?.return) {
+      activeIterator.return(undefined)
+    }
   }
 }
 
