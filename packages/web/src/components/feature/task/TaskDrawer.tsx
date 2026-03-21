@@ -33,8 +33,22 @@ import type {
   FormState,
   ViewModeProps,
 } from '@/types'
+import { tv } from '@/utils'
 import { TaskComments } from './TaskComments'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
+
+const agentDot = tv({
+  base: 'size-2 rounded-full',
+  variants: {
+    status: {
+      active: 'animate-pulse bg-info-400',
+      success: 'bg-success-400',
+      failed: 'bg-error-400',
+      idle: 'bg-gray-600',
+    },
+  },
+  defaultVariants: { status: 'idle' },
+})
 
 const ACTION_OPTIONS = [
   { value: 'idle', label: 'Idle' },
@@ -296,15 +310,15 @@ const AgentPanel = ({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div
-            className={`size-2 rounded-full ${
-              isAgentActive
-                ? 'animate-pulse bg-info-400'
+            className={agentDot({
+              status: isAgentActive
+                ? 'active'
                 : task.agentStatus === 'SUCCESS'
-                  ? 'bg-success-400'
+                  ? 'success'
                   : task.agentStatus === 'FAILED'
-                    ? 'bg-error-400'
-                    : 'bg-gray-600'
-            }`}
+                    ? 'failed'
+                    : 'idle',
+            })}
           />
           <SectionLabel>Agent</SectionLabel>
         </div>

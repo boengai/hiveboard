@@ -7,6 +7,20 @@ import type {
   AgentLogChunk,
   AgentLogStreamProps,
 } from '@/types'
+import { tv } from '@/utils'
+
+const statusText = tv({
+  base: 'text-body-xs',
+  variants: {
+    status: {
+      streaming: 'text-info-400',
+      success: 'text-success-400',
+      failed: 'text-error-400',
+      idle: 'text-text-tertiary',
+    },
+  },
+  defaultVariants: { status: 'idle' },
+})
 
 export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
   const [chunks, setChunks] = useState<string[]>([])
@@ -71,15 +85,15 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
         </span>
         <div className="flex items-center gap-2">
           <span
-            className={`text-body-xs ${
-              streaming
-                ? 'text-info-400'
+            className={statusText({
+              status: streaming
+                ? 'streaming'
                 : agentStatus === 'SUCCESS'
-                  ? 'text-success-400'
+                  ? 'success'
                   : agentStatus === 'FAILED'
-                    ? 'text-error-400'
-                    : 'text-text-tertiary'
-            }`}
+                    ? 'failed'
+                    : 'idle',
+            })}
           >
             {statusLabel}
           </span>

@@ -86,12 +86,8 @@ export function TaskCard({ task }: TaskCardProps) {
       {...listeners}
       whileHover={{ y: -1 }}
       onClick={() => openDrawerView(task.id)}
-      className={[
-        'cursor-pointer rounded-md border border-border-default bg-surface-raised p-3',
-        'hover:border-border-hover hover:shadow-xs',
-        'select-none',
-        isDragging ? 'opacity-40 shadow-md' : 'opacity-100',
-      ].join(' ')}
+      className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 hover:border-border-hover hover:shadow-xs select-none opacity-100 data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md"
+      data-dragging={isDragging ? 'true' : 'false'}
     >
       {/* Title */}
       <p className="mb-2 line-clamp-2 text-body text-text-primary">
