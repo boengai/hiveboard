@@ -578,7 +578,31 @@ export const resolvers = {
     },
 
     deleteTask(_: unknown, { id }: { id: string }) {
-      db.run('DELETE FROM tasks WHERE id = ?', [id])
+      const user = getCurrentUser()
+
+      // Fetch task + board_id before deletion for subscription
+      const existing = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(id) as TaskRow | null
+      if (!existing) throw new Error(`Task ${id} not found`)
+
+      const task = mapTask(existing)
+
+      db.transaction(() => {
+        db.run(
+          'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
+          [generateId(), id, user.id, 'deleted'],
+        )
+        db.run('DELETE FROM tasks WHERE id = ?', [id])
+      })()
+
+      // Publish subscription so other clients remove the task
+      pubsub.publish(
+        'TASK_UPDATED',
+        existing.board_id,
+        { ...task, deleted: true } as unknown as Record<string, unknown>,
+      )
+
       return true
     },
 
@@ -854,11 +878,63 @@ export const resolvers = {
       const row = db
         .query('SELECT * FROM task_comments WHERE id = ?')
         .get(id) as CommentRow
-      return mapComment(row)
+      const comment = mapComment(row)
+
+      pubsub.publish(
+        'COMMENT_ADDED',
+        row.task_id,
+        comment as unknown as Record<string, unknown>,
+      )
+
+      return comment
     },
 
     deleteComment(_: unknown, { id }: { id: string }) {
-      db.run('DELETE FROM task_comments WHERE id = ?', [id])
+      const user = getCurrentUser()
+
+      // Fetch comment before deletion for task_id
+      const existing = db
+        .query('SELECT * FROM task_comments WHERE id = ?')
+        .get(id) as CommentRow | null
+      if (!existing) throw new Error(`Comment ${id} not found`)
+
+      const eventId = generateId()
+
+      db.transaction(() => {
+        db.run(
+          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+          [
+            eventId,
+            existing.task_id,
+            user.id,
+            'comment_deleted',
+            JSON.stringify({ comment_id: id }),
+          ],
+        )
+        db.run('DELETE FROM task_comments WHERE id = ?', [id])
+      })()
+
+      // Publish TASK_EVENT for the deletion
+      const ev = db
+        .query('SELECT * FROM task_events WHERE id = ?')
+        .get(eventId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
+      if (ev) {
+        pubsub.publish('TASK_EVENT', existing.task_id, {
+          id: ev.id,
+          type: ev.type,
+          data: ev.data,
+          createdAt: ev.created_at,
+          isSystem: false,
+          _actor: ev.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
       return true
     },
 
