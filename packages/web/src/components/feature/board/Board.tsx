@@ -21,8 +21,8 @@ import { TaskCard } from "./TaskCard";
 export function Board() {
   const board = useBoardStore((s) => s.board);
   const setBoard = useBoardStore((s) => s.setBoard);
-  const showArchived = useBoardStore((s) => s.showArchived);
-  const toggleArchived = useBoardStore((s) => s.toggleArchived);
+  const _showArchived = useBoardStore((s) => s.showArchived);
+  const _toggleArchived = useBoardStore((s) => s.toggleArchived);
   const moveTaskOptimistic = useBoardStore((s) => s.moveTaskOptimistic);
   const mergeTaskUpdate = useBoardStore((s) => s.mergeTaskUpdate);
 

@@ -55,8 +55,7 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
   }, [])
 
   const handleCopyLog = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(navigator as any).clipboard?.writeText(chunks.join('')).catch(console.error)
+    navigator.clipboard?.writeText(chunks.join('')).catch(console.error)
   }
 
   // Only render when running or has output

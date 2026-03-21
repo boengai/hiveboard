@@ -5,7 +5,10 @@ import { RouterProvider } from '@tanstack/react-router'
 import { router } from './routes'
 import './styles/index.css'
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')
+if (!root) throw new Error('Root element not found')
+
+createRoot(root).render(
   <StrictMode>
     <LazyMotion features={domAnimation}>
       <RouterProvider router={router} />

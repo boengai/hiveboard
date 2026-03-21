@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useBoardStore, type Column as ColumnType } from '@/store/boardStore'
 import { TaskCard } from './TaskCard'
+import { PlusIcon } from '@/components/common/icon'
 
 interface ColumnProps {
   column: ColumnType
@@ -38,18 +39,7 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
           className="flex h-6 w-6 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
           aria-label={`Add task to ${column.name}`}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
+          <PlusIcon size={14} />
         </button>
       </div>
 

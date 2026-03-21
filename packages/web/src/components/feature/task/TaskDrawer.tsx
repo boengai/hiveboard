@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Drawer } from '@/components/common/drawer'
 import { Badge } from '@/components/common/badge'
 import { Button } from '@/components/common/button'
+import { TextInput, TextAreaInput, SelectInput } from '@/components/common/input'
 import { useBoardStore, type Task } from '@/store/boardStore'
 import { graphqlClient } from '@/graphql/client'
 import { GET_TASK, GET_BOARD } from '@/graphql/queries'
@@ -82,10 +83,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="create-title" className="text-body-xs text-text-secondary">Title *</label>
-        <input
+        <TextInput
           id="create-title"
           ref={titleRef}
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           placeholder="Task title"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -95,9 +95,9 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="create-body" className="text-body-xs text-text-secondary">Body</label>
-        <textarea
+        <TextAreaInput
           id="create-body"
-          className="min-h-[120px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
+          rows={5}
           placeholder="Optional description…"
           value={form.body}
           onChange={(e) => setForm({ ...form, body: e.target.value })}
@@ -107,25 +107,19 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="create-action" className="text-body-xs text-text-secondary">Action</label>
-          <select
+          <SelectInput
             id="create-action"
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
-            value={form.action}
-            onChange={(e) => setForm({ ...form, action: e.target.value })}
-          >
-            {ACTION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            value={form.action || undefined}
+            placeholder="None"
+            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
+            onValueChange={(v) => setForm({ ...form, action: v })}
+          />
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
           <label htmlFor="create-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
-          <input
+          <TextInput
             id="create-target-repo"
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             placeholder="owner/repo"
             value={form.targetRepo}
             onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
@@ -251,18 +245,15 @@ const AgentPanel = ({ task, onDispatch, onCancel, loading, readOnly = false }: A
 
       {/* Dispatch row — disabled in read-only (edit) mode */}
       <div className="flex items-center gap-2">
-        <select
-          className="flex-1 rounded-md border border-border-default bg-surface-raised px-2 py-1.5 text-body-xs text-text-primary outline-none focus:border-honey-400 disabled:opacity-50"
-          value={dispatchAction}
-          onChange={(e) => setDispatchAction(e.target.value)}
-          disabled={readOnly || isAgentActive || loading}
-        >
-          {ACTION_OPTIONS.filter((o) => o.value !== '').map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex-1">
+          <SelectInput
+            value={dispatchAction || undefined}
+            placeholder="Select action…"
+            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
+            onValueChange={setDispatchAction}
+            disabled={readOnly || isAgentActive || loading}
+          />
+        </div>
         <Button
           size="small"
           color="default"
@@ -305,10 +296,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="edit-title" className="text-body-xs text-text-secondary">Title *</label>
-        <input
+        <TextInput
           id="edit-title"
           ref={titleRef}
-          className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
         />
@@ -316,9 +306,9 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="edit-body" className="text-body-xs text-text-secondary">Body</label>
-        <textarea
+        <TextAreaInput
           id="edit-body"
-          className="min-h-[120px] resize-y rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
+          rows={5}
           value={form.body}
           onChange={(e) => setForm({ ...form, body: e.target.value })}
         />
@@ -327,25 +317,19 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="edit-action" className="text-body-xs text-text-secondary">Action</label>
-          <select
+          <SelectInput
             id="edit-action"
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
-            value={form.action}
-            onChange={(e) => setForm({ ...form, action: e.target.value })}
-          >
-            {ACTION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            value={form.action || undefined}
+            placeholder="None"
+            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
+            onValueChange={(v) => setForm({ ...form, action: v })}
+          />
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
           <label htmlFor="edit-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
-          <input
+          <TextInput
             id="edit-target-repo"
-            className="rounded-md border border-border-default bg-surface-base px-3 py-2 text-body-sm text-text-primary outline-none focus:border-honey-400"
             placeholder="owner/repo"
             value={form.targetRepo}
             onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
