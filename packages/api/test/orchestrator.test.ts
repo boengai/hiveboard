@@ -107,6 +107,7 @@ type TaskRow = {
   body: string
   action: string | null
   target_repo: string | null
+  target_branch: string | null
   agent_status: string
   retry_count: number
   created_at: string

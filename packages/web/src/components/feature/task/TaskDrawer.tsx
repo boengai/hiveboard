@@ -13,7 +13,6 @@ import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
   CREATE_TASK,
-
   DISPATCH_AGENT,
   GET_BOARD,
   GET_TASK,
@@ -34,7 +33,7 @@ import { TaskComments } from './TaskComments'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
 
 const ACTION_OPTIONS = [
-  { value: '', label: 'None' },
+  { value: 'idle', label: 'Idle' },
   { value: 'plan', label: 'Plan' },
   { value: 'research', label: 'Research' },
   { value: 'implement', label: 'Implement' },
@@ -78,7 +77,13 @@ function agentStatusColor(status: string): ActionColor {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-const emptyForm: FormState = { title: '', body: '', action: '', targetRepo: '' }
+const emptyForm: FormState = {
+  title: '',
+  body: '## Description\n',
+  action: '',
+  targetRepo: '',
+  targetBranch: 'main',
+}
 
 const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
@@ -112,27 +117,11 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
           placeholder="Optional description…"
-          rows={5}
+          rows={15}
         />
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="create-action"
-            className="text-body-xs text-text-secondary"
-          >
-            Action
-          </label>
-          <SelectInput
-            id="create-action"
-            value={form.action || undefined}
-            placeholder="None"
-            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
-            onValueChange={(v) => setForm({ ...form, action: v })}
-          />
-        </div>
-
+      <div className="flex gap-3 [&>div]:w-1/2">
         <div className="flex flex-1 flex-col gap-1.5">
           <label
             htmlFor="create-target-repo"
@@ -145,6 +134,21 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
             placeholder="owner/repo"
             value={form.targetRepo}
             onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="create-target-branch"
+            className="text-body-xs text-text-secondary"
+          >
+            Target Branch
+          </label>
+          <TextInput
+            id="create-target-branch"
+            placeholder="main"
+            value={form.targetBranch}
+            onChange={(e) => setForm({ ...form, targetBranch: e.target.value })}
           />
         </div>
       </div>
@@ -163,12 +167,7 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   )
 }
 
-const ViewMode = ({
-  task,
-  onEdit,
-  onArchive,
-  loading,
-}: ViewModeProps) => {
+const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
   return (
     <div className="flex grow flex-col gap-5">
       {/* Title */}
@@ -182,6 +181,9 @@ const ViewMode = ({
         {task.targetRepo && (
           <span className="text-body-xs text-text-tertiary">
             {task.targetRepo}
+            {task.targetBranch &&
+              task.targetBranch !== 'main' &&
+              ` @ ${task.targetBranch}`}
           </span>
         )}
       </div>
@@ -330,7 +332,7 @@ const EditMode = ({
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
-          rows={10}
+          rows={15}
         />
       </div>
 
@@ -363,6 +365,21 @@ const EditMode = ({
             placeholder="owner/repo"
             value={form.targetRepo}
             onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="edit-target-branch"
+            className="text-body-xs text-text-secondary"
+          >
+            Target Branch
+          </label>
+          <TextInput
+            id="edit-target-branch"
+            placeholder="main"
+            value={form.targetBranch}
+            onChange={(e) => setForm({ ...form, targetBranch: e.target.value })}
           />
         </div>
       </div>
@@ -460,6 +477,7 @@ export const TaskDrawer = () => {
           body: createForm.body || null,
           action: createForm.action || null,
           targetRepo: createForm.targetRepo.trim() || null,
+          targetBranch: createForm.targetBranch.trim() || 'main',
         },
       })
       await refetchBoard()
@@ -484,6 +502,7 @@ export const TaskDrawer = () => {
             body: editForm.body,
             action: editForm.action || null,
             targetRepo: editForm.targetRepo.trim() || null,
+            targetBranch: editForm.targetBranch.trim() || null,
           },
         },
       )
@@ -561,6 +580,7 @@ export const TaskDrawer = () => {
       body: task.body ?? '',
       action: task.action ?? '',
       targetRepo: task.targetRepo ?? '',
+      targetBranch: task.targetBranch ?? 'main',
     })
     setIsEditing(true)
   }
@@ -604,7 +624,6 @@ export const TaskDrawer = () => {
           task={task}
           onEdit={enterEdit}
           onArchive={handleArchive}
-
           loading={loading}
         />
       )}

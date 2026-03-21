@@ -19,6 +19,7 @@ export type FormState = {
   body: string
   action: string
   targetRepo: string
+  targetBranch: string
 }
 
 export type CreateModeProps = {

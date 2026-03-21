@@ -39,6 +39,7 @@ type TaskRow = {
   position: number
   action: string | null
   target_repo: string | null
+  target_branch: string | null
   agent_status: string
   agent_output: string | null
   agent_error: string | null
@@ -116,6 +117,7 @@ function mapTask(row: TaskRow) {
   return {
     ...row,
     targetRepo: row.target_repo,
+    targetBranch: row.target_branch,
     agentStatus: row.agent_status.toUpperCase(),
     agentOutput: row.agent_output,
     agentError: row.agent_error,
@@ -373,6 +375,7 @@ export const resolvers = {
           body?: string | null
           action?: string | null
           targetRepo?: string | null
+          targetBranch?: string | null
         }
       },
     ) {
@@ -400,8 +403,8 @@ export const resolvers = {
 
       db.transaction(() => {
         db.run(
-          `INSERT INTO tasks (id, board_id, column_id, title, body, position, action, target_repo, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, board_id, column_id, title, body, position, action, target_repo, target_branch, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             input.boardId,
@@ -411,6 +414,7 @@ export const resolvers = {
             position,
             input.action ?? null,
             input.targetRepo ?? null,
+            input.targetBranch ?? 'main',
             user.id,
             user.id,
           ],
@@ -473,6 +477,7 @@ export const resolvers = {
           body?: string | null
           action?: string | null
           targetRepo?: string | null
+          targetBranch?: string | null
         }
       },
     ) {
@@ -532,6 +537,14 @@ export const resolvers = {
         if (newRepo !== existing.target_repo) {
           setClauses.push('target_repo = ?')
           values.push(newRepo)
+        }
+      }
+
+      if (input.targetBranch !== undefined) {
+        const newBranch = input.targetBranch ?? null
+        if (newBranch !== existing.target_branch) {
+          setClauses.push('target_branch = ?')
+          values.push(newBranch)
         }
       }
 
@@ -917,6 +930,7 @@ export const resolvers = {
 
       // Validate action is one of the allowed values
       const validActions = [
+        'idle',
         'plan',
         'research',
         'implement',

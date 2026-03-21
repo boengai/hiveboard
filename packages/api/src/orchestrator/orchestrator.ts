@@ -18,6 +18,7 @@ type TaskRow = {
   body: string
   action: string | null
   target_repo: string | null
+  target_branch: string | null
   pr_url: string | null
   agent_status: string
   retry_count: number
@@ -48,12 +49,14 @@ function mapTask(row: TaskRow) {
     body: row.body,
     action: row.action,
     target_repo: row.target_repo,
+    target_branch: row.target_branch,
     agent_status: row.agent_status,
     retry_count: row.retry_count,
     created_at: row.created_at,
     updated_at: row.updated_at,
     // GraphQL-cased fields
     targetRepo: row.target_repo,
+    targetBranch: row.target_branch,
     agentStatus: row.agent_status.toUpperCase(),
     retryCount: row.retry_count,
   }
@@ -331,6 +334,7 @@ export class Orchestrator {
         id: task.id,
         title: task.title,
         targetRepo: task.target_repo,
+        targetBranch: task.target_branch,
       })
 
       // 7. Set up RunState
@@ -408,6 +412,7 @@ export class Orchestrator {
           body: task.body,
           action: task.action,
           targetRepo: task.target_repo,
+          targetBranch: task.target_branch,
         },
         workspacePath: runState.workspacePath,
         promptTemplate: this.promptTemplate,

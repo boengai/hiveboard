@@ -45,7 +45,7 @@ export const MarkdownEditor = ({
       </Tabs.Content>
 
       <Tabs.Content value="preview" className="pt-2">
-        <div className="min-h-[120px] p-3">
+        <div className="min-h-[250px] p-3">
           {value ? (
             <MarkdownPreview content={value} />
           ) : (
