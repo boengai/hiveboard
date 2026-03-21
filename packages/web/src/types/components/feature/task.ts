@@ -40,8 +40,8 @@ export type AgentPanelProps = {
   task: Task
   onDispatch: (action: string) => Promise<void>
   onCancel: () => Promise<void>
+  onUpdateAction: (action: string) => Promise<void>
   loading: boolean
-  readOnly?: boolean
 }
 
 export type EditModeProps = {

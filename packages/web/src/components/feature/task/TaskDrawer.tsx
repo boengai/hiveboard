@@ -1,10 +1,14 @@
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArchiveIcon,
   Badge,
   Button,
   Drawer,
   MarkdownEditor,
   MarkdownPreview,
+  PencilIcon,
+  RefreshIcon,
   SelectInput,
   TextInput,
 } from '@/components/common'
@@ -85,6 +89,30 @@ const emptyForm: FormState = {
   targetBranch: 'main',
 }
 
+const SectionLabel = ({ children }: { children: ReactNode }) => (
+  <span className="text-body-xs font-semibold uppercase tracking-widest text-text-tertiary">
+    {children}
+  </span>
+)
+
+const FieldLabel = ({
+  htmlFor,
+  children,
+  required,
+}: {
+  htmlFor?: string
+  children: ReactNode
+  required?: boolean
+}) => (
+  <label
+    htmlFor={htmlFor}
+    className="text-body-sm font-medium text-text-secondary"
+  >
+    {children}
+    {required && <span className="ml-0.5 text-honey-400">*</span>}
+  </label>
+)
+
 const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -93,14 +121,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   }, [])
 
   return (
-    <div className="flex grow flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="create-title"
-          className="text-body-xs text-text-secondary"
-        >
-          Title *
-        </label>
+    <div className="flex grow flex-col gap-6">
+      {/* Title */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel htmlFor="create-title" required>
+          Title
+        </FieldLabel>
         <TextInput
           id="create-title"
           ref={titleRef}
@@ -111,49 +137,52 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-body-xs text-text-secondary">Body</span>
+      {/* Body */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
           placeholder="Optional description…"
-          rows={15}
+          rows={12}
         />
       </div>
 
-      <div className="flex gap-3 [&>div]:w-1/2">
-        <div className="flex flex-1 flex-col gap-1.5">
-          <label
-            htmlFor="create-target-repo"
-            className="text-body-xs text-text-secondary"
-          >
-            Target Repo
-          </label>
-          <TextInput
-            id="create-target-repo"
-            placeholder="owner/repo"
-            value={form.targetRepo}
-            onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="create-target-branch"
-            className="text-body-xs text-text-secondary"
-          >
-            Target Branch
-          </label>
-          <TextInput
-            id="create-target-branch"
-            placeholder="main"
-            value={form.targetBranch}
-            onChange={(e) => setForm({ ...form, targetBranch: e.target.value })}
-          />
+      {/* Target config */}
+      <div className="flex flex-col gap-3">
+        <SectionLabel>Configuration</SectionLabel>
+        <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
+          <div className="grid grid-cols-[1fr_1fr] gap-3">
+            <div className="flex flex-col gap-2">
+              <FieldLabel htmlFor="edit-target-repo">
+                Target Repository
+              </FieldLabel>
+              <TextInput
+                id="edit-target-repo"
+                placeholder="owner/repo"
+                value={form.targetRepo}
+                onChange={(e) =>
+                  setForm({ ...form, targetRepo: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel htmlFor="edit-target-branch">Branch</FieldLabel>
+              <TextInput
+                id="edit-target-branch"
+                placeholder="main"
+                value={form.targetBranch}
+                onChange={(e) =>
+                  setForm({ ...form, targetBranch: e.target.value })
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-auto pt-4">
+      {/* Footer */}
+      <div className="mt-auto border-t border-border-default pt-5">
         <Button
           color="primary"
           block
@@ -169,61 +198,84 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
 
 const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
   return (
-    <div className="flex grow flex-col gap-5">
-      {/* Title */}
-      <h2 className="text-heading-4 text-text-primary">{task.title}</h2>
+    <div className="flex grow flex-col gap-6">
+      {/* Header area */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-heading-3 font-semibold leading-tight text-text-primary">
+            {task.title}
+          </h2>
+          <div className="flex shrink-0 items-center gap-1 pt-0.5">
+            <Button
+              color="ghost"
+              size="small"
+              onClick={onEdit}
+              title="Edit task"
+            >
+              <PencilIcon size={16} />
+            </Button>
+            <Button
+              color="ghost"
+              size="small"
+              disabled={loading}
+              onClick={onArchive}
+              title={task.archived ? 'Unarchive task' : 'Archive task'}
+            >
+              {task.archived ? (
+                <RefreshIcon size={16} />
+              ) : (
+                <ArchiveIcon size={16} />
+              )}
+            </Button>
+          </div>
+        </div>
 
-      {/* Meta row */}
-      <div className="flex flex-wrap items-center gap-2">
-        {task.action && (
-          <Badge color={actionColor(task.action)}>{task.action}</Badge>
-        )}
-        {task.targetRepo && (
-          <span className="text-body-xs text-text-tertiary">
-            {task.targetRepo}
-            {task.targetBranch &&
-              task.targetBranch !== 'main' &&
-              ` @ ${task.targetBranch}`}
-          </span>
-        )}
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-2">
+          {task.action && (
+            <Badge color={actionColor(task.action)}>{task.action}</Badge>
+          )}
+          {task.targetRepo && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
+              {task.targetRepo}
+              {task.targetBranch && task.targetBranch !== 'main' && (
+                <span className="text-text-secondary">
+                  @{task.targetBranch}
+                </span>
+              )}
+            </span>
+          )}
+          {task.prUrl && (
+            <a
+              href={task.prUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 text-body-xs font-medium text-info-400 transition-colors hover:bg-info-400/20"
+            >
+              PR #{task.prNumber}
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Body */}
-      <MarkdownPreview content={task.body ?? ''} />
 
-      {/* PR link */}
-      {task.prUrl && (
-        <a
-          href={task.prUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-body-sm text-info-400 underline underline-offset-2 hover:text-info-300"
-        >
-          PR #{task.prNumber} — View on GitHub
-        </a>
+      {task.body ? (
+        <MarkdownPreview content={task.body} />
+      ) : (
+        <p className="text-body-sm italic text-text-tertiary">No description</p>
       )}
 
-      {/* Created info */}
+      {/* Timestamp */}
       <p className="text-body-xs text-text-tertiary">
-        Created by {task.createdBy.username} · {timeAgo(task.createdAt)}
+        Created by{' '}
+        <span className="font-medium text-text-secondary">
+          {task.createdBy.username}
+        </span>{' '}
+        · {timeAgo(task.createdAt)}
         {task.updatedAt !== task.createdAt &&
           ` · updated ${timeAgo(task.updatedAt)}`}
       </p>
-
-      {/* Footer actions */}
-      <div className="mt-auto flex items-center gap-2 pt-4 border-t border-border-default">
-        <Button color="ghost" size="small" onClick={onEdit}>
-          Edit
-        </Button>
-        <Button
-          color="default"
-          size="small"
-          disabled={loading}
-          onClick={onArchive}
-        >
-          {task.archived ? 'Unarchive' : 'Archive'}
-        </Button>
-      </div>
     </div>
   )
 }
@@ -233,62 +285,68 @@ const AgentPanel = ({
   onDispatch,
   onCancel,
   loading,
-  readOnly = false,
+  onUpdateAction,
 }: AgentPanelProps) => {
-  const [dispatchAction, setDispatchAction] = useState(task.action ?? '')
-
   const isAgentActive =
     task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
 
   return (
-    <div className="rounded-lg border border-border-default bg-surface-base p-3 flex flex-col gap-3">
+    <div className="rounded-lg border border-border-default bg-surface-overlay/40 p-4 flex flex-col gap-3">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-body-xs font-medium text-text-secondary">
-          Agent
-        </span>
+        <div className="flex items-center gap-2">
+          <div
+            className={`size-2 rounded-full ${
+              isAgentActive
+                ? 'animate-pulse bg-info-400'
+                : task.agentStatus === 'SUCCESS'
+                  ? 'bg-success-400'
+                  : task.agentStatus === 'FAILED'
+                    ? 'bg-error-400'
+                    : 'bg-gray-600'
+            }`}
+          />
+          <SectionLabel>Agent</SectionLabel>
+        </div>
         <Badge color={agentStatusColor(task.agentStatus)}>
           {task.agentStatus}
         </Badge>
       </div>
 
+      {/* Retry count */}
       {task.retryCount > 0 && (
         <span className="text-body-xs text-text-tertiary">
           Retries: {task.retryCount}
         </span>
       )}
 
+      {/* Error */}
       {task.agentError && (
-        <p className="rounded-md bg-error-400/10 px-2 py-1.5 text-body-xs text-error-400 font-mono">
+        <p className="rounded-md border border-error-400/20 bg-error-400/10 px-3 py-2 text-body-xs text-error-400 font-mono leading-relaxed">
           {task.agentError}
         </p>
       )}
 
-      {/* Dispatch row — disabled in read-only (edit) mode */}
-      <div className="flex items-center gap-2">
+      {/* Action select + Dispatch + Cancel */}
+      <div className="flex items-center gap-2 pt-1">
         <div className="flex-1">
           <SelectInput
-            value={dispatchAction || undefined}
+            value={task.action || undefined}
             placeholder="Select action…"
             options={ACTION_OPTIONS.filter((o) => o.value !== '')}
-            onValueChange={setDispatchAction}
-            disabled={readOnly || isAgentActive || loading}
+            onValueChange={onUpdateAction}
+            disabled={isAgentActive || loading}
           />
         </div>
         <Button
-          size="small"
-          color="default"
-          disabled={readOnly || !dispatchAction || isAgentActive || loading}
-          onClick={() => onDispatch(dispatchAction)}
+          color="primary"
+          disabled={!task.action || isAgentActive || loading}
+          onClick={() => task.action && onDispatch(task.action)}
         >
           Dispatch
         </Button>
         {isAgentActive && (
-          <Button
-            size="small"
-            color="danger"
-            disabled={readOnly || loading}
-            onClick={onCancel}
-          >
+          <Button color="danger" disabled={loading} onClick={onCancel}>
             Cancel
           </Button>
         )}
@@ -311,14 +369,12 @@ const EditMode = ({
   }, [])
 
   return (
-    <div className="flex grow flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="edit-title"
-          className="text-body-xs text-text-secondary"
-        >
-          Title *
-        </label>
+    <div className="flex grow flex-col gap-6">
+      {/* Title */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel htmlFor="edit-title" required>
+          Title
+        </FieldLabel>
         <TextInput
           id="edit-title"
           ref={titleRef}
@@ -327,72 +383,66 @@ const EditMode = ({
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-body-xs text-text-secondary">Body</span>
+      {/* Body */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
-          rows={15}
+          rows={12}
         />
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="edit-action"
-            className="text-body-xs text-text-secondary"
-          >
-            Action
-          </label>
-          <SelectInput
-            id="edit-action"
-            value={form.action || undefined}
-            placeholder="None"
-            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
-            onValueChange={(v) => setForm({ ...form, action: v })}
-          />
-        </div>
+      {/* Configuration section */}
+      <div className="flex flex-col gap-3">
+        <SectionLabel>Configuration</SectionLabel>
 
-        <div className="flex flex-1 flex-col gap-1.5">
-          <label
-            htmlFor="edit-target-repo"
-            className="text-body-xs text-text-secondary"
-          >
-            Target Repo
-          </label>
-          <TextInput
-            id="edit-target-repo"
-            placeholder="owner/repo"
-            value={form.targetRepo}
-            onChange={(e) => setForm({ ...form, targetRepo: e.target.value })}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="edit-target-branch"
-            className="text-body-xs text-text-secondary"
-          >
-            Target Branch
-          </label>
-          <TextInput
-            id="edit-target-branch"
-            placeholder="main"
-            value={form.targetBranch}
-            onChange={(e) => setForm({ ...form, targetBranch: e.target.value })}
-          />
+        <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
+          <div className="grid grid-cols-[1fr_1fr] gap-3">
+            <div className="flex flex-col gap-2">
+              <FieldLabel htmlFor="edit-target-repo">
+                Target Repository
+              </FieldLabel>
+              <TextInput
+                id="edit-target-repo"
+                placeholder="owner/repo"
+                value={form.targetRepo}
+                onChange={(e) =>
+                  setForm({ ...form, targetRepo: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <FieldLabel htmlFor="edit-target-branch">Branch</FieldLabel>
+              <TextInput
+                id="edit-target-branch"
+                placeholder="main"
+                value={form.targetBranch}
+                onChange={(e) =>
+                  setForm({ ...form, targetBranch: e.target.value })
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-auto flex items-center gap-2 pt-4 border-t border-border-default">
+      {/* Footer */}
+      <div className="mt-auto flex items-center gap-3 border-t border-border-default pt-5 *:w-1/2">
         <Button
           color="primary"
+          size="large"
           disabled={!form.title.trim() || loading}
           onClick={onSave}
         >
-          {loading ? 'Saving…' : 'Save'}
+          {loading ? 'Saving…' : 'Save Changes'}
         </Button>
-        <Button color="ghost" disabled={loading} onClick={onCancel}>
+        <Button
+          color="ghost"
+          size="large"
+          disabled={loading}
+          onClick={onCancel}
+        >
           Cancel
         </Button>
       </div>
@@ -537,6 +587,26 @@ export const TaskDrawer = () => {
     }
   }
 
+  const handleUpdateAction = async (action: string) => {
+    if (!task) return
+    setLoading(true)
+    try {
+      const updated = await graphqlClient.request<{ updateTask: Task }>(
+        UPDATE_TASK,
+        {
+          id: task.id,
+          input: { action: action || null },
+        },
+      )
+      setTask(updated.updateTask)
+      await refetchBoard()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDispatch = async (action: string) => {
     if (!task) return
     setLoading(true)
@@ -638,14 +708,14 @@ export const TaskDrawer = () => {
         />
       )}
 
-      {/* Agent panel visible in both view and edit modes (read-only during edit) */}
-      {drawerMode === 'view' && task && (
+      {/* Agent panel — view mode only, hidden during edit */}
+      {drawerMode === 'view' && task && !isEditing && (
         <AgentPanel
           task={task}
           onDispatch={handleDispatch}
           onCancel={handleCancelAgent}
+          onUpdateAction={handleUpdateAction}
           loading={loading}
-          readOnly={isEditing}
         />
       )}
 
@@ -657,15 +727,18 @@ export const TaskDrawer = () => {
           <AgentLogStream taskId={task.id} agentStatus={task.agentStatus} />
         )}
 
-      {/* Timeline + Comments — view mode only, not during edit */}
+      {/* Timeline — view mode only, not during edit */}
       {drawerMode === 'view' && task && !isEditing && (
-        <div className="flex flex-col gap-4 border-t border-border-default pt-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-body-xs font-medium uppercase tracking-wide text-text-secondary">
-              Activity
-            </span>
-            <TaskTimeline taskId={task.id} />
-          </div>
+        <div className="flex flex-col gap-3 border-t border-border-default pt-5">
+          <SectionLabel>Activity</SectionLabel>
+          <TaskTimeline taskId={task.id} />
+        </div>
+      )}
+
+      {/* Comments — view mode only, not during edit */}
+      {drawerMode === 'view' && task && !isEditing && (
+        <div className="flex flex-col gap-3 border-t border-border-default pt-5">
+          <SectionLabel>Comments</SectionLabel>
           <TaskComments taskId={task.id} />
         </div>
       )}
