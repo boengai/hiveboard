@@ -121,66 +121,63 @@ export function Board() {
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    // Capture the indicator before clearing — it was set by handleDragOver
+    // and reflects the actual visual position shown to the user.
+    // event.over can differ from what was shown (closestCorners may resolve
+    // to the column droppable instead of the specific task).
+    const indicator = dropIndicator
+
     setActiveTask(null)
     setDropIndicator(null)
-    const { active, over } = event
-    if (!over || !board) return
+
+    const { active } = event
+    if (!indicator || !board) return
 
     const taskId = String(active.id)
-    const overId = String(over.id)
-
-    // Determine target column: either the column itself or find the column of the task being hovered
-    let targetColumnId = overId
-    let targetColumn = board.columns.find((c) => c.id === overId)
-
-    if (!targetColumn) {
-      // overId is a task id — find its column
-      for (const col of board.columns) {
-        if (col.tasks.some((t) => t.id === overId)) {
-          targetColumn = col
-          targetColumnId = col.id
-          break
-        }
-      }
-    }
-
+    const targetColumnId = indicator.columnId
+    const targetColumn = board.columns.find((c) => c.id === targetColumnId)
     if (!targetColumn) return
 
-    // Don't do anything if dropped on itself and same column
+    // Don't do anything if dropped on itself in the same column with no move
     const sourceColumn = board.columns.find((c) =>
       c.tasks.some((t) => t.id === taskId),
     )
-    if (sourceColumn?.id === targetColumnId && taskId === overId) return
+    if (
+      sourceColumn?.id === targetColumnId &&
+      indicator.taskId === taskId
+    )
+      return
 
-    // Calculate position
+    // Calculate position based on the indicator target
     const visibleTasks = targetColumn.tasks
-      .filter((t) => t.id !== taskId)
+      .filter((t) => t.id !== taskId && !t.archived)
       .sort((a, b) => a.position - b.position)
 
     let position: number
 
-    const lastTask = visibleTasks[visibleTasks.length - 1]
-
     if (visibleTasks.length === 0) {
       position = 0
-    } else if (overId === targetColumnId) {
-      // Dropped on column header/empty area — append at end
-      position = (lastTask?.position ?? 0) + 1024
+    } else if (indicator.taskId === null) {
+      // Indicator was at top of column (hovering column header)
+      const firstTask = visibleTasks[0]
+      position = (firstTask?.position ?? 0) - 1024
     } else {
-      // Dropped on a specific task
-      const overIndex = visibleTasks.findIndex((t) => t.id === overId)
+      // Indicator was above a specific task
+      const overIndex = visibleTasks.findIndex(
+        (t) => t.id === indicator.taskId,
+      )
       if (overIndex === -1) {
+        // Fallback: append at end
+        const lastTask = visibleTasks[visibleTasks.length - 1]
         position = (lastTask?.position ?? 0) + 1024
+      } else if (overIndex === 0) {
+        // Insert before first task
+        position = visibleTasks[0].position - 1024
       } else {
+        // Insert between prev and the indicated task
         const prev = visibleTasks[overIndex - 1]
         const next = visibleTasks[overIndex]
-        if (!prev || !next) {
-          position = next
-            ? next.position - 1024
-            : (lastTask?.position ?? 0) + 1024
-        } else {
-          position = (prev.position + next.position) / 2
-        }
+        position = (prev.position + next.position) / 2
       }
     }
 
