@@ -1,8 +1,8 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { PlusIcon } from '@/components/common/icon'
-import { useBoardStore } from '@/store/boardStore'
-import type { ColumnProps } from '@/types/components/feature/board'
+import { PlusIcon } from '@/components/common'
+import { useBoardStore } from '@/store'
+import type { ColumnProps } from '@/types'
 import { TaskCard } from './TaskCard'
 
 export function Column({ column, dropTargetTaskId }: ColumnProps) {

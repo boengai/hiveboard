@@ -1,7 +1,7 @@
 import { m } from 'motion/react'
 import { Drawer as VaulDrawer } from 'vaul'
-import type { DrawerProps } from '@/types/components/common/drawer'
-import { tv } from '@/utils/tailwind-variants'
+import type { DrawerProps } from '@/types'
+import { tv } from '@/utils'
 
 const overlayVariants = tv({
   base: 'fixed inset-0 z-40 bg-black/40 backdrop-blur-xs',

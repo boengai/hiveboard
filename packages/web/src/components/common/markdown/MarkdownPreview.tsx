@@ -1,7 +1,7 @@
 import Markdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
-import type { MarkdownPreviewProps } from '@/types/components/common/markdown'
+import type { MarkdownPreviewProps } from '@/types'
 
 export const MarkdownPreview = ({ content }: MarkdownPreviewProps) => {
   if (!content) {

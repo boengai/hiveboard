@@ -1,5 +1,4 @@
-import { Board } from '@/components/feature/board'
-import { TaskDrawer } from '@/components/feature/task'
+import { Board, TaskDrawer } from '@/components/feature'
 
 export const HomePage = () => (
   <>

@@ -1,5 +1,5 @@
-import type { BadgeProps } from '@/types/components/common/badge'
-import { tv } from '@/utils/tailwind-variants'
+import type { BadgeProps } from '@/types'
+import { tv } from '@/utils'
 
 const badgeVariants = tv({
   base: 'inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium',

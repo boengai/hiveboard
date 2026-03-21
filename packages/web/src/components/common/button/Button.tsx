@@ -1,7 +1,7 @@
 import { m } from 'motion/react'
 import type { ComponentProps } from 'react'
-import type { ButtonProps } from '@/types/components/common/button'
-import { tv } from '@/utils/tailwind-variants'
+import type { ButtonProps } from '@/types'
+import { tv } from '@/utils'
 
 const buttonVariants = tv({
   base: 'inline-flex items-center justify-center rounded-md font-medium transition-colors text-body-sm',

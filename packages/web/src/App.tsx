@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { ConnectionIndicator } from '@/components/common/connection-indicator'
+import { ConnectionIndicator } from '@/components'
 
 export const App = () => (
   <div className="flex h-screen flex-col bg-surface-page">

@@ -1,4 +1,4 @@
-import type { IconProps } from '@/types/components/common/icon'
+import type { IconProps } from '@/types'
 
 export const GitPullRequestIcon = ({ size = '1em' }: IconProps) => (
   <svg

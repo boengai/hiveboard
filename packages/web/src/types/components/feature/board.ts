@@ -1,4 +1,4 @@
-import type { Column as ColumnType, Task } from '@/store/boardStore'
+import type { Column as ColumnType, Task } from '@/store'
 
 export type ColumnProps = {
   column: ColumnType

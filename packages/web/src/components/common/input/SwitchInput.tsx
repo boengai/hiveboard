@@ -1,5 +1,5 @@
 import * as SwitchPrimitive from '@radix-ui/react-switch'
-import type { SwitchInputProps } from '@/types/components/common/input'
+import type { SwitchInputProps } from '@/types'
 
 export const SwitchInput = ({
   checked,

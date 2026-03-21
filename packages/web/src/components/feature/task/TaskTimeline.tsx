@@ -1,8 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
-import { Badge } from '@/components/common/badge'
 import {
   ArchiveIcon,
   ArrowRightIcon,
+  Badge,
   BoltIcon,
   CheckIcon,
   DotIcon,
@@ -14,19 +14,20 @@ import {
   PlusIcon,
   RefreshIcon,
   XMarkIcon,
-} from '@/components/common/icon'
-import { graphqlClient } from '@/graphql/client'
-import { GET_COMMENTS, GET_TASK_TIMELINE } from '@/graphql/queries'
+} from '@/components/common'
 import {
+  GET_COMMENTS,
+  GET_TASK_TIMELINE,
+  graphqlClient,
   subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
-} from '@/graphql/subscriptions'
+} from '@/graphql'
 import type {
   RawComment,
   RawTimelineEvent,
   TaskTimelineProps,
   TimelineEntry,
-} from '@/types/components/feature/task'
+} from '@/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -385,7 +386,7 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
 // ReplyInput (inline)
 // ---------------------------------------------------------------------------
 
-import { ADD_COMMENT } from '@/graphql/mutations'
+import { ADD_COMMENT } from '@/graphql'
 
 function ReplyInput({
   taskId,

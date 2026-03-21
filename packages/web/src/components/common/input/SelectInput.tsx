@@ -1,6 +1,6 @@
 import * as SelectPrimitive from '@radix-ui/react-select'
 import { ChevronDownIcon } from '@/components/common/icon'
-import type { SelectInputProps } from '@/types/components/common/input'
+import type { SelectInputProps } from '@/types'
 
 export const SelectInput = ({
   value,

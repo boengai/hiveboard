@@ -1,4 +1,4 @@
-import type { TextInputProps } from '@/types/components/common/input'
+import type { TextInputProps } from '@/types'
 
 export const TextInput = (props: TextInputProps) => (
   <input
