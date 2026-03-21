@@ -480,7 +480,7 @@ export const TaskDrawer = () => {
           id: task.id,
           input: {
             title: editForm.title.trim(),
-            body: editForm.body || null,
+            body: editForm.body,
             action: editForm.action || null,
             targetRepo: editForm.targetRepo.trim() || null,
           },
