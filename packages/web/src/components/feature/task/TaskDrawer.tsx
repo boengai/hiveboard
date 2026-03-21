@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import { Badge } from '@/components/common/badge'
-import { Button } from '@/components/common/button'
-import { Drawer } from '@/components/common/drawer'
-import { SelectInput, TextInput } from '@/components/common/input'
-import { MarkdownEditor, MarkdownPreview } from '@/components/common/markdown'
+import {
+  Badge,
+  Button,
+  Drawer,
+  MarkdownEditor,
+  MarkdownPreview,
+  SelectInput,
+  TextInput,
+} from '@/components/common'
 import { AgentLogStream } from '@/components/feature/agent'
-import { graphqlClient } from '@/graphql/client'
 import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
   CREATE_TASK,
   DELETE_TASK,
   DISPATCH_AGENT,
+  GET_BOARD,
+  GET_TASK,
+  graphqlClient,
   UNARCHIVE_TASK,
   UPDATE_TASK,
-} from '@/graphql/mutations'
-import { GET_BOARD, GET_TASK } from '@/graphql/queries'
-import { type Task, useBoardStore } from '@/store/boardStore'
+} from '@/graphql'
+import { type Task, useBoardStore } from '@/store'
 import type {
   ActionColor,
   AgentPanelProps,
@@ -24,7 +29,7 @@ import type {
   EditModeProps,
   FormState,
   ViewModeProps,
-} from '@/types/components/feature/task'
+} from '@/types'
 import { TaskComments } from './TaskComments'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
 

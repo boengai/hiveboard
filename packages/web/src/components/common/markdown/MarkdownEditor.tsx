@@ -1,7 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import type { MarkdownEditorProps } from '@/types/components/common/markdown'
+import type { MarkdownEditorProps } from '@/types'
 import { MarkdownPreview } from './MarkdownPreview'
 
 const TabTrigger = ({

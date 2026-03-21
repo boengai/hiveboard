@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import {
   AGENT_LOG_STREAM_SUBSCRIPTION,
   subscribe,
-} from '@/graphql/subscriptions'
+} from '@/graphql'
 import type {
   AgentLogChunk,
   AgentLogStreamProps,
-} from '@/types/components/feature/agent'
+} from '@/types'
 
 export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
   const [chunks, setChunks] = useState<string[]>([])

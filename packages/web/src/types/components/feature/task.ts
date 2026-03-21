@@ -1,4 +1,4 @@
-import type { Task } from '@/store/boardStore'
+import type { Task } from '@/store'
 
 // ---------------------------------------------------------------------------
 // TaskDrawer

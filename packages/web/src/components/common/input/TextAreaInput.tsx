@@ -1,4 +1,4 @@
-import type { TextAreaInputProps } from '@/types/components/common/input'
+import type { TextAreaInputProps } from '@/types'
 
 export const TextAreaInput = (props: TextAreaInputProps) => (
   <textarea

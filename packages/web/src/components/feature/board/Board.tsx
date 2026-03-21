@@ -10,11 +10,14 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { useEffect, useState } from 'react'
-import { graphqlClient } from '@/graphql/client'
-import { MOVE_TASK } from '@/graphql/mutations'
-import { GET_BOARDS } from '@/graphql/queries'
-import { subscribe, TASK_UPDATED_SUBSCRIPTION } from '@/graphql/subscriptions'
-import { type Task, useBoardStore } from '@/store/boardStore'
+import {
+  GET_BOARDS,
+  graphqlClient,
+  MOVE_TASK,
+  subscribe,
+  TASK_UPDATED_SUBSCRIPTION,
+} from '@/graphql'
+import { type Task, useBoardStore } from '@/store'
 import { Column } from './Column'
 import { TaskCard } from './TaskCard'
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   type ConnectionState,
   connectionStateManager,
-} from '@/graphql/subscriptions'
+} from '@/graphql'
 
 const STATE_CONFIG: Record<
   ConnectionState,

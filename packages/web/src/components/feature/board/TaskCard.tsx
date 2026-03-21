@@ -1,10 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
-import { CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common/icon'
-import { type Task, useBoardStore } from '@/store/boardStore'
-import type { TaskCardProps } from '@/types/components/feature/board'
-import { tv } from '@/utils/tailwind-variants'
+import { CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
+import { type Task, useBoardStore } from '@/store'
+import type { TaskCardProps } from '@/types'
+import { tv } from '@/utils'
 
 // Action badge styles
 const actionBadge = tv({

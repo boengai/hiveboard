@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from '@/components/common/button'
-import { TextAreaInput } from '@/components/common/input'
-import { MarkdownPreview } from '@/components/common/markdown'
-import { graphqlClient } from '@/graphql/client'
+import { Button, MarkdownPreview, TextAreaInput } from '@/components/common'
 import {
   ADD_COMMENT,
+  COMMENT_ADDED_SUBSCRIPTION,
   DELETE_COMMENT,
+  GET_COMMENTS,
+  graphqlClient,
+  subscribe,
   UPDATE_COMMENT,
-} from '@/graphql/mutations'
-import { GET_COMMENTS } from '@/graphql/queries'
-import { COMMENT_ADDED_SUBSCRIPTION, subscribe } from '@/graphql/subscriptions'
+} from '@/graphql'
 import type {
   Comment,
   CommentBlockProps,
   Reply,
   TaskCommentsProps,
-} from '@/types/components/feature/task'
+} from '@/types'
 import { timeAgo } from './TaskTimeline'
 
 function CommentBlock({
