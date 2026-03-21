@@ -1,218 +1,576 @@
 # Maintainer Guide
 
-This guide is for developers who need to modify or extend HiveBoard.
+This guide is for developers who need to modify or extend HiveBoard --- a local-first Kanban board backed by SQLite and a GraphQL API.
 
-## Architecture
+---
 
-```
-Webhook (Bun.serve)  ──►  Orchestrator  ──►  Agent Runner (Claude CLI)
-                              │                     │
-Polling (setInterval) ──►     │               Prompt Renderer (Mustache)
-                              ▼
-                     GitHub Projects V2 Client
-                        │           │
-                  Label Parser    Review Comments
-                        │
-                  Workspace Manager ──► SSH Client (optional)
-                        │
-                  Tunnel Manager (cloudflared, optional)
-```
+## Module Responsibility Table
 
-The **Orchestrator** is the central coordinator. It receives issues from two sources (webhook and polling), manages an in-memory state map of running/completed/retrying agents, and dispatches work to the **Agent Runner**. The Agent Runner spawns a Claude CLI process per issue inside an isolated workspace.
+All API source lives under `packages/api/src/`.
 
-For `action:revise` dispatches, the orchestrator fetches PR review comments linked to the issue and passes them to the prompt renderer so the agent has context on what to fix.
-
-## Module responsibilities
-
-| Module | File(s) | What it owns |
+| Directory | Key files | Responsibility |
 |---|---|---|
-| Config | `src/config/schema.ts`, `loader.ts` | Zod schemas, WORKFLOW.md parsing, env var resolution |
-| GitHub Client | `src/github/client.ts`, `queries.ts`, `types.ts` | All GitHub GraphQL API calls (projects V2, labels, columns, review comments), owner-type detection (repo/org/user), project metadata caching |
-| Labels | `src/labels/parse-repo.ts` | Parsing `repo:*` labels into `{ repoOwner, repoName }` with `owner/name` or bare-name formats |
-| Orchestrator | `src/orchestrator/orchestrator.ts`, `state.ts` | Poll loop, dispatch decisions, concurrency limits, retry scheduling, worker host selection, graceful shutdown |
-| Workspace | `src/workspace/manager.ts`, `path-safety.ts` | Per-issue directory creation/removal, lifecycle hooks, symlink escape detection |
-| Agent | `src/agent/runner.ts`, `prompt.ts` | Claude CLI process spawning, Mustache prompt rendering, review comment formatting, continuation prompts, abort handling |
-| Webhook | `src/webhook/server.ts`, `handlers.ts` | HTTP server, GitHub signature verification, event routing |
-| SSH | `src/ssh/client.ts` | Remote command execution via `ssh` binary |
-| Tunnel | `src/tunnel/cloudflare.ts` | Cloudflare tunnel lifecycle (quick tunnels via `trycloudflare.com`, named tunnels via token) |
-| Types | `src/types/issue.ts` | Shared interfaces (`Issue`, `RunState`, `RetryEntry`, `AgentResult`) |
+| `db/` | `client.ts`, `schema.ts`, `migrate.ts`, `seed.ts`, `ulid.ts` | SQLite connection (WAL mode, FK enforcement), table DDL, idempotent migrations, seed data, ULID-based ID generation |
+| `schema/` | `typeDefs.ts`, `resolvers.ts` | GraphQL type definitions and all Query/Mutation/Subscription resolvers |
+| `config/` | `schema.ts`, `loader.ts` | Zod validation schemas for `WORKFLOW.md` front matter; YAML parsing and env-var resolution |
+| `orchestrator/` | `orchestrator.ts`, `singleton.ts` | Poll loop that picks up queued tasks, dispatches agents, manages concurrency, handles retry with exponential backoff, graceful shutdown |
+| `agent/` | `runner.ts`, `prompt.ts` | Spawns Claude CLI per task, builds CLI args, renders Mustache prompt templates, streams stdout to pubsub |
+| `workspace/` | `manager.ts`, `path-safety.ts` | Creates/removes per-task workspace directories, runs lifecycle hooks, TTL-based sweep, symlink-escape detection |
+| `github/` | `client.ts` | `gh` CLI wrapper for creating PRs (`gh pr create`) and fetching PR review comments (`gh api`) |
+| `tunnel/` | *(empty --- reserved)* | Reserved for future Cloudflare tunnel integration |
+| `pubsub.ts` | *(root file)* | Typed `graphql-yoga` PubSub instance with four channels: `TASK_UPDATED`, `AGENT_LOG`, `COMMENT_ADDED`, `TASK_EVENT` |
 
-## How-to recipes
+The frontend lives under `packages/web/src/`:
 
-### Adding a new config field
+| Directory | Purpose |
+|---|---|
+| `components/common/` | Reusable UI primitives (Badge, Button, Drawer, Icon, Input, Markdown) |
+| `components/feature/` | Domain components (agent, board, task) |
+| `graphql/` | `graphql-request` client, query/mutation/subscription definitions |
+| `store/` | Zustand stores (`boardStore.ts`) |
+| `pages/` | Page-level components |
+| `routes/` | TanStack Router route definitions |
+| `types/` | Shared TypeScript types |
+| `utils/` | Helper functions |
 
-1. Add the Zod field to the appropriate schema in `src/config/schema.ts`
-2. If it's a secret, use `envStringRequired()` or `envString()` and add a `$VAR_NAME` reference
-3. Update `.env.example` with the new variable
-4. Update the config table in `README.md`
-5. Add a test case in `test/config.test.ts`
+---
 
-### Adding a new action label
+## How-To Recipes
 
-Action labels (e.g. `action:plan`, `action:implement`) are just strings — no code change needed. The orchestrator dispatches any issue that has a label matching the `action_prefix`. The prompt template receives the action via `{{ issue.action }}`, so add conditional logic in the `WORKFLOW.md` prompt body:
+### 1. Add a DB column
 
+**Touch:** `schema.ts` -> `migrate.ts` -> `typeDefs.ts` -> `resolvers.ts`
+
+#### Step 1 --- Add to `schema.ts`
+
+Add the column to the `CREATE TABLE` statement in `packages/api/src/db/schema.ts`. This is the source of truth for fresh databases.
+
+```ts
+// packages/api/src/db/schema.ts
+CREATE TABLE IF NOT EXISTS tasks (
+  ...
+  priority       TEXT DEFAULT 'medium',    -- new column
+  ...
+);
 ```
+
+#### Step 2 --- Add migration in `migrate.ts`
+
+Use the `ensureColumn()` helper so existing databases get the column. This is idempotent --- it checks `PRAGMA table_info` before altering.
+
+```ts
+// packages/api/src/db/migrate.ts
+function addMissingColumns(db: Database): void {
+  // ... existing columns ...
+  ensureColumn(db, 'tasks', 'priority', "TEXT DEFAULT 'medium'")
+}
+```
+
+To rename a column instead, use `renameColumn()`:
+
+```ts
+renameColumn(db, 'tasks', 'old_name', 'new_name')
+```
+
+#### Step 3 --- Expose in GraphQL schema
+
+Add the field to the relevant type in `packages/api/src/schema/typeDefs.ts`:
+
+```graphql
+type Task {
+  ...
+  priority: String
+}
+```
+
+If the column is writable, add it to the input types too:
+
+```graphql
+input CreateTaskInput {
+  ...
+  priority: String
+}
+
+input UpdateTaskInput {
+  ...
+  priority: String
+}
+```
+
+#### Step 4 --- Update resolvers
+
+1. Add the field to the `TaskRow` type alias in `resolvers.ts`.
+2. Add the camelCase mapping in `mapTask()`:
+
+```ts
+function mapTask(row: TaskRow) {
+  return {
+    ...row,
+    priority: row.priority,
+    // ... existing mappings
+  }
+}
+```
+
+3. If writable, update `createTask` and `updateTask` mutations to include the column in their SQL statements.
+
+---
+
+### 2. Add a GraphQL mutation
+
+**Touch:** `typeDefs.ts` -> `resolvers.ts` -> `pubsub.ts` (if real-time needed)
+
+#### Step 1 --- Define in typeDefs
+
+```graphql
+# packages/api/src/schema/typeDefs.ts
+type Mutation {
+  ...
+  assignTask(id: ID!, userId: ID!): Task!
+}
+```
+
+#### Step 2 --- Implement resolver
+
+Follow the existing pattern: get current user, validate, run SQL in a transaction, emit task events, publish to pubsub.
+
+```ts
+// packages/api/src/schema/resolvers.ts
+Mutation: {
+  assignTask(_: unknown, { id, userId }: { id: string; userId: string }) {
+    const user = getCurrentUser()
+    const existing = db
+      .query('SELECT * FROM tasks WHERE id = ?')
+      .get(id) as TaskRow | null
+    if (!existing) throw new Error(`Task ${id} not found`)
+
+    db.transaction(() => {
+      db.run(
+        `UPDATE tasks SET assigned_to = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+        [userId, user.id, id],
+      )
+      db.run(
+        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+        [generateId(), id, user.id, 'assigned', JSON.stringify({ user_id: userId })],
+      )
+    })()
+
+    const task = getTaskById(id)
+    if (!task) throw new Error(`Task ${id} not found`)
+    publishTaskUpdated(task)
+    return task
+  },
+}
+```
+
+#### Step 3 --- Publish to pubsub (optional)
+
+If the mutation should trigger real-time updates, call the appropriate pubsub helper:
+
+```ts
+pubsub.publish('TASK_UPDATED', boardId, task as unknown as Record<string, unknown>)
+pubsub.publish('TASK_EVENT', taskId, eventPayload as unknown as Record<string, unknown>)
+```
+
+---
+
+### 3. Add a subscription
+
+**Touch:** `typeDefs.ts` -> `resolvers.ts` -> `pubsub.ts`
+
+#### Step 1 --- Add channel to pubsub
+
+```ts
+// packages/api/src/pubsub.ts
+export const pubsub = createPubSub<{
+  // ... existing channels ...
+  MY_NEW_CHANNEL: [scopeId: string, payload: Record<string, unknown>]
+}>()
+```
+
+#### Step 2 --- Declare in typeDefs
+
+```graphql
+type Subscription {
+  ...
+  myNewEvent(boardId: ID!): MyPayloadType!
+}
+```
+
+#### Step 3 --- Implement resolver
+
+Subscriptions follow a `subscribe` + `resolve` pair:
+
+```ts
+Subscription: {
+  myNewEvent: {
+    subscribe(_: unknown, { boardId }: { boardId: string }) {
+      return pubsub.subscribe('MY_NEW_CHANNEL', boardId)
+    },
+    resolve(payload: Record<string, unknown>) {
+      return payload
+    },
+  },
+}
+```
+
+The first argument to `pubsub.subscribe()` is the channel name; the second is the topic key (used to scope which clients receive events). Publish from any mutation or the orchestrator using `pubsub.publish('MY_NEW_CHANNEL', scopeId, payload)`.
+
+---
+
+### 4. Add a config field
+
+**Touch:** `config/schema.ts` -> `WORKFLOW.md`
+
+Config is defined as Zod schemas in `packages/api/src/config/schema.ts` and parsed from the YAML front matter in `WORKFLOW.md`.
+
+#### Step 1 --- Add Zod field
+
+```ts
+// packages/api/src/config/schema.ts
+export const AgentSchema = z.object({
+  max_concurrent_agents: z.number().int().positive().default(5),
+  max_retry_backoff_ms: z.number().int().positive().default(300_000),
+  my_new_field: z.string().default('default_value'),  // new
+})
+```
+
+For secrets that come from env vars, use the `_envString()` helper:
+
+```ts
+api_key: _envString(),  // resolves $MY_API_KEY from process.env
+```
+
+#### Step 2 --- Use in WORKFLOW.md
+
+```yaml
+---
+agent:
+  max_concurrent_agents: 3
+  my_new_field: custom_value
+---
+```
+
+The `objectWithDefaults()` wrapper ensures the entire section defaults gracefully if omitted.
+
+#### Step 3 --- Access in code
+
+All config fields are available via the `Config` type:
+
+```ts
+constructor(private config: Config) {
+  console.log(config.agent.my_new_field)
+}
+```
+
+---
+
+### 5. Add an agent action
+
+**Touch:** `resolvers.ts` (validation) -> `orchestrator.ts` (dispatch behavior) -> `WORKFLOW.md` (prompt template)
+
+#### Step 1 --- Add to allowed actions
+
+In `resolvers.ts`, the `dispatchAgent` mutation validates actions against a whitelist:
+
+```ts
+const validActions = [
+  'idle', 'plan', 'research', 'implement', 'implement-e2e', 'revise',
+  'my-new-action',  // add here
+]
+```
+
+#### Step 2 --- Define orchestrator behavior
+
+In `orchestrator.ts`, actions control two things:
+
+- **Column movement on dispatch:** `plan` and `research` stay in their current column; all others move to "In Progress".
+- **Column movement on completion:** `plan` moves to "Todo", `implement`/`implement-e2e`/`revise` move to "Review", `research` stays put.
+
+Add your action to the appropriate conditional blocks in `dispatchTask()` and `onComplete()`:
+
+```ts
+// dispatchTask() — skip "In Progress" for lightweight actions
+if (task.action !== 'plan' && task.action !== 'research' && task.action !== 'my-new-action') {
+  // move to In Progress
+}
+
+// onComplete() — determine target column
+if (task.action === 'my-new-action') {
+  targetColumnName = 'Todo'
+}
+```
+
+#### Step 3 --- Handle in prompt template
+
+The action is available in your WORKFLOW.md Mustache template as `{{ issue.action }}`. Add conditional sections:
+
+```mustache
 {{#issue.action}}
-Action: {{ issue.action }}
+{{#is_my_new_action}}
+Special instructions for my-new-action...
+{{/is_my_new_action}}
 {{/issue.action}}
 ```
 
-### Adding a new webhook event
+#### Step 4 --- Add precondition checks (if needed)
 
-1. Add the payload interface in `src/webhook/handlers.ts`
-2. Write the handler function
-3. Add a `case` branch in `handleWebhookRequest()` in `src/webhook/server.ts`
-4. Add a test
+Some actions require `target_repo` to be set. Add validation in the `dispatchAgent` resolver:
 
-### Changing the agent runtime
+```ts
+if (action === 'my-new-action') {
+  if (!existingTask.target_repo) {
+    throw new Error(`Action '${action}' requires target_repo to be set.`)
+  }
+}
+```
 
-The agent runtime is isolated in `src/agent/runner.ts`. To swap Claude CLI for another tool:
+---
 
-1. Update `buildClaudeArgs()` (or replace it) to construct the new CLI command
-2. Update `ClaudeSchema` in `src/config/schema.ts` if config shape changes — current fields include `command`, `model`, `max_turns`, `allowed_tools` (optional tool whitelist), and `permission_mode`
-3. The runner expects a process that exits 0 on success and non-zero on failure
-4. If the new tool doesn't support `--print --output-format json`, update the stdout parsing logic
-5. Update `runContinuation()` if the new tool handles retries differently
+### 6. Add a web component
 
-### Adding a new tracker (non-GitHub)
+**Touch:** `packages/web/src/components/`
 
-The GitHub client is used directly by the orchestrator. To support another tracker:
+The frontend uses React 19, TanStack Router, Zustand, Tailwind CSS 4, tailwind-variants (`tv()`), and Radix UI primitives.
 
-1. Extract an interface from `GitHubClient` (e.g. `TrackerClient`)
-2. Implement the interface for the new tracker
-3. Select the implementation based on `tracker.kind` in the config schema
-4. Update `TrackerSchema` to accept the new `kind` value as a discriminated union
+#### Pattern --- Feature component
 
-### Working with review comments (revise flow)
+Feature components live in `packages/web/src/components/feature/{domain}/`:
 
-When `action:revise` is dispatched, the orchestrator calls `GitHubClient.fetchReviewComments()` which:
+```
+components/feature/task/
+  TaskCard.tsx
+  TaskDrawer.tsx
+  ...
+```
 
-1. Looks up cross-referenced PRs from the issue timeline
-2. Prefers the most recent open PR, falling back to merged or last linked
-3. Extracts comments from `CHANGES_REQUESTED` and `COMMENTED` reviews
-4. Returns `FormattedReviewComment[]` with author, body, file path, line, and diff hunk
+#### Pattern --- Common component
 
-These are passed to `renderPrompt()` which makes them available in the Mustache template via `{{ review_comments }}` and `{{ has_review_comments }}`.
+Shared primitives live in `packages/web/src/components/common/{name}/`:
 
-### Working with the tunnel module
+```
+components/common/button/
+  Button.tsx
+  index.ts        # re-export
+```
 
-`src/tunnel/cloudflare.ts` manages the `cloudflared` process lifecycle:
+#### Pattern --- GraphQL integration
 
-- **Quick tunnel** (no token): spawns `cloudflared tunnel --url http://localhost:<port>` and parses the random `*.trycloudflare.com` URL from stderr
-- **Named tunnel** (token provided): spawns `cloudflared tunnel run --token <token>` and resolves when "Registered tunnel connection" appears in logs
+1. Add query/mutation in `packages/web/src/graphql/queries.ts` or `mutations.ts`.
+2. Call via the `graphql-request` client:
 
-The `startTunnel()` function returns a `TunnelResult` with the child process and a `Promise<string>` that resolves with the public URL. Call `stopTunnel()` on shutdown.
+```ts
+import { graphqlClient } from '../graphql/client'
 
-### Working with hooks
+const data = await graphqlClient.request(MY_QUERY, { id })
+```
 
-Hooks are optional shell commands run at workspace lifecycle stages. They're defined in WORKFLOW.md under the `hooks` key:
+3. For subscriptions, use `graphql-sse` (see `packages/web/src/graphql/subscriptions.ts`).
 
-- `after_create` — runs after the workspace directory is created (commonly used for `git clone` + branch setup)
-- `before_run` — runs before the agent starts
-- `after_run` — runs after the agent finishes
-- `before_remove` — runs before workspace cleanup
+#### Pattern --- State management
 
-Hook commands are Mustache-rendered with issue context (e.g. `{{ issue.number }}`, `{{ issue.repo_owner }}`). They run inside the workspace directory with a configurable `timeout_ms` (default 60s).
+Board state is managed via Zustand in `packages/web/src/store/boardStore.ts`. Follow the existing store pattern to add new slices.
 
-## Key design details
+#### Pattern --- Styling
 
-### Environment variable resolution
+Use `tailwind-variants` (`tv()`) with data attributes instead of className ternaries:
 
-Any string config field using `envStringRequired()` or `envString()` in the schema will resolve `$VAR_NAME` values from `process.env` at parse time. This happens during Zod validation — if the variable is missing, `safeParse` returns a validation error. There is also `envIntRequired()` for numeric fields like `project_number` that resolve env vars and coerce to positive integers. Bun auto-loads `.env` before the config is parsed.
+```tsx
+const card = tv({
+  base: 'rounded-lg p-4',
+  variants: {
+    status: {
+      active: 'border-blue-500',
+      archived: 'opacity-50',
+    },
+  },
+})
+```
 
-### Retry and backoff
+---
 
-Failed agents are retried with exponential backoff: `10s * 2^(attempt-1)`, capped at `agent.max_retry_backoff_ms` (default 5 minutes). The retry flow:
+### 7. Swap agent runtime
 
-1. Agent fails → `status:failed` label added, `status:running` removed
-2. Timer fires after backoff delay → `status:failed` removed, original `action:*` label re-added
-3. Next poll picks up the issue as a new dispatch candidate
+The agent runtime is isolated in `packages/api/src/agent/runner.ts`.
 
-The `RetryEntry` tracks the attempt count, due time, error message, and the worker host/workspace path of the failed run.
+#### Step 1 --- Replace CLI args builder
 
-Retry state is in-memory. If HiveBoard restarts, polling will rediscover issues that still have action labels.
+`buildClaudeArgs()` constructs the command. Replace or modify it for a different CLI tool:
 
-There is also a `runContinuation()` function that re-runs an agent with a continuation prompt instead of the full template, so the agent can resume from the existing workspace state rather than starting from scratch.
+```ts
+function buildClaudeArgs(config: Config, prompt: string): string[] {
+  const args: string[] = [
+    config.claude.command,         // e.g. 'claude' or 'my-agent'
+    '--print',
+    '--output-format', 'json',
+  ]
+  if (config.claude.model) args.push('--model', config.claude.model)
+  args.push('--max-turns', String(config.claude.max_turns))
+  if (config.claude.allowed_tools?.length) {
+    args.push('--allowedTools', config.claude.allowed_tools.join(','))
+  }
+  if (config.claude.permission_mode) {
+    args.push('--permission-mode', config.claude.permission_mode)
+  }
+  args.push(prompt)
+  return args
+}
+```
 
-### Graceful shutdown
+#### Step 2 --- Update config schema (if needed)
 
-On `SIGTERM`/`SIGINT`:
+Modify `ClaudeSchema` in `packages/api/src/config/schema.ts`:
 
-1. Poll timer and retry timers are cancelled
-2. All running agents receive an abort signal
-3. HiveBoard waits up to 30s for agents to exit
-4. Process exits
+```ts
+export const ClaudeSchema = z.object({
+  command: z.string().default('claude'),
+  model: z.string().optional(),
+  max_turns: z.number().int().positive().default(50),
+  allowed_tools: z.array(z.string()).optional(),
+  permission_mode: z.string().optional(),
+})
+```
 
-### Label auto-creation
+#### Step 3 --- Update stdout parsing
 
-When HiveBoard needs to add a label that doesn't exist on the repository, the GitHub client automatically creates it via the REST API. Labels are color-coded by prefix: `action:*` labels get one color, `status:*` another, and `repo:*` another. Columns on the Projects V2 board cannot be auto-created — they must exist before HiveBoard runs.
+The runner expects exit code 0 = success, non-zero = failure. The full stdout is captured as `output`. If the new tool produces structured output, update the parsing in `runAgent()`.
 
-### Label and column state model
+#### Step 4 --- Environment variables
 
-Labels and columns serve different purposes:
+The runner injects these env vars into the spawned process:
 
-- **Labels** drive automation: `action:*` triggers dispatch, `repo:*` routes to a repository, `status:*` tracks runtime state
-- **Columns** drive visual status on the project board: "In Progress", "Review", "Done"
+- `HIVEBOARD_TASK_ID` --- task ULID
+- `HIVEBOARD_TASK_TITLE` --- task title
+- `HIVEBOARD_WORKSPACE` --- absolute workspace path
 
-HiveBoard manages both — it swaps labels and moves columns as agents progress through their lifecycle.
+---
 
-### Owner-type detection
+## Database Notes
 
-The GitHub client supports three project scopes:
+### SQLite WAL mode
 
-- **Repo-scoped** (`tracker.repo` is set) — uses `repository.projectV2` queries
-- **Org-scoped** (owner is a GitHub Organization) — uses `organization.projectV2` queries
-- **User-scoped** (owner is a GitHub User) — uses `user.projectV2` queries
+The database connection in `packages/api/src/db/client.ts` enables WAL mode and foreign keys on startup:
 
-Owner type is auto-detected on first API call via the `OWNER_TYPE_QUERY` and cached for the session. For org/user-scoped projects, each issue must have a `repo:*` label so HiveBoard knows which repository to resolve labels from.
+```ts
+export const db = new Database(dbPath)
+db.exec('PRAGMA journal_mode = WAL')
+db.exec('PRAGMA foreign_keys = ON')
+```
 
-### Repo label parsing
+The database file path defaults to `tmp/database/hiveboard.db` (relative to project root) and can be overridden with the `DATABASE_PATH` env var.
 
-The `parseRepoLabel()` function in `src/labels/parse-repo.ts` supports two formats:
+### Migration approach
 
-- `repo:frontend` — uses the tracker owner as the repo owner
-- `repo:other-org/backend` — explicit owner/name pair
+HiveBoard uses an **idempotent additive migration** strategy rather than numbered migration files:
 
-### Worker host selection
+1. `createTables(db)` --- runs `CREATE TABLE IF NOT EXISTS` for all tables and indexes.
+2. `seed(db)` --- creates the default `queen-bee` user and `HiveBoard` board with five columns (Backlog, Todo, In Progress, Review, Done). Skips if the user already exists.
+3. `addMissingColumns(db)` --- uses `ensureColumn()` to add columns that were introduced after initial schema, and `renameColumn()` to handle column renames. Both check `PRAGMA table_info` before acting.
 
-When SSH hosts are configured (`worker.ssh_hosts`), the orchestrator selects the least-loaded host that is under its `max_concurrent_agents_per_host` limit. If no host has capacity, the issue waits for the next poll cycle.
+All three run on every server start (in `packages/api/src/index.ts`).
 
-### Agent environment variables
+### ULID generation
 
-Locally-spawned agents receive these environment variables:
+All primary keys are ULIDs generated by the `ulid` npm package (`packages/api/src/db/ulid.ts`):
 
-- `HIVEBOARD_ISSUE_ID` — the GitHub node ID
-- `HIVEBOARD_ISSUE_NUMBER` — the issue number
-- `HIVEBOARD_WORKSPACE` — absolute path to the workspace directory
+```ts
+import { ulid } from 'ulid'
+export const generateId = (): string => ulid()
+```
 
-### Completion flow
+ULIDs are lexicographically sortable by creation time, which means `ORDER BY id ASC` is chronological.
 
-On success:
-1. `status:running` removed, `action:review` added
-2. Issue moved to the Review column
+### Seeded data
 
-On failure:
-1. `status:running` removed, `status:failed` added
-2. Retry scheduled with exponential backoff
+The seed creates:
+- **User:** `queen-bee` / "Queen Bee" (role: admin)
+- **Board:** "HiveBoard"
+- **Columns:** Backlog (0), Todo (1), In Progress (2), Review (3), Done (4)
 
-## Testing conventions
+### Task positions
 
-- Tests use `bun:test` (not vitest or jest)
-- Test files live in `test/` and are named `*.test.ts`
-- Use `ConfigSchema.safeParse()` for schema tests (never call `.parse()` in tests — it throws)
-- For tests that need env vars, set them in the test body and clean up with `delete process.env.VAR`
+Tasks use `REAL` positions with a gap of 1024 between items. When a drag-and-drop causes gaps smaller than 1.0, the `moveTask` resolver re-indexes all tasks in the column with `(i + 1) * 1024` spacing.
+
+---
+
+## Testing
+
+### Conventions
+
+- Test runner: `bun:test` (built into Bun)
+- Test files: `*.test.ts` in a `test/` directory
+- Use `ConfigSchema.safeParse()` in tests (never `.parse()` which throws)
+- For env-var-dependent tests, set vars in the test body and clean up with `delete process.env.VAR`
 - Workspace tests create temp directories with `mkdtemp()` and clean up with `rm()`
 
-## CI pipeline
+### Running tests
 
-`make ci` runs in this order:
+```bash
+# Run all tests
+bun test
 
-1. `bun install` — install dependencies
-2. Biome check — formatting and lint
-3. TypeScript — type check (`tsc --noEmit`)
-4. `bun test` — run all tests
+# Run a specific test file
+bun test packages/api/test/config.test.ts
+```
 
-All four must pass for CI to be green. The GitHub Actions workflows:
+---
 
-- `.github/workflows/make-all.yml` — runs `make ci` on every push and PR
-- `.github/workflows/pr-description-lint.yml` — lints PR descriptions
+## CI Scripts
+
+All scripts are defined in the root `package.json`:
+
+| Script | Command | What it does |
+|---|---|---|
+| `dev` | `bun run --filter '*' dev` | Start both API and web in watch mode |
+| `dev:api` | `bun run --filter api dev` | Start API only (with `--watch` and `.env`) |
+| `dev:web` | `bun run --filter web dev` | Start Vite dev server |
+| `build:web` | `bun run --filter web build` | Production build of the web frontend |
+| `tsc` | `bunx tsc --noEmit` | Type-check the entire monorepo |
+| `test` | `bun test` | Run all `bun:test` test suites |
+| `fmt` | `bunx biome check --fix .` | Auto-format and auto-fix with Biome |
+| `lint` | `bunx biome lint .` | Lint-only check with Biome |
+
+### CI order
+
+A typical CI run:
+
+```bash
+bun install
+bun run lint        # Biome lint
+bun run tsc         # TypeScript type check
+bun test            # Unit tests
+```
+
+---
+
+## Graceful Shutdown
+
+The server registers handlers for both `SIGTERM` and `SIGINT` in `packages/api/src/index.ts`:
+
+```ts
+process.on('SIGTERM', async () => {
+  const orchestrator = getOrchestrator()
+  if (orchestrator) await orchestrator.shutdown()
+  process.exit(0)
+})
+```
+
+The orchestrator shutdown sequence (`packages/api/src/orchestrator/orchestrator.ts`):
+
+1. Sets `shutdownRequested = true` to prevent new polls.
+2. Clears the poll timer, sweep timer, and all retry timers.
+3. Sends `abort()` to every running agent's `AbortController`.
+4. Waits up to **30 seconds** for all agents to finish (polling every 500ms).
+5. Logs a warning if any agents are still running after the timeout.
+6. Logs "Orchestrator shut down" and returns.
+
+The API itself (`Bun.serve`) does not need explicit shutdown --- `process.exit(0)` terminates it.
+
+---
+
+## Cross-References
+
+- **Architecture overview:** [architecture.md](./architecture.md)
+- **Coding conventions:** [conventions.md](./conventions.md)
+- **Workflow configuration:** `WORKFLOW.md` (YAML front matter + Mustache prompt template)
+- **Environment variables:** `.env` file (loaded automatically by Bun; `DATABASE_PATH`, `API_PORT`, `WORKFLOW_MD`, `GITHUB_TOKEN`)
