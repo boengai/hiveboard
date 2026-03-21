@@ -24,8 +24,6 @@ import { TaskCard } from './TaskCard'
 export function Board() {
   const board = useBoardStore((s) => s.board)
   const setBoard = useBoardStore((s) => s.setBoard)
-  const _showArchived = useBoardStore((s) => s.showArchived)
-  const _toggleArchived = useBoardStore((s) => s.toggleArchived)
   const moveTaskOptimistic = useBoardStore((s) => s.moveTaskOptimistic)
   const mergeTaskUpdate = useBoardStore((s) => s.mergeTaskUpdate)
 
@@ -142,10 +140,7 @@ export function Board() {
     const sourceColumn = board.columns.find((c) =>
       c.tasks.some((t) => t.id === taskId),
     )
-    if (
-      sourceColumn?.id === targetColumnId &&
-      indicator.taskId === taskId
-    )
+    if (sourceColumn?.id === targetColumnId && indicator.taskId === taskId)
       return
 
     // Calculate position based on the indicator target
@@ -163,9 +158,7 @@ export function Board() {
       position = (firstTask?.position ?? 0) - 1024
     } else {
       // Indicator was above a specific task
-      const overIndex = visibleTasks.findIndex(
-        (t) => t.id === indicator.taskId,
-      )
+      const overIndex = visibleTasks.findIndex((t) => t.id === indicator.taskId)
       if (overIndex === -1) {
         // Fallback: append at end
         const lastTask = visibleTasks[visibleTasks.length - 1]
@@ -244,20 +237,6 @@ export function Board() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Board sub-header
-      <div className="flex items-center justify-between border-b border-border-default px-4 py-2">
-        <h1 className="text-body font-medium text-text-primary">{board.name}</h1>
-        <label className="flex cursor-pointer items-center gap-2 text-body-xs text-text-secondary">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={toggleArchived}
-            className="h-3.5 w-3.5 rounded border-border-default bg-surface-base accent-honey-400 focus:outline-none focus:shadow-glow-honey"
-          />
-          Show Archived
-        </label>
-      </div> */}
-
       {/* Board columns */}
       <DndContext
         sensors={sensors}

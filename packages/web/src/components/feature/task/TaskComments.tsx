@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, MarkdownPreview, TextAreaInput } from '@/components/common'
+import { Avatar, Button, MarkdownPreview, TextAreaInput } from '@/components/common'
 import {
   ADD_COMMENT,
   COMMENT_ADDED_SUBSCRIPTION,
@@ -89,9 +89,7 @@ function CommentBlock({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-full bg-honey-400/15 text-body-xs font-semibold text-honey-400">
-            {comment.createdBy.username.charAt(0).toUpperCase()}
-          </div>
+          <Avatar name={comment.createdBy.username} />
           <span className="text-body-sm font-medium text-text-primary">
             {comment.createdBy.username}
           </span>
@@ -243,9 +241,7 @@ function ReplyBlock({
   return (
     <div className="flex flex-col gap-1 py-1">
       <div className="flex items-center gap-2">
-        <div className="flex size-5 items-center justify-center rounded-full bg-gray-700 text-[10px] font-semibold text-text-secondary">
-          {reply.createdBy.username.charAt(0).toUpperCase()}
-        </div>
+        <Avatar name={reply.createdBy.username} size="sm" />
         <span className="text-body-xs font-medium text-text-primary">
           {reply.createdBy.username}
         </span>

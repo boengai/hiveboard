@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { ConnectionIndicator } from '@/components'
+import { Avatar, ConnectionIndicator } from '@/components'
 
 export const App = () => (
   <div className="flex h-screen flex-col bg-surface-page">
@@ -12,10 +12,7 @@ export const App = () => (
       </div>
       <div className="flex items-center gap-3">
         <ConnectionIndicator />
-        <span className="text-body-xs text-text-secondary">queen-bee</span>
-        <div className="flex size-6 items-center justify-center rounded-full bg-honey-400/20 text-body-xs text-honey-400">
-          Q
-        </div>
+        <Avatar name="queen-bee" />
       </div>
     </header>
     {/* Main */}

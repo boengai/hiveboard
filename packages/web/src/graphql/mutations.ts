@@ -32,6 +32,11 @@ export const CREATE_TASK = /* GraphQL */ `
         id
         name
       }
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `
@@ -69,6 +74,11 @@ export const UPDATE_TASK = /* GraphQL */ `
       column {
         id
         name
+      }
+      tags {
+        id
+        name
+        color
       }
     }
   }
@@ -168,6 +178,35 @@ export const CANCEL_AGENT = /* GraphQL */ `
     cancelAgent(taskId: $taskId) {
       id
       agentStatus
+    }
+  }
+`
+
+export const CREATE_TAG = /* GraphQL */ `
+  mutation CreateTag($input: CreateTagInput!) {
+    createTag(input: $input) {
+      id
+      name
+      color
+    }
+  }
+`
+
+export const DELETE_TAG = /* GraphQL */ `
+  mutation DeleteTag($id: ID!) {
+    deleteTag(id: $id)
+  }
+`
+
+export const SET_TASK_TAGS = /* GraphQL */ `
+  mutation SetTaskTags($taskId: ID!, $tagIds: [ID!]!) {
+    setTaskTags(taskId: $taskId, tagIds: $tagIds) {
+      id
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `

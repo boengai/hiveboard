@@ -1,3 +1,4 @@
+export { Avatar } from './avatar'
 export { Badge } from './badge'
 export { Button } from './button'
 export { ConnectionIndicator } from './connection-indicator'
@@ -19,5 +20,11 @@ export {
   SpinnerIcon,
   XMarkIcon,
 } from './icon'
-export { SelectInput, SwitchInput, TextAreaInput, TextInput } from './input'
+export {
+  ComboboxInput,
+  SelectInput,
+  SwitchInput,
+  TextAreaInput,
+  TextInput,
+} from './input'
 export { MarkdownEditor, MarkdownPreview } from './markdown'

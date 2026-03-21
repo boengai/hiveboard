@@ -20,6 +20,7 @@ export type FormState = {
   action: string
   targetRepo: string
   targetBranch: string
+  tagIds: string[]
 }
 
 export type CreateModeProps = {
@@ -27,6 +28,8 @@ export type CreateModeProps = {
   setForm: (f: FormState) => void
   onSubmit: () => Promise<void>
   loading: boolean
+  boardTags: Array<{ id: string; name: string; color: string }>
+  onCreateTag: (name: string) => Promise<void>
 }
 
 export type ViewModeProps = {
@@ -50,6 +53,8 @@ export type EditModeProps = {
   onSave: () => Promise<void>
   onCancel: () => void
   loading: boolean
+  boardTags: Array<{ id: string; name: string; color: string }>
+  onCreateTag: (name: string) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
