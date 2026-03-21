@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Drawer } from '@/components/common/drawer'
 import { Badge } from '@/components/common/badge'
 import { Button } from '@/components/common/button'
-import { TextInput, TextAreaInput, SelectInput } from '@/components/common/input'
+import { TextInput, SelectInput } from '@/components/common/input'
+import { MarkdownEditor, MarkdownPreview } from '@/components/common/markdown'
 import { useBoardStore, type Task } from '@/store/boardStore'
 import { graphqlClient } from '@/graphql/client'
 import { GET_TASK, GET_BOARD } from '@/graphql/queries'
@@ -94,13 +95,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="create-body" className="text-body-xs text-text-secondary">Body</label>
-        <TextAreaInput
-          id="create-body"
-          rows={5}
-          placeholder="Optional description…"
+        <label className="text-body-xs text-text-secondary">Body</label>
+        <MarkdownEditor
           value={form.body}
-          onChange={(e) => setForm({ ...form, body: e.target.value })}
+          onChange={(v) => setForm({ ...form, body: v })}
+          placeholder="Optional description…"
+          rows={5}
         />
       </div>
 
@@ -168,9 +168,7 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
       </div>
 
       {/* Body */}
-      {task.body && (
-        <p className="whitespace-pre-wrap text-body-sm text-text-secondary">{task.body}</p>
-      )}
+      <MarkdownPreview content={task.body ?? ''} />
 
       {/* PR link */}
       {task.prUrl && (
@@ -305,12 +303,11 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="edit-body" className="text-body-xs text-text-secondary">Body</label>
-        <TextAreaInput
-          id="edit-body"
-          rows={5}
+        <label className="text-body-xs text-text-secondary">Body</label>
+        <MarkdownEditor
           value={form.body}
-          onChange={(e) => setForm({ ...form, body: e.target.value })}
+          onChange={(v) => setForm({ ...form, body: v })}
+          rows={5}
         />
       </div>
 
