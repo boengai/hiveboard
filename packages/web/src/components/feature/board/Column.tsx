@@ -1,9 +1,9 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useBoardStore } from '@/store/boardStore'
-import { TaskCard } from './TaskCard'
 import { PlusIcon } from '@/components/common/icon'
+import { useBoardStore } from '@/store/boardStore'
 import type { ColumnProps } from '@/types/components/feature/board'
+import { TaskCard } from './TaskCard'
 
 export function Column({ column, dropTargetTaskId }: ColumnProps) {
   const openDrawerCreate = useBoardStore((s) => s.openDrawerCreate)
@@ -23,7 +23,9 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-body font-medium text-text-primary">{column.name}</span>
+          <span className="text-body font-medium text-text-primary">
+            {column.name}
+          </span>
           <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-surface-overlay px-1.5 text-body-xs text-text-tertiary">
             {activeTasks.length}
           </span>
@@ -83,18 +85,22 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
                     Archived
                   </span>
                 </div>
-                <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
+                <p className="line-clamp-2 text-body text-text-primary">
+                  {task.title}
+                </p>
               </button>
             ))}
           </div>
         )}
 
         {/* Empty state when show-archived is ON and no tasks at all */}
-        {showArchived && activeTasks.length === 0 && archivedTasks.length === 0 && (
-          <div className="flex flex-1 items-center justify-center py-6 text-body-sm text-text-tertiary">
-            No tasks
-          </div>
-        )}
+        {showArchived &&
+          activeTasks.length === 0 &&
+          archivedTasks.length === 0 && (
+            <div className="flex flex-1 items-center justify-center py-6 text-body-sm text-text-tertiary">
+              No tasks
+            </div>
+          )}
       </div>
     </div>
   )

@@ -4,7 +4,15 @@ import type { Task } from '@/store/boardStore'
 // TaskDrawer
 // ---------------------------------------------------------------------------
 
-export type ActionColor = 'default' | 'info' | 'purple' | 'success' | 'teal' | 'warning' | 'error' | 'honey'
+export type ActionColor =
+  | 'default'
+  | 'info'
+  | 'purple'
+  | 'success'
+  | 'teal'
+  | 'warning'
+  | 'error'
+  | 'honey'
 
 export interface FormState {
   title: string

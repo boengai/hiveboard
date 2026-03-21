@@ -1,66 +1,66 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react'
 import {
   AGENT_LOG_STREAM_SUBSCRIPTION,
   subscribe,
-} from "@/graphql/subscriptions";
+} from '@/graphql/subscriptions'
 import type {
   AgentLogChunk,
   AgentLogStreamProps,
-} from "@/types/components/feature/agent";
+} from '@/types/components/feature/agent'
 
 export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
-  const [chunks, setChunks] = useState<string[]>([]);
-  const [streaming, setStreaming] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isRunning = agentStatus === "RUNNING";
-  const isDone = agentStatus === "SUCCESS" || agentStatus === "FAILED";
+  const [chunks, setChunks] = useState<string[]>([])
+  const [streaming, setStreaming] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isRunning = agentStatus === 'RUNNING'
+  const isDone = agentStatus === 'SUCCESS' || agentStatus === 'FAILED'
 
   // Subscribe when agent is RUNNING
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning) return
 
-    setStreaming(true);
+    setStreaming(true)
     const dispose = subscribe<AgentLogChunk>(
       AGENT_LOG_STREAM_SUBSCRIPTION,
       { taskId },
       (data) => {
-        const chunk = data.agentLogStream?.chunk;
+        const chunk = data.agentLogStream?.chunk
         if (chunk) {
-          setChunks((prev) => [...prev, chunk]);
+          setChunks((prev) => [...prev, chunk])
         }
       },
-    );
+    )
 
     return () => {
-      dispose();
-      setStreaming(false);
-    };
-  }, [taskId, isRunning]);
+      dispose()
+      setStreaming(false)
+    }
+  }, [taskId, isRunning])
 
   // Auto-scroll to bottom on new chunks
   useEffect(() => {
     const el = scrollRef.current as
       | (HTMLDivElement & { scrollTop: number; scrollHeight: number })
-      | null;
+      | null
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTop = el.scrollHeight
     }
-  }, []);
+  }, [])
 
   const handleCopyLog = () => {
-    navigator.clipboard?.writeText(chunks.join("")).catch(console.error);
-  };
+    navigator.clipboard?.writeText(chunks.join('')).catch(console.error)
+  }
 
   // Only render when running or has output
-  if (!isRunning && chunks.length === 0 && !isDone) return null;
+  if (!isRunning && chunks.length === 0 && !isDone) return null
 
   const statusLabel = streaming
-    ? "Streaming..."
-    : agentStatus === "SUCCESS"
-      ? "Completed"
-      : agentStatus === "FAILED"
-        ? "Failed"
-        : "Idle";
+    ? 'Streaming...'
+    : agentStatus === 'SUCCESS'
+      ? 'Completed'
+      : agentStatus === 'FAILED'
+        ? 'Failed'
+        : 'Idle'
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3">
@@ -73,12 +73,12 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
           <span
             className={`text-body-xs ${
               streaming
-                ? "text-info-400"
-                : agentStatus === "SUCCESS"
-                  ? "text-success-400"
-                  : agentStatus === "FAILED"
-                    ? "text-error-400"
-                    : "text-text-tertiary"
+                ? 'text-info-400'
+                : agentStatus === 'SUCCESS'
+                  ? 'text-success-400'
+                  : agentStatus === 'FAILED'
+                    ? 'text-error-400'
+                    : 'text-text-tertiary'
             }`}
           >
             {statusLabel}
@@ -102,14 +102,14 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
       >
         {chunks.length === 0 ? (
           <span className="font-mono text-body-xs text-text-tertiary">
-            {streaming ? "Waiting for output..." : "No output yet."}
+            {streaming ? 'Waiting for output...' : 'No output yet.'}
           </span>
         ) : (
           <pre className="whitespace-pre-wrap font-mono text-body-xs text-gray-300">
-            {chunks.join("")}
+            {chunks.join('')}
           </pre>
         )}
       </div>
     </div>
-  );
+  )
 }

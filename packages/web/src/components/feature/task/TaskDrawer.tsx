@@ -1,33 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
-import { Drawer } from '@/components/common/drawer'
 import { Badge } from '@/components/common/badge'
 import { Button } from '@/components/common/button'
-import { TextInput, SelectInput } from '@/components/common/input'
+import { Drawer } from '@/components/common/drawer'
+import { SelectInput, TextInput } from '@/components/common/input'
 import { MarkdownEditor, MarkdownPreview } from '@/components/common/markdown'
-import { useBoardStore, type Task } from '@/store/boardStore'
-import { graphqlClient } from '@/graphql/client'
-import { GET_TASK, GET_BOARD } from '@/graphql/queries'
-import {
-  CREATE_TASK,
-  UPDATE_TASK,
-  DELETE_TASK,
-  ARCHIVE_TASK,
-  UNARCHIVE_TASK,
-  DISPATCH_AGENT,
-  CANCEL_AGENT,
-} from '@/graphql/mutations'
-import { TaskTimeline } from './TaskTimeline'
-import { TaskComments } from './TaskComments'
-import { timeAgo } from './TaskTimeline'
 import { AgentLogStream } from '@/components/feature/agent'
+import { graphqlClient } from '@/graphql/client'
+import {
+  ARCHIVE_TASK,
+  CANCEL_AGENT,
+  CREATE_TASK,
+  DELETE_TASK,
+  DISPATCH_AGENT,
+  UNARCHIVE_TASK,
+  UPDATE_TASK,
+} from '@/graphql/mutations'
+import { GET_BOARD, GET_TASK } from '@/graphql/queries'
+import { type Task, useBoardStore } from '@/store/boardStore'
 import type {
   ActionColor,
-  FormState,
-  CreateModeProps,
-  ViewModeProps,
   AgentPanelProps,
+  CreateModeProps,
   EditModeProps,
+  FormState,
+  ViewModeProps,
 } from '@/types/components/feature/task'
+import { TaskComments } from './TaskComments'
+import { TaskTimeline, timeAgo } from './TaskTimeline'
 
 const ACTION_OPTIONS = [
   { value: '', label: 'None' },
@@ -40,22 +39,33 @@ const ACTION_OPTIONS = [
 
 function actionColor(action: string | null): ActionColor {
   switch (action) {
-    case 'plan': return 'info'
-    case 'research': return 'purple'
-    case 'implement': return 'honey'
-    case 'implement-e2e': return 'teal'
-    case 'revise': return 'warning'
-    default: return 'default'
+    case 'plan':
+      return 'info'
+    case 'research':
+      return 'purple'
+    case 'implement':
+      return 'honey'
+    case 'implement-e2e':
+      return 'teal'
+    case 'revise':
+      return 'warning'
+    default:
+      return 'default'
   }
 }
 
 function agentStatusColor(status: string): ActionColor {
   switch (status) {
-    case 'QUEUED': return 'warning'
-    case 'RUNNING': return 'info'
-    case 'SUCCESS': return 'success'
-    case 'FAILED': return 'error'
-    default: return 'default'
+    case 'QUEUED':
+      return 'warning'
+    case 'RUNNING':
+      return 'info'
+    case 'SUCCESS':
+      return 'success'
+    case 'FAILED':
+      return 'error'
+    default:
+      return 'default'
   }
 }
 
@@ -75,7 +85,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   return (
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="create-title" className="text-body-xs text-text-secondary">Title *</label>
+        <label
+          htmlFor="create-title"
+          className="text-body-xs text-text-secondary"
+        >
+          Title *
+        </label>
         <TextInput
           id="create-title"
           ref={titleRef}
@@ -87,7 +102,7 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Body</label>
+        <span className="text-body-xs text-text-secondary">Body</span>
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
@@ -98,7 +113,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="create-action" className="text-body-xs text-text-secondary">Action</label>
+          <label
+            htmlFor="create-action"
+            className="text-body-xs text-text-secondary"
+          >
+            Action
+          </label>
           <SelectInput
             id="create-action"
             value={form.action || undefined}
@@ -109,7 +129,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
-          <label htmlFor="create-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
+          <label
+            htmlFor="create-target-repo"
+            className="text-body-xs text-text-secondary"
+          >
+            Target Repo
+          </label>
           <TextInput
             id="create-target-repo"
             placeholder="owner/repo"
@@ -133,7 +158,13 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   )
 }
 
-const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps) => {
+const ViewMode = ({
+  task,
+  onEdit,
+  onArchive,
+  onDelete,
+  loading,
+}: ViewModeProps) => {
   return (
     <div className="flex grow flex-col gap-5">
       {/* Title */}
@@ -142,12 +173,12 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
       {/* Meta row */}
       <div className="flex flex-wrap items-center gap-2">
         {task.action && (
-          <Badge color={actionColor(task.action)}>
-            {task.action}
-          </Badge>
+          <Badge color={actionColor(task.action)}>{task.action}</Badge>
         )}
         {task.targetRepo && (
-          <span className="text-body-xs text-text-tertiary">{task.targetRepo}</span>
+          <span className="text-body-xs text-text-tertiary">
+            {task.targetRepo}
+          </span>
         )}
       </div>
 
@@ -169,7 +200,8 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
       {/* Created info */}
       <p className="text-body-xs text-text-tertiary">
         Created by {task.createdBy.username} · {timeAgo(task.createdAt)}
-        {task.updatedAt !== task.createdAt && ` · updated ${timeAgo(task.updatedAt)}`}
+        {task.updatedAt !== task.createdAt &&
+          ` · updated ${timeAgo(task.updatedAt)}`}
       </p>
 
       {/* Footer actions */}
@@ -186,7 +218,12 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
           {task.archived ? 'Unarchive' : 'Archive'}
         </Button>
         <div className="ml-auto">
-          <Button color="danger" size="small" disabled={loading} onClick={onDelete}>
+          <Button
+            color="danger"
+            size="small"
+            disabled={loading}
+            onClick={onDelete}
+          >
             Delete
           </Button>
         </div>
@@ -195,20 +232,33 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
   )
 }
 
-const AgentPanel = ({ task, onDispatch, onCancel, loading, readOnly = false }: AgentPanelProps) => {
+const AgentPanel = ({
+  task,
+  onDispatch,
+  onCancel,
+  loading,
+  readOnly = false,
+}: AgentPanelProps) => {
   const [dispatchAction, setDispatchAction] = useState(task.action ?? '')
 
-  const isAgentActive = task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
+  const isAgentActive =
+    task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
 
   return (
     <div className="rounded-lg border border-border-default bg-surface-base p-3 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-body-xs font-medium text-text-secondary">Agent</span>
-        <Badge color={agentStatusColor(task.agentStatus)}>{task.agentStatus}</Badge>
+        <span className="text-body-xs font-medium text-text-secondary">
+          Agent
+        </span>
+        <Badge color={agentStatusColor(task.agentStatus)}>
+          {task.agentStatus}
+        </Badge>
       </div>
 
       {task.retryCount > 0 && (
-        <span className="text-body-xs text-text-tertiary">Retries: {task.retryCount}</span>
+        <span className="text-body-xs text-text-tertiary">
+          Retries: {task.retryCount}
+        </span>
       )}
 
       {task.agentError && (
@@ -251,7 +301,13 @@ const AgentPanel = ({ task, onDispatch, onCancel, loading, readOnly = false }: A
   )
 }
 
-const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) => {
+const EditMode = ({
+  form,
+  setForm,
+  onSave,
+  onCancel,
+  loading,
+}: EditModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -261,7 +317,12 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
   return (
     <div className="flex grow flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="edit-title" className="text-body-xs text-text-secondary">Title *</label>
+        <label
+          htmlFor="edit-title"
+          className="text-body-xs text-text-secondary"
+        >
+          Title *
+        </label>
         <TextInput
           id="edit-title"
           ref={titleRef}
@@ -271,7 +332,7 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-body-xs text-text-secondary">Body</label>
+        <span className="text-body-xs text-text-secondary">Body</span>
         <MarkdownEditor
           value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
@@ -281,7 +342,12 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
 
       <div className="flex gap-3">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="edit-action" className="text-body-xs text-text-secondary">Action</label>
+          <label
+            htmlFor="edit-action"
+            className="text-body-xs text-text-secondary"
+          >
+            Action
+          </label>
           <SelectInput
             id="edit-action"
             value={form.action || undefined}
@@ -292,7 +358,12 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5">
-          <label htmlFor="edit-target-repo" className="text-body-xs text-text-secondary">Target Repo</label>
+          <label
+            htmlFor="edit-target-repo"
+            className="text-body-xs text-text-secondary"
+          >
+            Target Repo
+          </label>
           <TextInput
             id="edit-target-repo"
             placeholder="owner/repo"
@@ -303,7 +374,11 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
       </div>
 
       <div className="mt-auto flex items-center gap-2 pt-4 border-t border-border-default">
-        <Button color="primary" disabled={!form.title.trim() || loading} onClick={onSave}>
+        <Button
+          color="primary"
+          disabled={!form.title.trim() || loading}
+          onClick={onSave}
+        >
           {loading ? 'Saving…' : 'Save'}
         </Button>
         <Button color="ghost" disabled={loading} onClick={onCancel}>
@@ -319,8 +394,14 @@ const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) =
 // ---------------------------------------------------------------------------
 
 export const TaskDrawer = () => {
-  const { drawerMode, selectedTaskId, createTaskColumnId, closeDrawer, setBoard, board } =
-    useBoardStore()
+  const {
+    drawerMode,
+    selectedTaskId,
+    createTaskColumnId,
+    closeDrawer,
+    setBoard,
+    board,
+  } = useBoardStore()
 
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(false)
@@ -354,7 +435,10 @@ export const TaskDrawer = () => {
   // Refetch board after mutations
   const refetchBoard = async () => {
     if (!board) return
-    const data = await graphqlClient.request<{ board: typeof board }>(GET_BOARD, { id: board.id })
+    const data = await graphqlClient.request<{ board: typeof board }>(
+      GET_BOARD,
+      { id: board.id },
+    )
     setBoard(data.board)
   }
 
@@ -385,15 +469,18 @@ export const TaskDrawer = () => {
     if (!task || !editForm.title.trim()) return
     setLoading(true)
     try {
-      const updated = await graphqlClient.request<{ updateTask: Task }>(UPDATE_TASK, {
-        id: task.id,
-        input: {
-          title: editForm.title.trim(),
-          body: editForm.body || null,
-          action: editForm.action || null,
-          targetRepo: editForm.targetRepo.trim() || null,
+      const updated = await graphqlClient.request<{ updateTask: Task }>(
+        UPDATE_TASK,
+        {
+          id: task.id,
+          input: {
+            title: editForm.title.trim(),
+            body: editForm.body || null,
+            action: editForm.action || null,
+            targetRepo: editForm.targetRepo.trim() || null,
+          },
         },
-      })
+      )
       setTask(updated.updateTask)
       await refetchBoard()
       setIsEditing(false)
@@ -410,9 +497,12 @@ export const TaskDrawer = () => {
     try {
       const mutation = task.archived ? UNARCHIVE_TASK : ARCHIVE_TASK
       const key = task.archived ? 'unarchiveTask' : 'archiveTask'
-      const data = await graphqlClient.request<Record<string, Partial<Task>>>(mutation, {
-        id: task.id,
-      })
+      const data = await graphqlClient.request<Record<string, Partial<Task>>>(
+        mutation,
+        {
+          id: task.id,
+        },
+      )
       setTask({ ...task, ...data[key] })
       await refetchBoard()
     } catch (e) {
@@ -441,7 +531,9 @@ export const TaskDrawer = () => {
     if (!task) return
     setLoading(true)
     try {
-      const data = await graphqlClient.request<{ dispatchAgent: Partial<Task> }>(DISPATCH_AGENT, {
+      const data = await graphqlClient.request<{
+        dispatchAgent: Partial<Task>
+      }>(DISPATCH_AGENT, {
         taskId: task.id,
         action,
       })
@@ -457,9 +549,12 @@ export const TaskDrawer = () => {
     if (!task) return
     setLoading(true)
     try {
-      const data = await graphqlClient.request<{ cancelAgent: Partial<Task> }>(CANCEL_AGENT, {
-        taskId: task.id,
-      })
+      const data = await graphqlClient.request<{ cancelAgent: Partial<Task> }>(
+        CANCEL_AGENT,
+        {
+          taskId: task.id,
+        },
+      )
       setTask({ ...task, ...data.cancelAgent })
     } catch (e) {
       console.error(e)
@@ -487,7 +582,7 @@ export const TaskDrawer = () => {
   const drawerTitle =
     drawerMode === 'create'
       ? 'New Task'
-      : task?.title ?? (loading ? 'Loading…' : 'Task')
+      : (task?.title ?? (loading ? 'Loading…' : 'Task'))
 
   return (
     <Drawer
@@ -544,9 +639,12 @@ export const TaskDrawer = () => {
       )}
 
       {/* Agent log stream — visible when running or has been run */}
-      {drawerMode === 'view' && task && !isEditing && (task.agentStatus === 'RUNNING' || task.agentOutput) && (
-        <AgentLogStream taskId={task.id} agentStatus={task.agentStatus} />
-      )}
+      {drawerMode === 'view' &&
+        task &&
+        !isEditing &&
+        (task.agentStatus === 'RUNNING' || task.agentOutput) && (
+          <AgentLogStream taskId={task.id} agentStatus={task.agentStatus} />
+        )}
 
       {/* Timeline + Comments — view mode only, not during edit */}
       {drawerMode === 'view' && task && !isEditing && (

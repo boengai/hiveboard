@@ -8,189 +8,189 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
-import { useEffect, useState } from "react";
-import { graphqlClient } from "@/graphql/client";
-import { MOVE_TASK } from "@/graphql/mutations";
-import { GET_BOARDS } from "@/graphql/queries";
-import { subscribe, TASK_UPDATED_SUBSCRIPTION } from "@/graphql/subscriptions";
-import { type Task, useBoardStore } from "@/store/boardStore";
-import { Column } from "./Column";
-import { TaskCard } from "./TaskCard";
+} from '@dnd-kit/core'
+import { useEffect, useState } from 'react'
+import { graphqlClient } from '@/graphql/client'
+import { MOVE_TASK } from '@/graphql/mutations'
+import { GET_BOARDS } from '@/graphql/queries'
+import { subscribe, TASK_UPDATED_SUBSCRIPTION } from '@/graphql/subscriptions'
+import { type Task, useBoardStore } from '@/store/boardStore'
+import { Column } from './Column'
+import { TaskCard } from './TaskCard'
 
 export function Board() {
-  const board = useBoardStore((s) => s.board);
-  const setBoard = useBoardStore((s) => s.setBoard);
-  const _showArchived = useBoardStore((s) => s.showArchived);
-  const _toggleArchived = useBoardStore((s) => s.toggleArchived);
-  const moveTaskOptimistic = useBoardStore((s) => s.moveTaskOptimistic);
-  const mergeTaskUpdate = useBoardStore((s) => s.mergeTaskUpdate);
+  const board = useBoardStore((s) => s.board)
+  const setBoard = useBoardStore((s) => s.setBoard)
+  const _showArchived = useBoardStore((s) => s.showArchived)
+  const _toggleArchived = useBoardStore((s) => s.toggleArchived)
+  const moveTaskOptimistic = useBoardStore((s) => s.moveTaskOptimistic)
+  const mergeTaskUpdate = useBoardStore((s) => s.mergeTaskUpdate)
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [dropIndicator, setDropIndicator] = useState<{
-    columnId: string;
-    taskId: string | null;
-  } | null>(null);
+    columnId: string
+    taskId: string | null
+  } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+  )
 
   useEffect(() => {
     const fetchBoard = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
         const data = await graphqlClient.request<{
-          boards: Parameters<typeof setBoard>[0][];
-        }>(GET_BOARDS);
-        const first = data.boards[0];
+          boards: Parameters<typeof setBoard>[0][]
+        }>(GET_BOARDS)
+        const first = data.boards[0]
         if (first) {
-          setBoard(first);
+          setBoard(first)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load board");
+        setError(err instanceof Error ? err.message : 'Failed to load board')
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchBoard();
-  }, [setBoard]);
+    }
+    fetchBoard()
+  }, [setBoard])
 
   // Subscribe to real-time task updates once we have a board
   useEffect(() => {
-    if (!board?.id) return;
+    if (!board?.id) return
 
     const dispose = subscribe<{ taskUpdated: Task }>(
       TASK_UPDATED_SUBSCRIPTION,
       { boardId: board.id },
       (data) => {
         if (data.taskUpdated) {
-          mergeTaskUpdate(data.taskUpdated);
+          mergeTaskUpdate(data.taskUpdated)
         }
       },
-    );
+    )
 
-    return dispose;
+    return dispose
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board?.id, mergeTaskUpdate]);
+  }, [board?.id, mergeTaskUpdate])
 
   function findTaskById(taskId: string): Task | undefined {
-    if (!board) return undefined;
+    if (!board) return undefined
     for (const col of board.columns) {
-      const found = col.tasks.find((t) => t.id === taskId);
-      if (found) return found;
+      const found = col.tasks.find((t) => t.id === taskId)
+      if (found) return found
     }
-    return undefined;
+    return undefined
   }
 
   function handleDragStart(event: DragStartEvent) {
-    const task = findTaskById(String(event.active.id));
-    if (task) setActiveTask(task);
+    const task = findTaskById(String(event.active.id))
+    if (task) setActiveTask(task)
   }
 
   function handleDragOver(event: DragOverEvent) {
-    const { over } = event;
+    const { over } = event
     if (!over || !board) {
-      setDropIndicator(null);
-      return;
+      setDropIndicator(null)
+      return
     }
 
-    const overId = String(over.id);
+    const overId = String(over.id)
 
     // Check if hovering over a column
-    const isColumn = board.columns.some((c) => c.id === overId);
+    const isColumn = board.columns.some((c) => c.id === overId)
     if (isColumn) {
-      setDropIndicator({ columnId: overId, taskId: null });
-      return;
+      setDropIndicator({ columnId: overId, taskId: null })
+      return
     }
 
     // Hovering over a task — find its column
     for (const col of board.columns) {
       if (col.tasks.some((t) => t.id === overId)) {
-        setDropIndicator({ columnId: col.id, taskId: overId });
-        return;
+        setDropIndicator({ columnId: col.id, taskId: overId })
+        return
       }
     }
 
-    setDropIndicator(null);
+    setDropIndicator(null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setActiveTask(null);
-    setDropIndicator(null);
-    const { active, over } = event;
-    if (!over || !board) return;
+    setActiveTask(null)
+    setDropIndicator(null)
+    const { active, over } = event
+    if (!over || !board) return
 
-    const taskId = String(active.id);
-    const overId = String(over.id);
+    const taskId = String(active.id)
+    const overId = String(over.id)
 
     // Determine target column: either the column itself or find the column of the task being hovered
-    let targetColumnId = overId;
-    let targetColumn = board.columns.find((c) => c.id === overId);
+    let targetColumnId = overId
+    let targetColumn = board.columns.find((c) => c.id === overId)
 
     if (!targetColumn) {
       // overId is a task id — find its column
       for (const col of board.columns) {
         if (col.tasks.some((t) => t.id === overId)) {
-          targetColumn = col;
-          targetColumnId = col.id;
-          break;
+          targetColumn = col
+          targetColumnId = col.id
+          break
         }
       }
     }
 
-    if (!targetColumn) return;
+    if (!targetColumn) return
 
     // Don't do anything if dropped on itself and same column
     const sourceColumn = board.columns.find((c) =>
       c.tasks.some((t) => t.id === taskId),
-    );
-    if (sourceColumn?.id === targetColumnId && taskId === overId) return;
+    )
+    if (sourceColumn?.id === targetColumnId && taskId === overId) return
 
     // Calculate position
     const visibleTasks = targetColumn.tasks
       .filter((t) => t.id !== taskId)
-      .sort((a, b) => a.position - b.position);
+      .sort((a, b) => a.position - b.position)
 
-    let position: number;
+    let position: number
 
-    const lastTask = visibleTasks[visibleTasks.length - 1];
+    const lastTask = visibleTasks[visibleTasks.length - 1]
 
     if (visibleTasks.length === 0) {
-      position = 0;
+      position = 0
     } else if (overId === targetColumnId) {
       // Dropped on column header/empty area — append at end
-      position = (lastTask?.position ?? 0) + 1024;
+      position = (lastTask?.position ?? 0) + 1024
     } else {
       // Dropped on a specific task
-      const overIndex = visibleTasks.findIndex((t) => t.id === overId);
+      const overIndex = visibleTasks.findIndex((t) => t.id === overId)
       if (overIndex === -1) {
-        position = (lastTask?.position ?? 0) + 1024;
+        position = (lastTask?.position ?? 0) + 1024
       } else {
-        const prev = visibleTasks[overIndex - 1];
-        const next = visibleTasks[overIndex];
+        const prev = visibleTasks[overIndex - 1]
+        const next = visibleTasks[overIndex]
         if (!prev || !next) {
           position = next
             ? next.position - 1024
-            : (lastTask?.position ?? 0) + 1024;
+            : (lastTask?.position ?? 0) + 1024
         } else {
-          position = (prev.position + next.position) / 2;
+          position = (prev.position + next.position) / 2
         }
       }
     }
 
     // Optimistic update
-    moveTaskOptimistic(taskId, targetColumnId, position);
+    moveTaskOptimistic(taskId, targetColumnId, position)
 
     // Persist to server
     graphqlClient
       .request(MOVE_TASK, { id: taskId, columnId: targetColumnId, position })
       .catch((err) => {
-        console.error("moveTask failed", err);
+        console.error('moveTask failed', err)
         // TODO: revert optimistic update
-      });
+      })
   }
 
   if (loading) {
@@ -219,7 +219,7 @@ export function Board() {
           ))}
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -227,7 +227,7 @@ export function Board() {
       <div className="flex h-full items-center justify-center text-error-400">
         Error: {error}
       </div>
-    );
+    )
   }
 
   if (!board) {
@@ -235,12 +235,12 @@ export function Board() {
       <div className="flex h-full items-center justify-center text-text-tertiary">
         No boards found.
       </div>
-    );
+    )
   }
 
   const sortedColumns = [...board.columns].sort(
     (a, b) => a.position - b.position,
-  );
+  )
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -289,5 +289,5 @@ export function Board() {
         </DragOverlay>
       </DndContext>
     </div>
-  );
+  )
 }

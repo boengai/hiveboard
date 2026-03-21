@@ -1,10 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
-import { tv } from '@/utils/tailwind-variants'
-import { useBoardStore, type Task } from '@/store/boardStore'
-import { SpinnerIcon, CheckIcon, XMarkIcon } from '@/components/common/icon'
+import { CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common/icon'
+import { type Task, useBoardStore } from '@/store/boardStore'
 import type { TaskCardProps } from '@/types/components/feature/board'
+import { tv } from '@/utils/tailwind-variants'
 
 // Action badge styles
 const actionBadge = tv({
@@ -22,7 +22,9 @@ const actionBadge = tv({
 
 function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
   if (status === 'IDLE') {
-    return <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-600" />
+    return (
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-600" />
+    )
   }
   if (status === 'QUEUED') {
     return (
@@ -30,13 +32,25 @@ function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
     )
   }
   if (status === 'RUNNING') {
-    return <span className="inline-flex h-3 w-3 animate-spin text-info-400"><SpinnerIcon size={12} /></span>
+    return (
+      <span className="inline-flex h-3 w-3 animate-spin text-info-400">
+        <SpinnerIcon size={12} />
+      </span>
+    )
   }
   if (status === 'SUCCESS') {
-    return <span className="inline-flex text-success-400"><CheckIcon size={12} /></span>
+    return (
+      <span className="inline-flex text-success-400">
+        <CheckIcon size={12} />
+      </span>
+    )
   }
   if (status === 'FAILED') {
-    return <span className="inline-flex text-error-400"><XMarkIcon size={12} /></span>
+    return (
+      <span className="inline-flex text-error-400">
+        <XMarkIcon size={12} />
+      </span>
+    )
   }
   return null
 }
@@ -44,7 +58,14 @@ function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
 export function TaskCard({ task }: TaskCardProps) {
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task.id,
   })
 
@@ -73,7 +94,9 @@ export function TaskCard({ task }: TaskCardProps) {
       ].join(' ')}
     >
       {/* Title */}
-      <p className="mb-2 line-clamp-2 text-body text-text-primary">{task.title}</p>
+      <p className="mb-2 line-clamp-2 text-body text-text-primary">
+        {task.title}
+      </p>
 
       {/* Footer row */}
       <div className="flex items-center gap-2">
@@ -95,7 +118,9 @@ export function TaskCard({ task }: TaskCardProps) {
         )}
 
         {/* Created by */}
-        <span className="text-body-xs text-text-tertiary">@{task.createdBy.username}</span>
+        <span className="text-body-xs text-text-tertiary">
+          @{task.createdBy.username}
+        </span>
       </div>
     </m.div>
   )

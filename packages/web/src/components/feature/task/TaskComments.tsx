@@ -1,20 +1,30 @@
-import { useState, useEffect, useCallback } from 'react'
-import { graphqlClient } from '@/graphql/client'
-import { GET_COMMENTS } from '@/graphql/queries'
-import { ADD_COMMENT, UPDATE_COMMENT, DELETE_COMMENT } from '@/graphql/mutations'
-import { timeAgo } from './TaskTimeline'
-import { subscribe, COMMENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
-import { TextAreaInput } from '@/components/common/input'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/common/button'
+import { TextAreaInput } from '@/components/common/input'
 import { MarkdownPreview } from '@/components/common/markdown'
+import { graphqlClient } from '@/graphql/client'
+import {
+  ADD_COMMENT,
+  DELETE_COMMENT,
+  UPDATE_COMMENT,
+} from '@/graphql/mutations'
+import { GET_COMMENTS } from '@/graphql/queries'
+import { COMMENT_ADDED_SUBSCRIPTION, subscribe } from '@/graphql/subscriptions'
 import type {
   Comment,
-  Reply,
   CommentBlockProps,
+  Reply,
   TaskCommentsProps,
 } from '@/types/components/feature/task'
+import { timeAgo } from './TaskTimeline'
 
-function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: CommentBlockProps) {
+function CommentBlock({
+  taskId,
+  comment,
+  onDeleted,
+  onUpdated,
+  onReplyAdded,
+}: CommentBlockProps) {
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [saving, setSaving] = useState(false)
@@ -28,10 +38,9 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
     if (!trimmed) return
     setSaving(true)
     try {
-      await graphqlClient.request<{ updateComment: { id: string; body: string; updatedAt: string } }>(
-        UPDATE_COMMENT,
-        { id: comment.id, body: trimmed }
-      )
+      await graphqlClient.request<{
+        updateComment: { id: string; body: string; updatedAt: string }
+      }>(UPDATE_COMMENT, { id: comment.id, body: trimmed })
       onUpdated(comment.id, trimmed)
       setEditing(false)
     } catch (err) {
@@ -58,11 +67,14 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
     if (!trimmed) return
     setReplySubmitting(true)
     try {
-      const data = await graphqlClient.request<{ addComment: Reply }>(ADD_COMMENT, {
-        taskId,
-        body: trimmed,
-        parentId: comment.id,
-      })
+      const data = await graphqlClient.request<{ addComment: Reply }>(
+        ADD_COMMENT,
+        {
+          taskId,
+          body: trimmed,
+          parentId: comment.id,
+        },
+      )
       onReplyAdded(comment.id, data.addComment)
       setReplyBody('')
       setShowReplyInput(false)
@@ -77,16 +89,23 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
     <div className="flex flex-col gap-1.5 py-2">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-body-xs font-medium text-text-primary">{comment.createdBy.username}</span>
+        <span className="text-body-xs font-medium text-text-primary">
+          {comment.createdBy.username}
+        </span>
         <div className="flex items-center gap-2">
-          <span className="text-body-xs text-text-tertiary">{timeAgo(comment.createdAt)}</span>
+          <span className="text-body-xs text-text-tertiary">
+            {timeAgo(comment.createdAt)}
+          </span>
           {!editing && (
             <>
               <Button
                 size="small"
                 color="ghost"
                 className="text-body-xs"
-                onClick={() => { setEditBody(comment.body); setEditing(true) }}
+                onClick={() => {
+                  setEditBody(comment.body)
+                  setEditing(true)
+                }}
               >
                 Edit
               </Button>
@@ -124,7 +143,10 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             <Button
               size="small"
               color="ghost"
-              onClick={() => { setEditing(false); setEditBody(comment.body) }}
+              onClick={() => {
+                setEditing(false)
+                setEditBody(comment.body)
+              }}
             >
               Cancel
             </Button>
@@ -180,7 +202,10 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             <Button
               size="small"
               color="ghost"
-              onClick={() => { setShowReplyInput(false); setReplyBody('') }}
+              onClick={() => {
+                setShowReplyInput(false)
+                setReplyBody('')
+              }}
             >
               Cancel
             </Button>
@@ -219,9 +244,13 @@ function ReplyBlock({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center justify-between">
-        <span className="text-body-xs font-medium text-text-primary">{reply.createdBy.username}</span>
+        <span className="text-body-xs font-medium text-text-primary">
+          {reply.createdBy.username}
+        </span>
         <div className="flex items-center gap-2">
-          <span className="text-body-xs text-text-tertiary">{timeAgo(reply.createdAt)}</span>
+          <span className="text-body-xs text-text-tertiary">
+            {timeAgo(reply.createdAt)}
+          </span>
           <Button
             size="small"
             color="danger"
@@ -251,7 +280,10 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
   const fetchComments = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await graphqlClient.request<{ comments: Comment[] }>(GET_COMMENTS, { taskId })
+      const data = await graphqlClient.request<{ comments: Comment[] }>(
+        GET_COMMENTS,
+        { taskId },
+      )
       setComments(data.comments.filter((c) => !c.parentId))
     } catch (err) {
       console.error('TaskComments fetch error', err)
@@ -279,7 +311,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           if (prev.some((c) => c.id === incoming.id)) return prev
           return [...prev, incoming]
         })
-      }
+      },
     )
     return dispose
   }, [taskId])
@@ -289,10 +321,13 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
     if (!trimmed) return
     setSubmitting(true)
     try {
-      const data = await graphqlClient.request<{ addComment: Comment }>(ADD_COMMENT, {
-        taskId,
-        body: trimmed,
-      })
+      const data = await graphqlClient.request<{ addComment: Comment }>(
+        ADD_COMMENT,
+        {
+          taskId,
+          body: trimmed,
+        },
+      )
       setComments((prev) => [...prev, data.addComment])
       setNewBody('')
     } catch (err) {
@@ -306,7 +341,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
     setComments((prev) =>
       prev
         .filter((c) => c.id !== id)
-        .map((c) => ({ ...c, replies: c.replies.filter((r) => r.id !== id) }))
+        .map((c) => ({ ...c, replies: c.replies.filter((r) => r.id !== id) })),
     )
   }
 
@@ -317,8 +352,8 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
   const handleReplyAdded = (parentId: string, reply: Reply) => {
     setComments((prev) =>
       prev.map((c) =>
-        c.id === parentId ? { ...c, replies: [...c.replies, reply] } : c
-      )
+        c.id === parentId ? { ...c, replies: [...c.replies, reply] } : c,
+      ),
     )
   }
 
@@ -331,7 +366,10 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
       {loading ? (
         <div className="flex flex-col gap-1">
           {[0, 1].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded bg-surface-overlay" />
+            <div
+              key={i}
+              className="h-12 animate-pulse rounded bg-surface-overlay"
+            />
           ))}
         </div>
       ) : comments.length === 0 ? (

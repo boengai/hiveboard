@@ -11,9 +11,23 @@ export interface AgentLogStreamProps {
   agentStatus: string
 }
 
-export type AgentStatus = 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | string
+export type AgentStatus =
+  | 'IDLE'
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | string
 
-export type BadgeColor = 'default' | 'info' | 'purple' | 'success' | 'teal' | 'warning' | 'error' | 'honey'
+export type BadgeColor =
+  | 'default'
+  | 'info'
+  | 'purple'
+  | 'success'
+  | 'teal'
+  | 'warning'
+  | 'error'
+  | 'honey'
 
 export interface AgentStatusBadgeProps {
   status: AgentStatus
