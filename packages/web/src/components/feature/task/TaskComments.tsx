@@ -5,6 +5,8 @@ import { ADD_COMMENT, UPDATE_COMMENT, DELETE_COMMENT } from '@/graphql/mutations
 import { timeAgo } from './TaskTimeline'
 import { subscribe, COMMENT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
 import { TextAreaInput } from '@/components/common/input'
+import { Button } from '@/components/common/button'
+import { MarkdownPreview } from '@/components/common/markdown'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,21 +117,23 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
           <span className="text-body-xs text-text-tertiary">{timeAgo(comment.createdAt)}</span>
           {!editing && (
             <>
-              <button
-                type="button"
-                className="text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
+              <Button
+                size="small"
+                color="ghost"
+                className="text-body-xs"
                 onClick={() => { setEditBody(comment.body); setEditing(true) }}
               >
                 Edit
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                size="small"
+                color="danger"
+                className="text-body-xs"
                 disabled={deleting}
-                className="text-body-xs text-error-400 hover:text-error-300 disabled:opacity-50 focus:outline-none"
                 onClick={handleDelete}
               >
                 {deleting ? '…' : 'Delete'}
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -144,36 +148,37 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             onChange={(e) => setEditBody(e.target.value)}
           />
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Button
+              size="small"
+              color="primary"
               disabled={!editBody.trim() || saving}
               onClick={handleSave}
-              className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
             >
               {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="small"
+              color="ghost"
               onClick={() => { setEditing(false); setEditBody(comment.body) }}
-              className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <p className="whitespace-pre-wrap text-body-sm text-text-secondary">{comment.body}</p>
+        <MarkdownPreview content={comment.body} />
       )}
 
       {/* Reply button */}
       {!editing && (
-        <button
-          type="button"
-          className="self-start text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
+        <Button
+          size="small"
+          color="ghost"
+          className="self-start text-body-xs"
           onClick={() => setShowReplyInput(!showReplyInput)}
         >
           {showReplyInput ? 'Cancel' : 'Reply'}
-        </button>
+        </Button>
       )}
 
       {/* Threaded replies (max 1 level) */}
@@ -199,21 +204,21 @@ function CommentBlock({ taskId, comment, onDeleted, onUpdated, onReplyAdded }: C
             onChange={(e) => setReplyBody(e.target.value)}
           />
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Button
+              size="small"
+              color="primary"
               disabled={!replyBody.trim() || replySubmitting}
               onClick={handleReply}
-              className="rounded-md bg-honey-400 px-3 py-1 text-body-xs font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
             >
               {replySubmitting ? 'Replying…' : 'Reply'}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="small"
+              color="ghost"
               onClick={() => { setShowReplyInput(false); setReplyBody('') }}
-              className="rounded-md px-3 py-1 text-body-xs text-text-secondary hover:text-text-primary focus:outline-none"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -252,17 +257,18 @@ function ReplyBlock({
         <span className="text-body-xs font-medium text-text-primary">{reply.createdBy.username}</span>
         <div className="flex items-center gap-2">
           <span className="text-body-xs text-text-tertiary">{timeAgo(reply.createdAt)}</span>
-          <button
-            type="button"
+          <Button
+            size="small"
+            color="danger"
+            className="text-body-xs"
             disabled={deleting}
-            className="text-body-xs text-error-400 hover:text-error-300 disabled:opacity-50 focus:outline-none"
             onClick={handleDelete}
           >
             {deleting ? '…' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
-      <p className="whitespace-pre-wrap text-body-sm text-text-secondary">{reply.body}</p>
+      <MarkdownPreview content={reply.body} />
     </div>
   )
 }
@@ -392,14 +398,15 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
         />
-        <button
-          type="button"
+        <Button
+          size="small"
+          color="primary"
+          className="self-start"
           disabled={!newBody.trim() || submitting}
           onClick={handleAddComment}
-          className="self-start rounded-md bg-honey-400 px-4 py-1.5 text-body-sm font-medium text-gray-900 hover:bg-honey-300 disabled:opacity-50 focus:outline-none focus:shadow-glow-honey"
         >
           {submitting ? 'Commenting…' : 'Comment'}
-        </button>
+        </Button>
       </div>
     </div>
   )
