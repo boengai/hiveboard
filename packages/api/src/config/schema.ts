@@ -55,10 +55,10 @@ export const WorkspaceSchema = z.object({
 })
 
 export const ClaudeSchema = z.object({
-  command: z.string().default('claude'),
-  model: z.string().optional(),
-  max_turns: z.number().int().positive().default(50),
   allowed_tools: z.array(z.string()).optional(),
+  command: z.string().default('claude'),
+  max_turns: z.number().int().positive().default(50),
+  model: z.string().optional(),
   permission_mode: z.string().optional(),
 })
 
@@ -69,9 +69,9 @@ export const AgentSchema = z.object({
 
 export const HooksSchema = z.object({
   after_create: z.string().optional(),
-  before_run: z.string().optional(),
   after_run: z.string().optional(),
   before_remove: z.string().optional(),
+  before_run: z.string().optional(),
   timeout_ms: z.number().int().positive().default(60_000),
 })
 
@@ -80,11 +80,11 @@ export const HooksSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const ConfigSchema = z.object({
+  agent: objectWithDefaults(AgentSchema),
+  claude: objectWithDefaults(ClaudeSchema),
+  hooks: objectWithDefaults(HooksSchema),
   polling: objectWithDefaults(PollingSchema),
   workspace: objectWithDefaults(WorkspaceSchema),
-  claude: objectWithDefaults(ClaudeSchema),
-  agent: objectWithDefaults(AgentSchema),
-  hooks: objectWithDefaults(HooksSchema),
 })
 
 export type Config = z.infer<typeof ConfigSchema>

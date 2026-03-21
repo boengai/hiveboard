@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Avatar, Button, MarkdownPreview, TextAreaInput } from '@/components/common'
+import {
+  Avatar,
+  Button,
+  MarkdownPreview,
+  TextAreaInput,
+} from '@/components/common'
 import {
   ADD_COMMENT,
   COMMENT_ADDED_SUBSCRIPTION,
@@ -39,7 +44,7 @@ function CommentBlock({
     try {
       await graphqlClient.request<{
         updateComment: { id: string; body: string; updatedAt: string }
-      }>(UPDATE_COMMENT, { id: comment.id, body: trimmed })
+      }>(UPDATE_COMMENT, { body: trimmed, id: comment.id })
       onUpdated(comment.id, trimmed)
       setEditing(false)
     } catch (err) {
@@ -69,9 +74,9 @@ function CommentBlock({
       const data = await graphqlClient.request<{ addComment: Reply }>(
         ADD_COMMENT,
         {
-          taskId,
           body: trimmed,
           parentId: comment.id,
+          taskId,
         },
       )
       onReplyAdded(comment.id, data.addComment)
@@ -90,7 +95,7 @@ function CommentBlock({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Avatar name={comment.createdBy.username} />
-          <span className="text-body-sm font-medium text-text-primary">
+          <span className="font-medium text-body-sm text-text-primary">
             {comment.createdBy.username}
           </span>
           <span className="text-body-xs text-text-tertiary">
@@ -100,27 +105,27 @@ function CommentBlock({
         {!editing && (
           <div className="flex items-center gap-1">
             <Button
-              size="small"
               color="ghost"
               onClick={() => setShowReplyInput(!showReplyInput)}
+              size="small"
             >
               Reply
             </Button>
             <Button
-              size="small"
               color="ghost"
               onClick={() => {
                 setEditBody(comment.body)
                 setEditing(true)
               }}
+              size="small"
             >
               Edit
             </Button>
             <Button
-              size="small"
               color="danger"
               disabled={deleting}
               onClick={handleDelete}
+              size="small"
             >
               {deleting ? '…' : 'Delete'}
             </Button>
@@ -133,26 +138,26 @@ function CommentBlock({
         {editing ? (
           <div className="flex flex-col gap-2">
             <TextAreaInput
+              onChange={(e) => setEditBody(e.target.value)}
               rows={2}
               value={editBody}
-              onChange={(e) => setEditBody(e.target.value)}
             />
             <div className="flex gap-2">
               <Button
-                size="small"
                 color="primary"
                 disabled={!editBody.trim() || saving}
                 onClick={handleSave}
+                size="small"
               >
                 {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button
-                size="small"
                 color="ghost"
                 onClick={() => {
                   setEditing(false)
                   setEditBody(comment.body)
                 }}
+                size="small"
               >
                 Cancel
               </Button>
@@ -167,12 +172,12 @@ function CommentBlock({
 
       {/* Threaded replies (max 1 level) */}
       {comment.replies.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2 border-l-2 border-border-default pl-3">
+        <div className="mt-3 flex flex-col gap-2 border-border-default border-l-2 pl-3">
           {comment.replies.map((reply) => (
             <ReplyBlock
               key={reply.id}
-              reply={reply}
               onDeleted={(id) => onDeleted(id)}
+              reply={reply}
             />
           ))}
         </div>
@@ -180,29 +185,29 @@ function CommentBlock({
 
       {/* Inline reply input */}
       {showReplyInput && (
-        <div className="mt-3 flex flex-col gap-2 border-l-2 border-honey-400/30 pl-3">
+        <div className="mt-3 flex flex-col gap-2 border-honey-400/30 border-l-2 pl-3">
           <TextAreaInput
-            rows={2}
-            placeholder="Write a reply…"
-            value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
+            placeholder="Write a reply…"
+            rows={2}
+            value={replyBody}
           />
           <div className="flex gap-2">
             <Button
-              size="small"
               color="primary"
               disabled={!replyBody.trim() || replySubmitting}
               onClick={handleReply}
+              size="small"
             >
               {replySubmitting ? 'Replying…' : 'Reply'}
             </Button>
             <Button
-              size="small"
               color="ghost"
               onClick={() => {
                 setShowReplyInput(false)
                 setReplyBody('')
               }}
+              size="small"
             >
               Cancel
             </Button>
@@ -242,17 +247,17 @@ function ReplyBlock({
     <div className="flex flex-col gap-1 py-1">
       <div className="flex items-center gap-2">
         <Avatar name={reply.createdBy.username} size="sm" />
-        <span className="text-body-xs font-medium text-text-primary">
+        <span className="font-medium text-body-xs text-text-primary">
           {reply.createdBy.username}
         </span>
         <span className="text-body-xs text-text-tertiary">
           {timeAgo(reply.createdAt)}
         </span>
         <button
-          type="button"
+          className="ml-auto text-body-xs text-text-tertiary opacity-0 transition-opacity hover:text-error-400 group-hover/reply:opacity-100"
           disabled={deleting}
           onClick={handleDelete}
-          className="ml-auto text-body-xs text-text-tertiary opacity-0 transition-opacity hover:text-error-400 group-hover/reply:opacity-100"
+          type="button"
         >
           {deleting ? '…' : 'Delete'}
         </button>
@@ -321,8 +326,8 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
       const data = await graphqlClient.request<{ addComment: Comment }>(
         ADD_COMMENT,
         {
-          taskId,
           body: trimmed,
+          taskId,
         },
       )
       setComments((prev) => [...prev, data.addComment])
@@ -360,8 +365,8 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
         <div className="flex flex-col gap-2">
           {[0, 1].map((i) => (
             <div
-              key={i}
               className="h-16 animate-pulse rounded-lg bg-surface-overlay"
+              key={i}
             />
           ))}
         </div>
@@ -371,12 +376,12 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
         <div className="flex flex-col gap-2">
           {comments.map((comment) => (
             <CommentBlock
-              key={comment.id}
-              taskId={taskId}
               comment={comment}
+              key={comment.id}
               onDeleted={handleDeleted}
-              onUpdated={handleUpdated}
               onReplyAdded={handleReplyAdded}
+              onUpdated={handleUpdated}
+              taskId={taskId}
             />
           ))}
         </div>
@@ -385,17 +390,17 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
       {/* New comment input */}
       <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/20 p-3">
         <TextAreaInput
-          rows={2}
-          placeholder="Leave a comment…"
-          value={newBody}
           onChange={(e) => setNewBody(e.target.value)}
+          placeholder="Leave a comment…"
+          rows={2}
+          value={newBody}
         />
         <div className="flex justify-end">
           <Button
-            size="small"
             color="primary"
             disabled={!newBody.trim() || submitting}
             onClick={handleAddComment}
+            size="small"
           >
             {submitting ? 'Commenting…' : 'Comment'}
           </Button>

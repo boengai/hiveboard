@@ -68,35 +68,15 @@ type BoardState = {
 
 export const useBoardStore = create<BoardState>((set, get) => ({
   board: null,
-  selectedTaskId: null,
-  showArchived: false,
-  drawerMode: 'closed',
-  createTaskColumnId: null,
-
-  setBoard: (board) => set({ board }),
-
-  openDrawerCreate: (columnId) =>
-    set({
-      drawerMode: 'create',
-      createTaskColumnId: columnId,
-      selectedTaskId: null,
-    }),
-
-  openDrawerView: (taskId) =>
-    set({
-      drawerMode: 'view',
-      selectedTaskId: taskId,
-      createTaskColumnId: null,
-    }),
 
   closeDrawer: () =>
     set({
+      createTaskColumnId: null,
       drawerMode: 'closed',
       selectedTaskId: null,
-      createTaskColumnId: null,
     }),
-
-  toggleArchived: () => set((s) => ({ showArchived: !s.showArchived })),
+  createTaskColumnId: null,
+  drawerMode: 'closed',
 
   mergeTaskUpdate: (updatedTask) => {
     const board = get().board
@@ -149,8 +129,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       if (col.id === toColumnId) {
         const updatedTask = {
           ...task,
-          position,
           column: { id: col.id, name: col.name },
+          position,
         }
         const tasks = [...col.tasks, updatedTask].sort(
           (a, b) => a.position - b.position,
@@ -162,4 +142,24 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
     set({ board: { ...board, columns: updatedColumns } })
   },
+
+  openDrawerCreate: (columnId) =>
+    set({
+      createTaskColumnId: columnId,
+      drawerMode: 'create',
+      selectedTaskId: null,
+    }),
+
+  openDrawerView: (taskId) =>
+    set({
+      createTaskColumnId: null,
+      drawerMode: 'view',
+      selectedTaskId: taskId,
+    }),
+  selectedTaskId: null,
+
+  setBoard: (board) => set({ board }),
+  showArchived: false,
+
+  toggleArchived: () => set((s) => ({ showArchived: !s.showArchived })),
 }))

@@ -1,25 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  AGENT_LOG_STREAM_SUBSCRIPTION,
-  subscribe,
-} from '@/graphql'
-import type {
-  AgentLogChunk,
-  AgentLogStreamProps,
-} from '@/types'
+import { AGENT_LOG_STREAM_SUBSCRIPTION, subscribe } from '@/graphql'
+import type { AgentLogChunk, AgentLogStreamProps } from '@/types'
 import { tv } from '@/utils'
 
 const statusText = tv({
   base: 'text-body-xs',
+  defaultVariants: { status: 'idle' },
   variants: {
     status: {
-      streaming: 'text-info-400',
-      success: 'text-success-400',
       failed: 'text-error-400',
       idle: 'text-text-tertiary',
+      streaming: 'text-info-400',
+      success: 'text-success-400',
     },
   },
-  defaultVariants: { status: 'idle' },
 })
 
 export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
@@ -80,7 +74,7 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
     <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <span className="text-body-xs font-medium text-text-secondary">
+        <span className="font-medium text-body-xs text-text-secondary">
           Agent Output
         </span>
         <div className="flex items-center gap-2">
@@ -99,9 +93,9 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
           </span>
           {chunks.length > 0 && (
             <button
-              type="button"
-              onClick={handleCopyLog}
               className="text-body-xs text-text-tertiary hover:text-text-secondary focus:outline-none"
+              onClick={handleCopyLog}
+              type="button"
             >
               Copy log
             </button>
@@ -111,8 +105,8 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
 
       {/* Log viewer */}
       <div
-        ref={scrollRef}
         className="max-h-64 overflow-y-auto rounded bg-gray-950 p-2"
+        ref={scrollRef}
       >
         {chunks.length === 0 ? (
           <span className="font-mono text-body-xs text-text-tertiary">

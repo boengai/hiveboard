@@ -39,20 +39,20 @@ export function renderPrompt(
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
   const context: PromptContext = {
+    attempt,
+    has_review_comments: !!reviewComments,
     issue: {
-      number: task.id,
-      title: task.title,
-      body: task.body,
       action: task.action ?? '',
-      repo_owner: repoOwner ?? '',
-      repo_name: repoName ?? '',
-      target_branch: task.targetBranch ?? 'main',
+      body: task.body,
       labels: '',
+      number: task.id,
+      repo_name: repoName ?? '',
+      repo_owner: repoOwner ?? '',
+      target_branch: task.targetBranch ?? 'main',
+      title: task.title,
       url: '',
     },
-    attempt,
     review_comments: reviewComments,
-    has_review_comments: !!reviewComments,
   }
 
   return Mustache.render(template, context)

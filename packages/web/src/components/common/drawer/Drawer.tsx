@@ -9,9 +9,10 @@ const overlayVariants = tv({
 
 const contentVariants = tv({
   base: [
-    'fixed z-50 flex h-full flex-col bg-surface-raised border-l border-border-default outline-none',
+    'fixed z-50 flex h-full flex-col border-border-default border-l bg-surface-raised outline-none',
     'data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0',
   ],
+  defaultVariants: { size: 'default' },
   variants: {
     size: {
       default: 'w-[480px] max-w-[90vw]',
@@ -19,7 +20,6 @@ const contentVariants = tv({
       wide: 'w-[640px] max-w-[95vw]',
     },
   },
-  defaultVariants: { size: 'default' },
 })
 
 export const Drawer = ({
@@ -31,12 +31,12 @@ export const Drawer = ({
   onOpenChange,
   trigger,
 }: DrawerProps) => (
-  <VaulDrawer.Root direction="right" open={open} onOpenChange={onOpenChange}>
+  <VaulDrawer.Root direction="right" onOpenChange={onOpenChange} open={open}>
     {trigger && <VaulDrawer.Trigger asChild>{trigger}</VaulDrawer.Trigger>}
     <VaulDrawer.Portal>
       <VaulDrawer.Overlay className={overlayVariants()} />
       <VaulDrawer.Content className={contentVariants({ size })}>
-        <div className="flex w-full shrink-0 items-center gap-3 border-b border-border-default bg-surface-overlay/50 px-5 py-3.5">
+        <div className="flex w-full shrink-0 items-center gap-3 border-border-default border-b bg-surface-overlay/50 px-5 py-3.5">
           <VaulDrawer.Close asChild>
             <m.button
               className="size-3 shrink-0 rounded-full bg-error-400"
@@ -46,7 +46,7 @@ export const Drawer = ({
               <span className="sr-only">Close</span>
             </m.button>
           </VaulDrawer.Close>
-          <VaulDrawer.Title className="grow truncate text-body-sm font-medium text-text-secondary">
+          <VaulDrawer.Title className="grow truncate font-medium text-body-sm text-text-secondary">
             {title}
           </VaulDrawer.Title>
           <VaulDrawer.Description className="hidden">
@@ -54,8 +54,8 @@ export const Drawer = ({
           </VaulDrawer.Description>
         </div>
         <div
-          data-vaul-no-drag
           className="flex size-full grow flex-col gap-5 overflow-y-auto p-5"
+          data-vaul-no-drag
         >
           {children}
         </div>

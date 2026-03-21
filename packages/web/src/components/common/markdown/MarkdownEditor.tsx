@@ -12,8 +12,8 @@ const TabTrigger = ({
   children: ReactNode
 }) => (
   <Tabs.Trigger
+    className="relative px-3 py-1.5 text-body-sm text-text-tertiary transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-honey-400 after:opacity-0 after:transition-opacity hover:text-text-secondary data-[state=active]:text-text-primary data-[state=active]:after:opacity-100"
     value={value}
-    className="relative px-3 py-1.5 text-body-sm text-text-tertiary transition-colors hover:text-text-secondary data-[state=active]:text-text-primary after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-honey-400 after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
   >
     {children}
   </Tabs.Trigger>
@@ -28,23 +28,23 @@ export const MarkdownEditor = ({
   const [tab, setTab] = useState('write')
 
   return (
-    <Tabs.Root value={tab} onValueChange={setTab} className="flex flex-col">
-      <Tabs.List className="flex gap-1 border-b border-border-default">
+    <Tabs.Root className="flex flex-col" onValueChange={setTab} value={tab}>
+      <Tabs.List className="flex gap-1 border-border-default border-b">
         <TabTrigger value="write">Write</TabTrigger>
         <TabTrigger value="preview">Preview</TabTrigger>
       </Tabs.List>
 
-      <Tabs.Content value="write" className="pt-2">
+      <Tabs.Content className="pt-2" value="write">
         <textarea
           className="w-full resize-y rounded-md border border-border-default bg-surface-inset px-3 py-2 text-body-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-honey-400 focus:shadow-glow-honey"
-          value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
+          value={value}
         />
       </Tabs.Content>
 
-      <Tabs.Content value="preview" className="pt-2">
+      <Tabs.Content className="pt-2" value="preview">
         <div className="min-h-[250px] p-3">
           {value ? (
             <MarkdownPreview content={value} />

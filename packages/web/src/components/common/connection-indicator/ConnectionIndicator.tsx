@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-  type ConnectionState,
-  connectionStateManager,
-} from '@/graphql'
+import { type ConnectionState, connectionStateManager } from '@/graphql'
 
 const STATE_CONFIG: Record<
   ConnectionState,
@@ -13,15 +10,15 @@ const STATE_CONFIG: Record<
     label: 'Connected',
     pulse: false,
   },
-  reconnecting: {
-    color: 'bg-warning-400',
-    label: 'Reconnecting…',
-    pulse: true,
-  },
   error: {
     color: 'bg-error-400',
     label: 'Connection error',
     pulse: false,
+  },
+  reconnecting: {
+    color: 'bg-warning-400',
+    label: 'Reconnecting…',
+    pulse: true,
   },
 }
 
@@ -38,10 +35,10 @@ export function ConnectionIndicator() {
 
   return (
     <div
-      role="status"
-      className="flex items-center gap-1.5"
-      title={config.label}
       aria-label={`WebSocket: ${config.label}`}
+      className="flex items-center gap-1.5"
+      role="status"
+      title={config.label}
     >
       <span className="relative flex size-2 items-center justify-center">
         {config.pulse && (
@@ -53,7 +50,7 @@ export function ConnectionIndicator() {
           className={`relative inline-flex size-2 rounded-full ${config.color}`}
         />
       </span>
-      <span className="hidden text-body-xs text-text-secondary tablet:inline">
+      <span className="tablet:inline hidden text-body-xs text-text-secondary">
         {config.label}
       </span>
     </div>

@@ -37,17 +37,17 @@ mock.module('../src/db', () => ({
 }))
 
 mock.module('../src/pubsub', () => ({
-  pubsub: { publish: () => {} },
-  publishTaskUpdated: () => {},
   publishAgentLog: () => {},
   publishCommentAdded: () => {},
   publishTaskEvent: () => {},
+  publishTaskUpdated: () => {},
+  pubsub: { publish: () => {} },
 }))
 
 // Controllable runAgent mock
 let mockRunAgentImpl: (opts: unknown) => Promise<unknown> = async (opts) => {
   const { task } = opts as { task: { id: string } }
-  return { taskId: task.id, success: true, output: 'ok' }
+  return { output: 'ok', success: true, taskId: task.id }
 }
 
 mock.module('../src/agent/runner', () => ({
@@ -66,28 +66,28 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 
 function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
   return {
-    polling: { interval_ms: 60_000 },
-    workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
-    claude: {
-      command: 'claude',
-      max_turns: 5,
-      allowed_tools: [],
-      permission_mode: undefined,
-      model: undefined,
-    },
     agent: {
       max_concurrent_agents: 5,
       max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
     },
+    claude: {
+      allowed_tools: [],
+      command: 'claude',
+      max_turns: 5,
+      model: undefined,
+      permission_mode: undefined,
+    },
     hooks: { timeout_ms: 5_000 },
+    polling: { interval_ms: 60_000 },
+    workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
   }
 }
 
 function makeWorkspaceStub() {
   return {
-    ttlMs: 0,
-    createForTask: async () => ({ path: '/tmp/fake-ws', created: true }),
+    createForTask: async () => ({ created: true, path: '/tmp/fake-ws' }),
     sweepExpired: async () => {},
+    ttlMs: 0,
   }
 }
 
@@ -255,7 +255,7 @@ describe('cancelAgent – running task', () => {
         })
         latch.then(resolve)
       })
-      return { taskId: task.id, success: false, output: '', error: 'aborted' }
+      return { error: 'aborted', output: '', success: false, taskId: task.id }
     }
 
     const id = insertTask({ agentStatus: 'queued' })
@@ -286,7 +286,7 @@ describe('cancelAgent – running task', () => {
         signal.addEventListener('abort', resolve)
         latch.then(resolve)
       })
-      return { taskId: task.id, success: false, output: '', error: 'aborted' }
+      return { error: 'aborted', output: '', success: false, taskId: task.id }
     }
 
     const id = insertTask({ agentStatus: 'queued' })
@@ -314,7 +314,7 @@ describe('cancelAgent – retry timer cleared', () => {
     // Agent always fails so retry scheduling is triggered
     mockRunAgentImpl = async (opts) => {
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: false, output: '', error: 'fail' }
+      return { error: 'fail', output: '', success: false, taskId: task.id }
     }
 
     // Use a long backoff so the timer does NOT fire before we call cancel

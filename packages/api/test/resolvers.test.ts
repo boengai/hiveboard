@@ -190,14 +190,14 @@ describe('createTask', () => {
     insertTask(db, {
       boardId: board.id,
       columnId: col.id,
-      title: 'Task 1',
       position: 0,
+      title: 'Task 1',
     })
     insertTask(db, {
       boardId: board.id,
       columnId: col.id,
-      title: 'Task 2',
       position: 1024,
+      title: 'Task 2',
     })
 
     const tasks = db

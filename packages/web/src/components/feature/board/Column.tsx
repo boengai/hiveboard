@@ -23,7 +23,7 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-body font-medium text-text-primary">
+          <span className="font-medium text-body text-text-primary">
             {column.name}
           </span>
           <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-surface-overlay px-1.5 text-body-xs text-text-tertiary">
@@ -31,10 +31,10 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
           </span>
         </div>
         <button
-          type="button"
-          onClick={() => openDrawerCreate(column.id)}
-          className="flex h-6 w-6 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
           aria-label={`Add task to ${column.name}`}
+          className="flex h-6 w-6 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
+          onClick={() => openDrawerCreate(column.id)}
+          type="button"
         >
           <PlusIcon size={14} />
         </button>
@@ -42,9 +42,9 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
 
       {/* Task list drop zone */}
       <div
-        ref={setNodeRef}
-        className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2 data-[is-over=true]:rounded-b-lg data-[is-over=true]:bg-surface-overlay/40 pt-1"
+        className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pt-1 pb-2 data-[is-over=true]:rounded-b-lg data-[is-over=true]:bg-surface-overlay/40"
         data-is-over={isOver ? 'true' : 'false'}
+        ref={setNodeRef}
         style={{ minHeight: '4rem' }}
       >
         {dropTargetTaskId === null && (
@@ -73,10 +73,10 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
           <div className="mt-1 flex flex-col gap-2">
             {archivedTasks.map((task) => (
               <button
-                key={task.id}
-                type="button"
-                onClick={() => openDrawerView(task.id)}
                 className="w-full cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 text-left opacity-50 hover:opacity-70"
+                key={task.id}
+                onClick={() => openDrawerView(task.id)}
+                type="button"
               >
                 <div className="mb-1 flex items-center gap-2">
                   <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-body-xs text-gray-400">

@@ -39,11 +39,11 @@ mock.module('../src/db', () => ({
 }))
 
 mock.module('../src/pubsub', () => ({
-  pubsub: { publish: () => {} },
-  publishTaskUpdated: () => {},
   publishAgentLog: () => {},
   publishCommentAdded: () => {},
   publishTaskEvent: () => {},
+  publishTaskUpdated: () => {},
+  pubsub: { publish: () => {} },
 }))
 
 // The orchestrator singleton is referenced by resolvers; stub it out

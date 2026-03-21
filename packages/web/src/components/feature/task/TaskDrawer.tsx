@@ -43,24 +43,24 @@ import { TaskTimeline, timeAgo } from './TaskTimeline'
 
 const agentDot = tv({
   base: 'size-2 rounded-full',
+  defaultVariants: { status: 'idle' },
   variants: {
     status: {
       active: 'animate-pulse bg-info-400',
-      success: 'bg-success-400',
       failed: 'bg-error-400',
       idle: 'bg-gray-600',
+      success: 'bg-success-400',
     },
   },
-  defaultVariants: { status: 'idle' },
 })
 
 const ACTION_OPTIONS = [
-  { value: 'idle', label: 'Idle' },
-  { value: 'plan', label: 'Plan' },
-  { value: 'research', label: 'Research' },
-  { value: 'implement', label: 'Implement' },
-  { value: 'implement-e2e', label: 'Implement E2E' },
-  { value: 'revise', label: 'Revise' },
+  { label: 'Idle', value: 'idle' },
+  { label: 'Plan', value: 'plan' },
+  { label: 'Research', value: 'research' },
+  { label: 'Implement', value: 'implement' },
+  { label: 'Implement E2E', value: 'implement-e2e' },
+  { label: 'Revise', value: 'revise' },
 ]
 
 function actionColor(action: string | null): ActionColor {
@@ -100,16 +100,16 @@ function agentStatusColor(status: string): ActionColor {
 // ---------------------------------------------------------------------------
 
 const emptyForm: FormState = {
-  title: '',
-  body: '## Description\n',
   action: '',
-  targetRepo: '',
-  targetBranch: 'main',
+  body: '## Description\n',
   tagIds: [],
+  targetBranch: 'main',
+  targetRepo: '',
+  title: '',
 }
 
 const SectionLabel = ({ children }: { children: ReactNode }) => (
-  <span className="text-body-xs font-semibold uppercase tracking-widest text-text-tertiary">
+  <span className="font-semibold text-body-xs text-text-tertiary uppercase tracking-widest">
     {children}
   </span>
 )
@@ -124,8 +124,8 @@ const FieldLabel = ({
   required?: boolean
 }) => (
   <label
+    className="font-medium text-body-sm text-text-secondary"
     htmlFor={htmlFor}
-    className="text-body-sm font-medium text-text-secondary"
   >
     {children}
     {required && <span className="ml-0.5 text-honey-400">*</span>}
@@ -155,11 +155,11 @@ const CreateMode = ({
         </FieldLabel>
         <TextInput
           id="create-title"
-          ref={titleRef}
-          placeholder="Task title"
-          value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSubmit()}
+          placeholder="Task title"
+          ref={titleRef}
+          value={form.title}
         />
       </div>
 
@@ -167,16 +167,16 @@ const CreateMode = ({
       <div className="flex flex-col gap-2">
         <FieldLabel>Tags</FieldLabel>
         <ComboboxInput
-          value={form.tagIds}
+          createLabel="Add tag"
+          onCreateOption={onCreateTag}
           onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
           options={boardTags.map((t) => ({
-            value: t.id,
-            label: t.name,
             color: t.color,
+            label: t.name,
+            value: t.id,
           }))}
           placeholder="Search or create tags…"
-          onCreateOption={onCreateTag}
-          createLabel="Add tag"
+          value={form.tagIds}
         />
       </div>
 
@@ -184,10 +184,10 @@ const CreateMode = ({
       <div className="flex flex-col gap-2">
         <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
-          value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
           placeholder="Optional description…"
           rows={12}
+          value={form.body}
         />
       </div>
 
@@ -202,11 +202,11 @@ const CreateMode = ({
               </FieldLabel>
               <TextInput
                 id="create-target-repo"
-                placeholder="owner/repo"
-                value={form.targetRepo}
                 onChange={(e) =>
                   setForm({ ...form, targetRepo: e.target.value })
                 }
+                placeholder="owner/repo"
+                value={form.targetRepo}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -215,11 +215,11 @@ const CreateMode = ({
               </FieldLabel>
               <TextInput
                 id="create-target-branch"
-                placeholder="main"
-                value={form.targetBranch}
                 onChange={(e) =>
                   setForm({ ...form, targetBranch: e.target.value })
                 }
+                placeholder="main"
+                value={form.targetBranch}
               />
             </div>
           </div>
@@ -227,10 +227,10 @@ const CreateMode = ({
       </div>
 
       {/* Footer */}
-      <div className="mt-auto border-t border-border-default pt-5">
+      <div className="mt-auto border-border-default border-t pt-5">
         <Button
-          color="primary"
           block
+          color="primary"
           disabled={
             !form.title.trim() ||
             !form.targetRepo.trim() ||
@@ -252,23 +252,23 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
       {/* Header area */}
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-heading-3 font-semibold leading-tight text-text-primary">
+          <h2 className="font-semibold text-heading-3 text-text-primary leading-tight">
             {task.title}
           </h2>
           <div className="flex shrink-0 items-center gap-1 pt-0.5">
             <Button
               color="ghost"
-              size="small"
               onClick={onEdit}
+              size="small"
               title="Edit task"
             >
               <PencilIcon size={16} />
             </Button>
             <Button
               color="ghost"
-              size="small"
               disabled={loading}
               onClick={onArchive}
+              size="small"
               title={task.archived ? 'Unarchive task' : 'Archive task'}
             >
               {task.archived ? (
@@ -284,7 +284,7 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
         <div className="flex flex-wrap items-center gap-2">
           {task.targetRepo && (
             <div className="flex items-center gap-2">
-              <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
+              <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary">
                 <GitHubIcon size={14} />
                 <span>{task.targetRepo}</span>
               </div>
@@ -297,10 +297,10 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
           )}
           {task.prUrl && (
             <a
+              className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 font-medium text-body-xs text-info-400 transition-colors hover:bg-info-400/20"
               href={task.prUrl}
-              target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 text-body-xs font-medium text-info-400 transition-colors hover:bg-info-400/20"
+              target="_blank"
             >
               PR #{task.prNumber}
             </a>
@@ -309,9 +309,9 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
             const bg = `${tag.color}20`
             return (
               <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-body-xs"
                 key={tag.id}
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
-                style={{ color: tag.color, backgroundColor: bg }}
+                style={{ backgroundColor: bg, color: tag.color }}
               >
                 {tag.name}
               </span>
@@ -325,7 +325,7 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
       {task.body ? (
         <MarkdownPreview content={task.body} />
       ) : (
-        <p className="text-body-sm italic text-text-tertiary">No description</p>
+        <p className="text-body-sm text-text-tertiary italic">No description</p>
       )}
 
       {/* Timestamp */}
@@ -356,7 +356,7 @@ const AgentPanel = ({
     task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
 
   return (
-    <div className="rounded-lg border border-border-default bg-surface-overlay/40 p-4 flex flex-col gap-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-overlay/40 p-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -387,7 +387,7 @@ const AgentPanel = ({
 
       {/* Error */}
       {task.agentError && (
-        <p className="rounded-md border border-error-400/20 bg-error-400/10 px-3 py-2 text-body-xs text-error-400 font-mono leading-relaxed">
+        <p className="rounded-md border border-error-400/20 bg-error-400/10 px-3 py-2 font-mono text-body-xs text-error-400 leading-relaxed">
           {task.agentError}
         </p>
       )}
@@ -396,11 +396,11 @@ const AgentPanel = ({
       <div className="flex items-center gap-2 pt-1">
         <div className="flex-1">
           <SelectInput
-            value={task.action || undefined}
-            placeholder="Select action…"
-            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
-            onValueChange={onUpdateAction}
             disabled={isAgentActive || loading}
+            onValueChange={onUpdateAction}
+            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
+            placeholder="Select action…"
+            value={task.action || undefined}
           />
         </div>
         <Button
@@ -444,9 +444,9 @@ const EditMode = ({
         </FieldLabel>
         <TextInput
           id="edit-title"
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
           ref={titleRef}
           value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
         />
       </div>
 
@@ -454,16 +454,16 @@ const EditMode = ({
       <div className="flex flex-col gap-2">
         <FieldLabel>Tags</FieldLabel>
         <ComboboxInput
-          value={form.tagIds}
+          createLabel="Add tag"
+          onCreateOption={onCreateTag}
           onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
           options={boardTags.map((t) => ({
-            value: t.id,
-            label: t.name,
             color: t.color,
+            label: t.name,
+            value: t.id,
           }))}
           placeholder="Search or create tags…"
-          onCreateOption={onCreateTag}
-          createLabel="Add tag"
+          value={form.tagIds}
         />
       </div>
 
@@ -471,9 +471,9 @@ const EditMode = ({
       <div className="flex flex-col gap-2">
         <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
-          value={form.body}
           onChange={(v) => setForm({ ...form, body: v })}
           rows={12}
+          value={form.body}
         />
       </div>
 
@@ -489,11 +489,11 @@ const EditMode = ({
               </FieldLabel>
               <TextInput
                 id="edit-target-repo"
-                placeholder="owner/repo"
-                value={form.targetRepo}
                 onChange={(e) =>
                   setForm({ ...form, targetRepo: e.target.value })
                 }
+                placeholder="owner/repo"
+                value={form.targetRepo}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -502,11 +502,11 @@ const EditMode = ({
               </FieldLabel>
               <TextInput
                 id="edit-target-branch"
-                placeholder="main"
-                value={form.targetBranch}
                 onChange={(e) =>
                   setForm({ ...form, targetBranch: e.target.value })
                 }
+                placeholder="main"
+                value={form.targetBranch}
               />
             </div>
           </div>
@@ -514,10 +514,9 @@ const EditMode = ({
       </div>
 
       {/* Footer */}
-      <div className="mt-auto flex items-center gap-3 border-t border-border-default pt-5 *:w-1/2">
+      <div className="mt-auto flex items-center gap-3 border-border-default border-t pt-5 *:w-1/2">
         <Button
           color="primary"
-          size="large"
           disabled={
             !form.title.trim() ||
             !form.targetRepo.trim() ||
@@ -525,14 +524,15 @@ const EditMode = ({
             loading
           }
           onClick={onSave}
+          size="large"
         >
           {loading ? 'Saving…' : 'Save Changes'}
         </Button>
         <Button
           color="ghost"
-          size="large"
           disabled={loading}
           onClick={onCancel}
+          size="large"
         >
           Cancel
         </Button>
@@ -612,14 +612,14 @@ export const TaskDrawer = () => {
     try {
       await graphqlClient.request(CREATE_TASK, {
         input: {
-          boardId: board.id,
-          columnId: createTaskColumnId,
-          title: createForm.title.trim(),
-          body: createForm.body || null,
           action: 'idle',
-          targetRepo: createForm.targetRepo.trim() || null,
-          targetBranch: createForm.targetBranch.trim() || 'main',
+          boardId: board.id,
+          body: createForm.body || null,
+          columnId: createTaskColumnId,
           tagIds: createForm.tagIds.length > 0 ? createForm.tagIds : null,
+          targetBranch: createForm.targetBranch.trim() || 'main',
+          targetRepo: createForm.targetRepo.trim() || null,
+          title: createForm.title.trim(),
         },
       })
       await refetchBoard()
@@ -640,12 +640,12 @@ export const TaskDrawer = () => {
         {
           id: task.id,
           input: {
-            title: editForm.title.trim(),
-            body: editForm.body,
             action: editForm.action || null,
-            targetRepo: editForm.targetRepo.trim() || null,
-            targetBranch: editForm.targetBranch.trim() || null,
+            body: editForm.body,
             tagIds: editForm.tagIds,
+            targetBranch: editForm.targetBranch.trim() || null,
+            targetRepo: editForm.targetRepo.trim() || null,
+            title: editForm.title.trim(),
           },
         },
       )
@@ -708,8 +708,8 @@ export const TaskDrawer = () => {
       const data = await graphqlClient.request<{
         dispatchAgent: Partial<Task>
       }>(DISPATCH_AGENT, {
-        taskId: task.id,
         action,
+        taskId: task.id,
       })
       setTask({ ...task, ...data.dispatchAgent })
     } catch (e) {
@@ -740,12 +740,12 @@ export const TaskDrawer = () => {
   const enterEdit = () => {
     if (!task) return
     setEditForm({
-      title: task.title,
-      body: task.body ?? '',
       action: task.action ?? '',
-      targetRepo: task.targetRepo ?? '',
-      targetBranch: task.targetBranch ?? 'main',
+      body: task.body ?? '',
       tagIds: task.tags?.map((t) => t.id) ?? [],
+      targetBranch: task.targetBranch ?? 'main',
+      targetRepo: task.targetRepo ?? '',
+      title: task.title,
     })
     setIsEditing(true)
   }
@@ -764,7 +764,7 @@ export const TaskDrawer = () => {
       const data = await graphqlClient.request<{
         createTag: Tag
       }>(CREATE_TAG, {
-        input: { boardId: board.id, name, color: hashToColor(name) },
+        input: { boardId: board.id, color: hashToColor(name), name },
       })
       const newTag = data.createTag
       await refetchBoard()
@@ -785,21 +785,21 @@ export const TaskDrawer = () => {
 
   return (
     <Drawer
-      title={drawerTitle}
-      open={drawerMode !== 'closed'}
       onOpenChange={(open) => {
         if (!open) closeDrawer()
       }}
+      open={drawerMode !== 'closed'}
       size="wide"
+      title={drawerTitle}
     >
       {drawerMode === 'create' && (
         <CreateMode
-          form={createForm}
-          setForm={setCreateForm}
-          onSubmit={handleCreate}
-          loading={loading}
           boardTags={board?.tags ?? []}
+          form={createForm}
+          loading={loading}
           onCreateTag={(name) => handleCreateTag(name, setCreateForm)}
+          onSubmit={handleCreate}
+          setForm={setCreateForm}
         />
       )}
 
@@ -811,33 +811,33 @@ export const TaskDrawer = () => {
 
       {drawerMode === 'view' && task && !isEditing && (
         <ViewMode
-          task={task}
-          onEdit={enterEdit}
-          onArchive={handleArchive}
           loading={loading}
+          onArchive={handleArchive}
+          onEdit={enterEdit}
+          task={task}
         />
       )}
 
       {drawerMode === 'view' && task && isEditing && (
         <EditMode
-          form={editForm}
-          setForm={setEditForm}
-          onSave={handleSaveEdit}
-          onCancel={cancelEdit}
-          loading={loading}
           boardTags={board?.tags ?? []}
+          form={editForm}
+          loading={loading}
+          onCancel={cancelEdit}
           onCreateTag={(name) => handleCreateTag(name, setEditForm)}
+          onSave={handleSaveEdit}
+          setForm={setEditForm}
         />
       )}
 
       {/* Agent panel — view mode only, hidden during edit */}
       {drawerMode === 'view' && task && !isEditing && (
         <AgentPanel
-          task={task}
-          onDispatch={handleDispatch}
-          onCancel={handleCancelAgent}
-          onUpdateAction={handleUpdateAction}
           loading={loading}
+          onCancel={handleCancelAgent}
+          onDispatch={handleDispatch}
+          onUpdateAction={handleUpdateAction}
+          task={task}
         />
       )}
 
@@ -846,12 +846,12 @@ export const TaskDrawer = () => {
         task &&
         !isEditing &&
         (task.agentStatus === 'RUNNING' || task.agentOutput) && (
-          <AgentLogStream taskId={task.id} agentStatus={task.agentStatus} />
+          <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
         )}
 
       {/* Timeline — view mode only, not during edit */}
       {drawerMode === 'view' && task && !isEditing && (
-        <div className="flex flex-col gap-3 border-t border-border-default pt-5">
+        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
           <SectionLabel>Activity</SectionLabel>
           <TaskTimeline taskId={task.id} />
         </div>
@@ -859,7 +859,7 @@ export const TaskDrawer = () => {
 
       {/* Comments — view mode only, not during edit */}
       {drawerMode === 'view' && task && !isEditing && (
-        <div className="flex flex-col gap-3 border-t border-border-default pt-5">
+        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
           <SectionLabel>Comments</SectionLabel>
           <TaskComments taskId={task.id} />
         </div>

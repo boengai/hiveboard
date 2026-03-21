@@ -42,23 +42,23 @@ type RunState = {
 
 function mapTask(row: TaskRow) {
   return {
-    id: row.id,
-    board_id: row.board_id,
-    column_id: row.column_id,
-    title: row.title,
-    body: row.body,
     action: row.action,
-    target_repo: row.target_repo,
-    target_branch: row.target_branch,
     agent_status: row.agent_status,
-    retry_count: row.retry_count,
+    agentStatus: row.agent_status.toUpperCase(),
+    board_id: row.board_id,
+    body: row.body,
+    column_id: row.column_id,
     created_at: row.created_at,
-    updated_at: row.updated_at,
+    id: row.id,
+    retry_count: row.retry_count,
+    retryCount: row.retry_count,
+    target_branch: row.target_branch,
+    target_repo: row.target_repo,
+    targetBranch: row.target_branch,
     // GraphQL-cased fields
     targetRepo: row.target_repo,
-    targetBranch: row.target_branch,
-    agentStatus: row.agent_status.toUpperCase(),
-    retryCount: row.retry_count,
+    title: row.title,
+    updated_at: row.updated_at,
   }
 }
 
@@ -320,21 +320,21 @@ export class Orchestrator {
       }
       if (startedEvent) {
         pubsub.publish('TASK_EVENT', task.id, {
-          id: startedEvent.id,
-          type: startedEvent.type,
-          data: startedEvent.data,
-          createdAt: startedEvent.created_at,
-          isSystem: true,
           _actor: 'SYSTEM',
+          createdAt: startedEvent.created_at,
+          data: startedEvent.data,
+          id: startedEvent.id,
+          isSystem: true,
+          type: startedEvent.type,
         } as unknown as Record<string, unknown>)
       }
 
       // 6. Create workspace
       const ws = await this.workspace.createForTask({
         id: task.id,
-        title: task.title,
-        targetRepo: task.target_repo,
         targetBranch: task.target_branch,
+        targetRepo: task.target_repo,
+        title: task.title,
       })
 
       // 7. Set up RunState
@@ -347,13 +347,13 @@ export class Orchestrator {
       })
 
       const runState: RunState = {
-        taskId: task.id,
-        workspacePath: ws.path,
-        retryAttempt,
-        startedAt: new Date(),
         abortController,
         done,
         resolveDone,
+        retryAttempt,
+        startedAt: new Date(),
+        taskId: task.id,
+        workspacePath: ws.path,
       }
 
       this.running.set(task.id, runState)
@@ -406,37 +406,37 @@ export class Orchestrator {
       }
 
       const result = await runAgent({
-        task: {
-          id: task.id,
-          title: task.title,
-          body: task.body,
-          action: task.action,
-          targetRepo: task.target_repo,
-          targetBranch: task.target_branch,
-        },
-        workspacePath: runState.workspacePath,
-        promptTemplate: this.promptTemplate,
         config: this.config,
-        retryAttempt: runState.retryAttempt,
-        reviewComments,
-        signal: runState.abortController.signal,
         onLog: (chunk) => {
           pubsub.publish('AGENT_LOG', task.id, {
-            taskId: task.id,
             chunk,
+            taskId: task.id,
             timestamp: new Date().toISOString(),
           } as unknown as Record<string, unknown>)
         },
+        promptTemplate: this.promptTemplate,
+        retryAttempt: runState.retryAttempt,
+        reviewComments,
+        signal: runState.abortController.signal,
+        task: {
+          action: task.action,
+          body: task.body,
+          id: task.id,
+          targetBranch: task.target_branch,
+          targetRepo: task.target_repo,
+          title: task.title,
+        },
+        workspacePath: runState.workspacePath,
       })
 
       await this.onComplete(task, runId, result)
     } catch (err) {
       consola.error(`Agent crashed for task ${task.id}:`, err)
       await this.onComplete(task, runId, {
-        taskId: task.id,
-        success: false,
-        output: '',
         error: String(err),
+        output: '',
+        success: false,
+        taskId: task.id,
       })
     } finally {
       this.running.delete(task.id)
@@ -460,8 +460,8 @@ export class Orchestrator {
   ): Promise<void> {
     // Publish [DONE] marker so frontend knows stream ended
     publishAgentLog(task.id, {
-      taskId: task.id,
       chunk: '[DONE]',
+      taskId: task.id,
       timestamp: new Date().toISOString(),
     })
 
@@ -573,11 +573,11 @@ export class Orchestrator {
 
       // Publish agent_succeeded event
       pubsub.publish('TASK_EVENT', task.id, {
-        type: 'agent_succeeded',
-        data: JSON.stringify({ action: task.action, pr_url: prUrl }),
-        createdAt: new Date().toISOString(),
-        isSystem: true,
         _actor: 'SYSTEM',
+        createdAt: new Date().toISOString(),
+        data: JSON.stringify({ action: task.action, pr_url: prUrl }),
+        isSystem: true,
+        type: 'agent_succeeded',
       } as unknown as Record<string, unknown>)
     } else {
       consola.warn(`Task ${task.id} failed: ${result.error?.slice(0, 100)}`)
@@ -615,11 +615,11 @@ export class Orchestrator {
       )
 
       pubsub.publish('TASK_EVENT', task.id, {
-        type: 'agent_failed',
-        data: JSON.stringify({ action: task.action, error: result.error }),
-        createdAt: new Date().toISOString(),
-        isSystem: true,
         _actor: 'SYSTEM',
+        createdAt: new Date().toISOString(),
+        data: JSON.stringify({ action: task.action, error: result.error }),
+        isSystem: true,
+        type: 'agent_failed',
       } as unknown as Record<string, unknown>)
 
       // Schedule retry with exponential backoff
@@ -708,8 +708,8 @@ export class Orchestrator {
   /** Get current status summary. */
   getStatus(): { running: number; pendingRetries: number } {
     return {
-      running: this.running.size,
       pendingRetries: this.retryTimers.size,
+      running: this.running.size,
     }
   }
 }
