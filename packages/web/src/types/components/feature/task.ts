@@ -32,7 +32,6 @@ export type ViewModeProps = {
   task: Task
   onEdit: () => void
   onArchive: () => Promise<void>
-  onDelete: () => Promise<void>
   loading: boolean
 }
 

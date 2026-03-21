@@ -13,7 +13,7 @@ import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
   CREATE_TASK,
-  DELETE_TASK,
+
   DISPATCH_AGENT,
   GET_BOARD,
   GET_TASK,
@@ -167,7 +167,6 @@ const ViewMode = ({
   task,
   onEdit,
   onArchive,
-  onDelete,
   loading,
 }: ViewModeProps) => {
   return (
@@ -222,16 +221,6 @@ const ViewMode = ({
         >
           {task.archived ? 'Unarchive' : 'Archive'}
         </Button>
-        <div className="ml-auto">
-          <Button
-            color="danger"
-            size="small"
-            disabled={loading}
-            onClick={onDelete}
-          >
-            Delete
-          </Button>
-        </div>
       </div>
     </div>
   )
@@ -517,21 +506,6 @@ export const TaskDrawer = () => {
     }
   }
 
-  const handleDelete = async () => {
-    if (!task) return
-    if (!window.confirm('Are you sure you want to delete this task?')) return
-    setLoading(true)
-    try {
-      await graphqlClient.request(DELETE_TASK, { id: task.id })
-      await refetchBoard()
-      closeDrawer()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleDispatch = async (action: string) => {
     if (!task) return
     setLoading(true)
@@ -618,7 +592,7 @@ export const TaskDrawer = () => {
           task={task}
           onEdit={enterEdit}
           onArchive={handleArchive}
-          onDelete={handleDelete}
+
           loading={loading}
         />
       )}
