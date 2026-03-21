@@ -1,8 +1,5 @@
 import { Badge } from '@/components/common/badge'
-
-type AgentStatus = 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | string
-
-type BadgeColor = 'default' | 'info' | 'purple' | 'success' | 'teal' | 'warning' | 'error' | 'honey'
+import type { AgentStatus, BadgeColor, AgentStatusBadgeProps } from '@/types/components/feature/agent'
 
 function agentStatusColor(status: AgentStatus): BadgeColor {
   switch (status) {
@@ -13,10 +10,6 @@ function agentStatusColor(status: AgentStatus): BadgeColor {
     case 'FAILED': return 'error'
     default: return 'default'
   }
-}
-
-interface AgentStatusBadgeProps {
-  status: AgentStatus
 }
 
 export function AgentStatusBadge({ status }: AgentStatusBadgeProps) {

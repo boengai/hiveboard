@@ -4,6 +4,7 @@ import { m } from 'motion/react'
 import { tv } from '@/utils/tailwind-variants'
 import { useBoardStore, type Task } from '@/store/boardStore'
 import { SpinnerIcon, CheckIcon, XMarkIcon } from '@/components/common/icon'
+import type { TaskCardProps } from '@/types/components/feature/board'
 
 // Action badge styles
 const actionBadge = tv({
@@ -38,10 +39,6 @@ function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
     return <span className="inline-flex text-error-400"><XMarkIcon size={12} /></span>
   }
   return null
-}
-
-interface TaskCardProps {
-  task: Task
 }
 
 export function TaskCard({ task }: TaskCardProps) {

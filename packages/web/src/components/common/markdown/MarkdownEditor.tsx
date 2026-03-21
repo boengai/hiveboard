@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
+import type { MarkdownEditorProps } from "@/types/components/common/markdown";
 import { MarkdownPreview } from "./MarkdownPreview";
 
 const TabTrigger = ({ value, children }: { value: string; children: ReactNode }) => (
@@ -11,13 +12,6 @@ const TabTrigger = ({ value, children }: { value: string; children: ReactNode })
     {children}
   </Tabs.Trigger>
 );
-
-interface MarkdownEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  rows?: number;
-}
 
 export const MarkdownEditor = ({
   value,

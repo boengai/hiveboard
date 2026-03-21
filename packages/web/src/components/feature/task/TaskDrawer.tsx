@@ -20,6 +20,14 @@ import { TaskTimeline } from './TaskTimeline'
 import { TaskComments } from './TaskComments'
 import { timeAgo } from './TaskTimeline'
 import { AgentLogStream } from '@/components/feature/agent'
+import type {
+  ActionColor,
+  FormState,
+  CreateModeProps,
+  ViewModeProps,
+  AgentPanelProps,
+  EditModeProps,
+} from '@/types/components/feature/task'
 
 const ACTION_OPTIONS = [
   { value: '', label: 'None' },
@@ -29,8 +37,6 @@ const ACTION_OPTIONS = [
   { value: 'implement-e2e', label: 'Implement E2E' },
   { value: 'revise', label: 'Revise' },
 ]
-
-type ActionColor = 'default' | 'info' | 'purple' | 'success' | 'teal' | 'warning' | 'error' | 'honey'
 
 function actionColor(action: string | null): ActionColor {
   switch (action) {
@@ -57,21 +63,7 @@ function agentStatusColor(status: string): ActionColor {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-interface FormState {
-  title: string
-  body: string
-  action: string
-  targetRepo: string
-}
-
 const emptyForm: FormState = { title: '', body: '', action: '', targetRepo: '' }
-
-interface CreateModeProps {
-  form: FormState
-  setForm: (f: FormState) => void
-  onSubmit: () => Promise<void>
-  loading: boolean
-}
 
 const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
@@ -141,14 +133,6 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
   )
 }
 
-interface ViewModeProps {
-  task: Task
-  onEdit: () => void
-  onArchive: () => Promise<void>
-  onDelete: () => Promise<void>
-  loading: boolean
-}
-
 const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps) => {
   return (
     <div className="flex grow flex-col gap-5">
@@ -211,14 +195,6 @@ const ViewMode = ({ task, onEdit, onArchive, onDelete, loading }: ViewModeProps)
   )
 }
 
-interface AgentPanelProps {
-  task: Task
-  onDispatch: (action: string) => Promise<void>
-  onCancel: () => Promise<void>
-  loading: boolean
-  readOnly?: boolean
-}
-
 const AgentPanel = ({ task, onDispatch, onCancel, loading, readOnly = false }: AgentPanelProps) => {
   const [dispatchAction, setDispatchAction] = useState(task.action ?? '')
 
@@ -273,14 +249,6 @@ const AgentPanel = ({ task, onDispatch, onCancel, loading, readOnly = false }: A
       </div>
     </div>
   )
-}
-
-interface EditModeProps {
-  form: FormState
-  setForm: (f: FormState) => void
-  onSave: () => Promise<void>
-  onCancel: () => void
-  loading: boolean
 }
 
 const EditMode = ({ form, setForm, onSave, onCancel, loading }: EditModeProps) => {

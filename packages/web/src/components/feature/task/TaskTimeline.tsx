@@ -21,57 +21,12 @@ import {
   subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
 } from "@/graphql/subscriptions";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface TimelineEntry {
-  id: string;
-  type: "event" | "comment";
-  createdAt: string;
-  // event fields
-  eventType?: string;
-  actor?: { username: string; displayName: string } | null;
-  isSystem?: boolean;
-  data?: string | null;
-  // comment fields
-  body?: string;
-  createdBy?: { username: string; displayName: string };
-  parentId?: string | null;
-  replies?: Array<{
-    id: string;
-    body: string;
-    createdBy: { username: string; displayName: string };
-    createdAt: string;
-  }>;
-}
-
-interface RawTimelineEvent {
-  id: string;
-  type: string;
-  isSystem: boolean;
-  data: string | null;
-  createdAt: string;
-  actor: { id: string; username: string; displayName: string } | null;
-}
-
-interface RawComment {
-  id: string;
-  body: string;
-  parentId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: { id: string; username: string; displayName: string };
-  replies: Array<{
-    id: string;
-    body: string;
-    parentId: string | null;
-    createdAt: string;
-    updatedAt: string;
-    createdBy: { id: string; username: string; displayName: string };
-  }>;
-}
+import type {
+  TimelineEntry,
+  RawTimelineEvent,
+  RawComment,
+  TaskTimelineProps,
+} from "@/types/components/feature/task";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -282,12 +237,6 @@ function CommentRow({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-
-interface TaskTimelineProps {
-  taskId: string;
-  /** Called when a comment is added/updated so parent can refresh */
-  onCommentMutation?: () => void;
-}
 
 export function TaskTimeline({ taskId }: TaskTimelineProps) {
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
