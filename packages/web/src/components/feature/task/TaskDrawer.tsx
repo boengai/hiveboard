@@ -2,8 +2,10 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import {
   ArchiveIcon,
+  Avatar,
   Badge,
   Button,
+  ComboboxInput,
   Drawer,
   MarkdownEditor,
   MarkdownPreview,
@@ -12,10 +14,12 @@ import {
   SelectInput,
   TextInput,
 } from '@/components/common'
+import { GitHubIcon } from '@/components/common/icon'
 import { AgentLogStream } from '@/components/feature/agent'
 import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
+  CREATE_TAG,
   CREATE_TASK,
   DISPATCH_AGENT,
   GET_BOARD,
@@ -24,7 +28,7 @@ import {
   UNARCHIVE_TASK,
   UPDATE_TASK,
 } from '@/graphql'
-import { type Task, useBoardStore } from '@/store'
+import { type Tag, type Task, useBoardStore } from '@/store'
 import type {
   ActionColor,
   AgentPanelProps,
@@ -33,7 +37,7 @@ import type {
   FormState,
   ViewModeProps,
 } from '@/types'
-import { tv } from '@/utils'
+import { hashToColor, tv } from '@/utils'
 import { TaskComments } from './TaskComments'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
 
@@ -101,6 +105,7 @@ const emptyForm: FormState = {
   action: '',
   targetRepo: '',
   targetBranch: 'main',
+  tagIds: [],
 }
 
 const SectionLabel = ({ children }: { children: ReactNode }) => (
@@ -127,7 +132,14 @@ const FieldLabel = ({
   </label>
 )
 
-const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
+const CreateMode = ({
+  form,
+  setForm,
+  onSubmit,
+  loading,
+  boardTags,
+  onCreateTag,
+}: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -151,6 +163,23 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         />
       </div>
 
+      {/* Tags */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Tags</FieldLabel>
+        <ComboboxInput
+          value={form.tagIds}
+          onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
+          options={boardTags.map((t) => ({
+            value: t.id,
+            label: t.name,
+            color: t.color,
+          }))}
+          placeholder="Search or create tags…"
+          onCreateOption={onCreateTag}
+          createLabel="Add tag"
+        />
+      </div>
+
       {/* Body */}
       <div className="flex flex-col gap-2">
         <FieldLabel>Body</FieldLabel>
@@ -168,11 +197,11 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
           <div className="grid grid-cols-[1fr_1fr] gap-3">
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-repo">
+              <FieldLabel htmlFor="create-target-repo" required>
                 Target Repository
               </FieldLabel>
               <TextInput
-                id="edit-target-repo"
+                id="create-target-repo"
                 placeholder="owner/repo"
                 value={form.targetRepo}
                 onChange={(e) =>
@@ -181,9 +210,11 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-branch">Branch</FieldLabel>
+              <FieldLabel htmlFor="create-target-branch" required>
+                Branch
+              </FieldLabel>
               <TextInput
-                id="edit-target-branch"
+                id="create-target-branch"
                 placeholder="main"
                 value={form.targetBranch}
                 onChange={(e) =>
@@ -200,7 +231,12 @@ const CreateMode = ({ form, setForm, onSubmit, loading }: CreateModeProps) => {
         <Button
           color="primary"
           block
-          disabled={!form.title.trim() || loading}
+          disabled={
+            !form.title.trim() ||
+            !form.targetRepo.trim() ||
+            !form.targetBranch.trim() ||
+            loading
+          }
           onClick={onSubmit}
         >
           {loading ? 'Creating…' : 'Create Task'}
@@ -246,18 +282,18 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
 
         {/* Meta row */}
         <div className="flex flex-wrap items-center gap-2">
+          {task.targetRepo && (
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
+                <GitHubIcon size={14} />
+                <span>{task.targetRepo}</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {task.action && (
             <Badge color={actionColor(task.action)}>{task.action}</Badge>
-          )}
-          {task.targetRepo && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
-              {task.targetRepo}
-              {task.targetBranch && task.targetBranch !== 'main' && (
-                <span className="text-text-secondary">
-                  @{task.targetBranch}
-                </span>
-              )}
-            </span>
           )}
           {task.prUrl && (
             <a
@@ -269,6 +305,18 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
               PR #{task.prNumber}
             </a>
           )}
+          {task.tags?.map((tag) => {
+            const bg = `${tag.color}20`
+            return (
+              <span
+                key={tag.id}
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-body-xs font-medium"
+                style={{ color: tag.color, backgroundColor: bg }}
+              >
+                {tag.name}
+              </span>
+            )
+          })}
         </div>
       </div>
 
@@ -281,15 +329,18 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
       )}
 
       {/* Timestamp */}
-      <p className="text-body-xs text-text-tertiary">
-        Created by{' '}
-        <span className="font-medium text-text-secondary">
-          {task.createdBy.username}
-        </span>{' '}
-        · {timeAgo(task.createdAt)}
-        {task.updatedAt !== task.createdAt &&
-          ` · updated ${timeAgo(task.updatedAt)}`}
-      </p>
+      <div className="flex items-center gap-1.5 text-body-xs text-text-tertiary">
+        <Avatar name={task.createdBy.username} size="sm" />
+        <span>
+          <span className="font-medium text-text-secondary">
+            {task.createdBy.username}
+          </span>
+          {' · '}
+          {timeAgo(task.createdAt)}
+          {task.updatedAt !== task.createdAt &&
+            ` · updated ${timeAgo(task.updatedAt)}`}
+        </span>
+      </div>
     </div>
   )
 }
@@ -375,6 +426,8 @@ const EditMode = ({
   onSave,
   onCancel,
   loading,
+  boardTags,
+  onCreateTag,
 }: EditModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -397,6 +450,23 @@ const EditMode = ({
         />
       </div>
 
+      {/* Tags */}
+      <div className="flex flex-col gap-2">
+        <FieldLabel>Tags</FieldLabel>
+        <ComboboxInput
+          value={form.tagIds}
+          onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
+          options={boardTags.map((t) => ({
+            value: t.id,
+            label: t.name,
+            color: t.color,
+          }))}
+          placeholder="Search or create tags…"
+          onCreateOption={onCreateTag}
+          createLabel="Add tag"
+        />
+      </div>
+
       {/* Body */}
       <div className="flex flex-col gap-2">
         <FieldLabel>Body</FieldLabel>
@@ -414,7 +484,7 @@ const EditMode = ({
         <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
           <div className="grid grid-cols-[1fr_1fr] gap-3">
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-repo">
+              <FieldLabel htmlFor="edit-target-repo" required>
                 Target Repository
               </FieldLabel>
               <TextInput
@@ -427,7 +497,9 @@ const EditMode = ({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-branch">Branch</FieldLabel>
+              <FieldLabel htmlFor="edit-target-branch" required>
+                Branch
+              </FieldLabel>
               <TextInput
                 id="edit-target-branch"
                 placeholder="main"
@@ -446,7 +518,12 @@ const EditMode = ({
         <Button
           color="primary"
           size="large"
-          disabled={!form.title.trim() || loading}
+          disabled={
+            !form.title.trim() ||
+            !form.targetRepo.trim() ||
+            !form.targetBranch.trim() ||
+            loading
+          }
           onClick={onSave}
         >
           {loading ? 'Saving…' : 'Save Changes'}
@@ -539,9 +616,10 @@ export const TaskDrawer = () => {
           columnId: createTaskColumnId,
           title: createForm.title.trim(),
           body: createForm.body || null,
-          action: createForm.action || null,
+          action: 'idle',
           targetRepo: createForm.targetRepo.trim() || null,
           targetBranch: createForm.targetBranch.trim() || 'main',
+          tagIds: createForm.tagIds.length > 0 ? createForm.tagIds : null,
         },
       })
       await refetchBoard()
@@ -567,6 +645,7 @@ export const TaskDrawer = () => {
             action: editForm.action || null,
             targetRepo: editForm.targetRepo.trim() || null,
             targetBranch: editForm.targetBranch.trim() || null,
+            tagIds: editForm.tagIds,
           },
         },
       )
@@ -625,6 +704,7 @@ export const TaskDrawer = () => {
     if (!task) return
     setLoading(true)
     try {
+      ;``
       const data = await graphqlClient.request<{
         dispatchAgent: Partial<Task>
       }>(DISPATCH_AGENT, {
@@ -665,6 +745,7 @@ export const TaskDrawer = () => {
       action: task.action ?? '',
       targetRepo: task.targetRepo ?? '',
       targetBranch: task.targetBranch ?? 'main',
+      tagIds: task.tags?.map((t) => t.id) ?? [],
     })
     setIsEditing(true)
   }
@@ -674,10 +755,33 @@ export const TaskDrawer = () => {
     setEditForm(emptyForm)
   }
 
+  const handleCreateTag = async (
+    name: string,
+    formSetter: React.Dispatch<React.SetStateAction<FormState>>,
+  ) => {
+    if (!board) return
+    try {
+      const data = await graphqlClient.request<{
+        createTag: Tag
+      }>(CREATE_TAG, {
+        input: { boardId: board.id, name, color: hashToColor(name) },
+      })
+      const newTag = data.createTag
+      await refetchBoard()
+      formSetter((prev) => ({ ...prev, tagIds: [...prev.tagIds, newTag.id] }))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const drawerTitle =
     drawerMode === 'create'
       ? 'New Task'
-      : (task?.title ?? (loading ? 'Loading…' : 'Task'))
+      : task?.id
+        ? `Task #${task.id}`
+        : loading
+          ? 'Loading…'
+          : 'Task'
 
   return (
     <Drawer
@@ -694,6 +798,8 @@ export const TaskDrawer = () => {
           setForm={setCreateForm}
           onSubmit={handleCreate}
           loading={loading}
+          boardTags={board?.tags ?? []}
+          onCreateTag={(name) => handleCreateTag(name, setCreateForm)}
         />
       )}
 
@@ -719,6 +825,8 @@ export const TaskDrawer = () => {
           onSave={handleSaveEdit}
           onCancel={cancelEdit}
           loading={loading}
+          boardTags={board?.tags ?? []}
+          onCreateTag={(name) => handleCreateTag(name, setEditForm)}
         />
       )}
 

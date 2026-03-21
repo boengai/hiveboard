@@ -6,6 +6,7 @@ export const typeDefs = /* GraphQL */ `
     agentRuns(taskId: ID!): [AgentRun!]!
     taskTimeline(taskId: ID!): [TaskEvent!]!
     comments(taskId: ID!): [Comment!]!
+    tags(boardId: ID!): [Tag!]!
     me: User!
   }
 
@@ -20,6 +21,9 @@ export const typeDefs = /* GraphQL */ `
     addComment(taskId: ID!, body: String!, parentId: ID): Comment!
     updateComment(id: ID!, body: String!): Comment!
     deleteComment(id: ID!): Boolean!
+    createTag(input: CreateTagInput!): Tag!
+    deleteTag(id: ID!): Boolean!
+    setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
     dispatchAgent(taskId: ID!, action: String!): Task!
     cancelAgent(taskId: ID!): Task!
   }
@@ -42,6 +46,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     name: String!
     columns: [Column!]!
+    tags: [Tag!]!
     createdBy: User!
     createdAt: String!
   }
@@ -72,9 +77,16 @@ export const typeDefs = /* GraphQL */ `
     archivedAt: String
     createdBy: User!
     updatedBy: User!
+    tags: [Tag!]!
     comments: [Comment!]!
     createdAt: String!
     updatedAt: String!
+  }
+
+  type Tag {
+    id: ID!
+    name: String!
+    color: String!
   }
 
   enum AgentStatus {
@@ -128,6 +140,7 @@ export const typeDefs = /* GraphQL */ `
     action: String
     targetRepo: String
     targetBranch: String
+    tagIds: [ID!]
   }
 
   input UpdateTaskInput {
@@ -136,5 +149,12 @@ export const typeDefs = /* GraphQL */ `
     action: String
     targetRepo: String
     targetBranch: String
+    tagIds: [ID!]
+  }
+
+  input CreateTagInput {
+    boardId: ID!
+    name: String!
+    color: String
   }
 `

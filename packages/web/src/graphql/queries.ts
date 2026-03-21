@@ -9,6 +9,11 @@ export const GET_BOARDS = /* GraphQL */ `
         username
         displayName
       }
+      tags {
+        id
+        name
+        color
+      }
       columns {
         id
         name
@@ -41,6 +46,11 @@ export const GET_BOARDS = /* GraphQL */ `
             username
             displayName
           }
+          tags {
+            id
+            name
+            color
+          }
         }
       }
     }
@@ -57,6 +67,11 @@ export const GET_BOARD = /* GraphQL */ `
         id
         username
         displayName
+      }
+      tags {
+        id
+        name
+        color
       }
       columns {
         id
@@ -94,6 +109,11 @@ export const GET_BOARD = /* GraphQL */ `
             id
             name
           }
+          tags {
+            id
+            name
+            color
+          }
         }
       }
     }
@@ -109,6 +129,7 @@ export const GET_TASK = /* GraphQL */ `
       position
       action
       targetRepo
+      targetBranch
       agentStatus
       agentOutput
       agentError
@@ -132,6 +153,11 @@ export const GET_TASK = /* GraphQL */ `
       column {
         id
         name
+      }
+      tags {
+        id
+        name
+        color
       }
       comments {
         id

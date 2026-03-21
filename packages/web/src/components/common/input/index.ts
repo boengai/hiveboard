@@ -1,3 +1,4 @@
+export { ComboboxInput } from './ComboboxInput'
 export { SelectInput } from './SelectInput'
 export { SwitchInput } from './SwitchInput'
 export { TextAreaInput } from './TextAreaInput'

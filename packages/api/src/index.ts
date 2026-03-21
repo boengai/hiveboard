@@ -36,6 +36,7 @@ startOrchestrator()
 const yoga = createYoga({
   schema: createSchema({ typeDefs, resolvers }),
   graphqlEndpoint: '/graphql',
+  maskedErrors: false,
   cors: {
     origin: '*',
     credentials: true,

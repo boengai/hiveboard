@@ -1,7 +1,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
-import { CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
+import { Avatar, CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
+import { GitHubIcon } from '@/components/common/icon'
 import { type Task, useBoardStore } from '@/store'
 import type { TaskCardProps } from '@/types'
 import { tv } from '@/utils'
@@ -86,37 +87,63 @@ export function TaskCard({ task }: TaskCardProps) {
       {...listeners}
       whileHover={{ y: -1 }}
       onClick={() => openDrawerView(task.id)}
-      className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 hover:border-border-hover hover:shadow-xs select-none opacity-100 data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md"
+      className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 hover:border-border-hover hover:shadow-xs select-none opacity-100 data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md flex flex-col gap-1"
       data-dragging={isDragging ? 'true' : 'false'}
     >
       {/* Title */}
-      <p className="mb-2 line-clamp-2 text-body text-text-primary">
-        {task.title}
-      </p>
+      <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
 
-      {/* Footer row */}
-      <div className="flex items-center gap-2">
-        {/* Agent status */}
-        <AgentStatusDot status={task.agentStatus} />
-
-        {/* Action badge */}
-        {task.action && badgeClass && (
-          <span className={badgeClass}>{task.action}</span>
-        )}
-
-        <div className="flex-1" />
-
+      <div className="flex flex-col gap-1">
         {/* Target repo */}
         {task.targetRepo && (
-          <span className="max-w-[80px] truncate text-body-xs text-text-tertiary">
-            {task.targetRepo}
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
+              <GitHubIcon size={14} />
+              <span>{task.targetRepo}</span>
+            </div>
+          </div>
         )}
 
-        {/* Created by */}
-        <span className="text-body-xs text-text-tertiary">
-          @{task.createdBy.username}
-        </span>
+        {/* Footer row */}
+        <div className="flex items-center gap-2">
+          {/* Agent status — hidden when idle */}
+          {task.agentStatus !== 'IDLE' && (
+            <AgentStatusDot status={task.agentStatus} />
+          )}
+
+          {/* Action badge */}
+          {task.action && badgeClass && (
+            <span className={badgeClass}>{task.action}</span>
+          )}
+
+          {/* Tags */}
+          {task.tags?.length > 0 && (
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+              {task.tags.slice(0, 3).map((tag) => {
+                const bg = `${tag.color}20`
+                return (
+                  <span
+                    key={tag.id}
+                    className="inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-body-xs font-medium"
+                    style={{ color: tag.color, backgroundColor: bg }}
+                  >
+                    {tag.name}
+                  </span>
+                )
+              })}
+              {task.tags.length > 3 && (
+                <span className="shrink-0 text-body-xs text-text-tertiary">
+                  +{task.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
+          {!(task.tags?.length > 0) && <div className="flex-1" />}
+
+          {/* Created by */}
+          <Avatar name={task.createdBy.username} size="sm" />
+        </div>
       </div>
     </m.div>
   )

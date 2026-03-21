@@ -147,6 +147,11 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
         id
         name
       }
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `

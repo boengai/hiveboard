@@ -84,6 +84,14 @@ type AgentRunRow = {
   finished_at: string | null
 }
 
+type TagRow = {
+  id: string
+  board_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -199,6 +207,36 @@ function getRepliesForComment(parentId: string) {
   return rows.map(mapComment)
 }
 
+function mapTag(row: TagRow) {
+  return { id: row.id, name: row.name, color: row.color }
+}
+
+function getTagsForTask(taskId: string) {
+  const rows = db
+    .query(
+      'SELECT t.* FROM tags t INNER JOIN task_tags tt ON tt.tag_id = t.id WHERE tt.task_id = ? ORDER BY t.name ASC',
+    )
+    .all(taskId) as TagRow[]
+  return rows.map(mapTag)
+}
+
+function getTagsForBoard(boardId: string) {
+  const rows = db
+    .query('SELECT * FROM tags WHERE board_id = ? ORDER BY name ASC')
+    .all(boardId) as TagRow[]
+  return rows.map(mapTag)
+}
+
+function setTaskTags(taskId: string, tagIds: string[]) {
+  db.run('DELETE FROM task_tags WHERE task_id = ?', [taskId])
+  for (const tagId of tagIds) {
+    db.run('INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)', [
+      taskId,
+      tagId,
+    ])
+  }
+}
+
 function getTaskById(id: string) {
   const row = db
     .query('SELECT * FROM tasks WHERE id = ?')
@@ -282,6 +320,10 @@ export const resolvers = {
       return getTopLevelCommentsForTask(taskId)
     },
 
+    tags(_: unknown, { boardId }: { boardId: string }) {
+      return getTagsForBoard(boardId)
+    },
+
     me() {
       return mapUser(getCurrentUser())
     },
@@ -294,6 +336,9 @@ export const resolvers = {
   Board: {
     columns(board: ReturnType<typeof mapBoard>) {
       return getColumnsForBoard(board.id)
+    },
+    tags(board: ReturnType<typeof mapBoard>) {
+      return getTagsForBoard(board.id)
     },
     createdBy(board: ReturnType<typeof mapBoard>) {
       return getUserById(board._createdBy)
@@ -319,6 +364,9 @@ export const resolvers = {
     },
     updatedBy(task: ReturnType<typeof mapTask>) {
       return getUserById(task._updatedBy)
+    },
+    tags(task: ReturnType<typeof mapTask>) {
+      return getTagsForTask(task.id)
     },
     comments(task: ReturnType<typeof mapTask>) {
       return getTopLevelCommentsForTask(task.id)
@@ -376,6 +424,7 @@ export const resolvers = {
           action?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
+          tagIds?: string[] | null
         }
       },
     ) {
@@ -424,6 +473,10 @@ export const resolvers = {
           'INSERT INTO task_events (id, task_id, actor, type) VALUES (?, ?, ?, ?)',
           [generateId(), id, user.id, 'created'],
         )
+
+        if (input.tagIds?.length) {
+          setTaskTags(id, input.tagIds)
+        }
       })()
 
       const task = getTaskById(id)
@@ -478,6 +531,7 @@ export const resolvers = {
           action?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
+          tagIds?: string[] | null
         }
       },
     ) {
@@ -556,6 +610,26 @@ export const resolvers = {
           db.run(
             'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
             [eventId, id, user.id, type, data],
+          )
+        }
+
+        if (input.tagIds !== undefined && input.tagIds !== null) {
+          setTaskTags(id, input.tagIds)
+          const tagEventId = generateId()
+          events.push([
+            tagEventId,
+            'tags_changed',
+            JSON.stringify({ tagIds: input.tagIds }),
+          ])
+          db.run(
+            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+            [
+              tagEventId,
+              id,
+              user.id,
+              'tags_changed',
+              JSON.stringify({ tagIds: input.tagIds }),
+            ],
           )
         }
       })()
@@ -920,6 +994,87 @@ export const resolvers = {
       }
 
       return true
+    },
+
+    createTag(
+      _: unknown,
+      {
+        input,
+      }: {
+        input: { boardId: string; name: string; color?: string | null }
+      },
+    ) {
+      const color = input.color ?? '#aaaaaa' // default to a light gray
+
+      const id = generateId()
+      db.run(
+        'INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)',
+        [id, input.boardId, input.name, color],
+      )
+      const row = db.query('SELECT * FROM tags WHERE id = ?').get(id) as TagRow
+      return mapTag(row)
+    },
+
+    deleteTag(_: unknown, { id }: { id: string }) {
+      db.run('DELETE FROM tags WHERE id = ?', [id])
+      return true
+    },
+
+    setTaskTags(
+      _: unknown,
+      { taskId, tagIds }: { taskId: string; tagIds: string[] },
+    ) {
+      const user = getCurrentUser()
+      const existing = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!existing) throw new Error(`Task ${taskId} not found`)
+
+      const eventId = generateId()
+
+      db.transaction(() => {
+        setTaskTags(taskId, tagIds)
+        db.run(
+          `UPDATE tasks SET updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+          [user.id, taskId],
+        )
+        db.run(
+          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+          [
+            eventId,
+            taskId,
+            user.id,
+            'tags_changed',
+            JSON.stringify({ tagIds }),
+          ],
+        )
+      })()
+
+      const task = getTaskById(taskId)
+      if (!task) throw new Error(`Task ${taskId} not found`)
+      publishTaskUpdated(task)
+
+      const ev = db
+        .query('SELECT * FROM task_events WHERE id = ?')
+        .get(eventId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
+      if (ev) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          id: ev.id,
+          type: ev.type,
+          data: ev.data,
+          createdAt: ev.created_at,
+          isSystem: false,
+          _actor: ev.actor,
+        } as unknown as Record<string, unknown>)
+      }
+
+      return task
     },
 
     dispatchAgent(

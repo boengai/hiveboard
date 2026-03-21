@@ -38,3 +38,20 @@ export type SwitchInputProps = {
   disabled?: boolean
   id?: string
 }
+
+export type ComboboxOption = {
+  value: string
+  label: string
+  color?: string
+}
+
+export type ComboboxInputProps = {
+  value: string[]
+  onValueChange: (value: string[]) => void
+  options: ComboboxOption[]
+  placeholder?: string
+  disabled?: boolean
+  id?: string
+  onCreateOption?: (name: string) => void | Promise<void>
+  createLabel?: string
+}

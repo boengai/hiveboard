@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import {
   ArchiveIcon,
   ArrowRightIcon,
+  Avatar,
   Badge,
   BoltIcon,
   CheckIcon,
@@ -88,6 +89,8 @@ function eventIcon(eventType: string): ReactNode {
       return <BoltIcon size={s} />
     case 'action_cleared':
       return <BoltIcon size={s} />
+    case 'tags_changed':
+      return <PencilIcon size={s} />
     case 'comment_added':
       return <MessageIcon size={s} />
     default:
@@ -129,6 +132,8 @@ function eventDescription(
       return `set action to ${d.action ?? '?'}`
     case 'action_cleared':
       return 'cleared action'
+    case 'tags_changed':
+      return 'updated tags'
     default:
       return eventType
   }
@@ -155,9 +160,7 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
           <Badge>SYSTEM</Badge>
         </span>
       ) : entry.actor ? (
-        <span className="shrink-0 text-body-xs font-medium text-text-primary">
-          {entry.actor.username}
-        </span>
+        <Avatar name={entry.actor.username} size="sm" />
       ) : null}
 
       {/* Description */}

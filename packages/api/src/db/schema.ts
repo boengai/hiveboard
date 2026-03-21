@@ -80,10 +80,28 @@ export function createTables(db: Database): void {
       finished_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS tags (
+      id         TEXT PRIMARY KEY,
+      board_id   TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+      name       TEXT NOT NULL,
+      color      TEXT NOT NULL DEFAULT 'default',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(board_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS task_tags (
+      task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      tag_id  TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, tag_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_board_column ON tasks(board_id, column_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_status);
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
+    CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
+    CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
+    CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
   `)
 }
