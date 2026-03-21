@@ -1,9 +1,5 @@
 import { Badge } from '@/components/common'
-import type {
-  AgentStatus,
-  AgentStatusBadgeProps,
-  BadgeColor,
-} from '@/types'
+import type { AgentStatus, AgentStatusBadgeProps, BadgeColor } from '@/types'
 
 function agentStatusColor(status: AgentStatus): BadgeColor {
   switch (status) {

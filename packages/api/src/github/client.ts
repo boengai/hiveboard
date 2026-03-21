@@ -47,8 +47,8 @@ export class GitHubClient {
       {
         cwd: workspacePath,
         env: { ...process.env, GITHUB_TOKEN: this.token },
-        stdout: 'pipe',
         stderr: 'pipe',
+        stdout: 'pipe',
       },
     )
 
@@ -89,8 +89,8 @@ export class GitHubClient {
       ],
       {
         env: { ...process.env, GITHUB_TOKEN: this.token },
-        stdout: 'pipe',
         stderr: 'pipe',
+        stdout: 'pipe',
       },
     )
 

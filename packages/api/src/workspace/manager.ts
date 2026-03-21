@@ -95,14 +95,14 @@ export class WorkspaceManager {
     }
 
     consola.info(`Workspace ready: ${wsPath} (created=${created})`)
-    return { path: wsPath, created }
+    return { created, path: wsPath }
   }
 
   /** Remove a workspace for a task. */
   async removeForTask(task: TaskForWorkspace): Promise<void> {
     const wsPath = this.pathForTask(task)
     await this.runHook('before_remove', wsPath, task)
-    await rm(wsPath, { recursive: true, force: true })
+    await rm(wsPath, { force: true, recursive: true })
     consola.info(`Workspace removed: ${wsPath}`)
   }
 
@@ -142,7 +142,7 @@ export class WorkspaceManager {
 
         if (wsStat.mtimeMs < cutoff) {
           consola.info(`Sweeping expired workspace: ${wsPath}`)
-          await rm(wsPath, { recursive: true, force: true })
+          await rm(wsPath, { force: true, recursive: true })
           removed++
         }
       }
@@ -150,7 +150,7 @@ export class WorkspaceManager {
       // Remove empty repo directory
       const remaining = await readdir(repoPath)
       if (remaining.length === 0) {
-        await rm(repoPath, { recursive: true, force: true })
+        await rm(repoPath, { force: true, recursive: true })
       }
     }
 
@@ -171,12 +171,12 @@ export class WorkspaceManager {
   ): Record<string, string> {
     const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
     const env: Record<string, string> = {
+      HIVEBOARD_REPO_NAME: repoName ?? '',
+      HIVEBOARD_REPO_OWNER: repoOwner ?? '',
+      HIVEBOARD_TARGET_BRANCH: task.targetBranch ?? 'main',
       HIVEBOARD_TASK_ID: task.id,
       HIVEBOARD_TASK_TITLE: task.title,
       HIVEBOARD_WORKSPACE: wsPath,
-      HIVEBOARD_REPO_OWNER: repoOwner ?? '',
-      HIVEBOARD_REPO_NAME: repoName ?? '',
-      HIVEBOARD_TARGET_BRANCH: task.targetBranch ?? 'main',
     }
     if (accessToken) {
       env.GITHUB_TOKEN = accessToken
@@ -199,9 +199,9 @@ export class WorkspaceManager {
     const script = Mustache.render(rawScript, {
       task: {
         id: task.id,
-        title: task.title,
-        repo_owner: repoOwner ?? '',
         repo_name: repoName ?? '',
+        repo_owner: repoOwner ?? '',
+        title: task.title,
       },
     }).trim()
 
@@ -210,8 +210,8 @@ export class WorkspaceManager {
     const proc = Bun.spawn(['sh', '-lc', script], {
       cwd: wsPath,
       env: { ...process.env, ...this.hookEnv(wsPath, task, accessToken) },
-      stdout: 'pipe',
       stderr: 'pipe',
+      stdout: 'pipe',
     })
 
     const timeout = this.hooks.timeout_ms

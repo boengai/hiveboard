@@ -46,7 +46,7 @@ export function timeAgo(dateStr: string): string {
   if (days < 7) return `${days}d ago`
   return new Date(
     dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`,
-  ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  ).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
 }
 
 function parseData(
@@ -150,7 +150,7 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
   return (
     <div className="flex items-start gap-2.5 py-1.5">
       {/* Icon */}
-      <span className="mt-0.5 w-5 shrink-0 text-center text-body-xs text-text-tertiary font-mono">
+      <span className="mt-0.5 w-5 shrink-0 text-center font-mono text-body-xs text-text-tertiary">
         {icon}
       </span>
 
@@ -194,13 +194,13 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
       const eventEntries: TimelineEntry[] = timelineData.taskTimeline
         .filter((e) => e.type !== 'comment_added')
         .map((e) => ({
-          id: e.id,
-          type: 'event' as const,
-          createdAt: e.createdAt,
-          eventType: e.type,
           actor: e.actor,
-          isSystem: e.isSystem,
+          createdAt: e.createdAt,
           data: e.data,
+          eventType: e.type,
+          id: e.id,
+          isSystem: e.isSystem,
+          type: 'event' as const,
         }))
         .sort(
           (a, b) =>
@@ -228,13 +228,13 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
         const e = data.taskEventAdded
         if (!e || e.type === 'comment_added') return
         const newEntry: TimelineEntry = {
-          id: e.id,
-          type: 'event',
-          createdAt: e.createdAt,
-          eventType: e.type,
           actor: e.actor,
-          isSystem: e.isSystem,
+          createdAt: e.createdAt,
           data: e.data,
+          eventType: e.type,
+          id: e.id,
+          isSystem: e.isSystem,
+          type: 'event',
         }
         setEntries((prev) => {
           // Avoid duplicates
@@ -254,8 +254,8 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
       <div className="flex flex-col gap-1 pt-2">
         {[0, 1, 2].map((i) => (
           <div
-            key={i}
             className="h-5 animate-pulse rounded bg-surface-overlay"
+            key={i}
             style={{ width: `${60 + i * 10}%` }}
           />
         ))}
@@ -272,7 +272,7 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
   return (
     <div className="flex flex-col divide-y divide-border-default/50">
       {entries.map((entry) => (
-        <EventRow key={entry.id} entry={entry} />
+        <EventRow entry={entry} key={entry.id} />
       ))}
     </div>
   )

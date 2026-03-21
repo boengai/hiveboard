@@ -84,7 +84,6 @@ export const UPDATE_TASK = /* GraphQL */ `
   }
 `
 
-
 export const MOVE_TASK = /* GraphQL */ `
   mutation MoveTask($id: ID!, $columnId: ID!, $position: Float!) {
     moveTask(id: $id, columnId: $columnId, position: $position) {

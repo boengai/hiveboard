@@ -9,12 +9,12 @@ import { App } from './App'
 const rootRoute = createRootRoute({ component: App })
 
 const homeRoute = createRoute({
+  component: lazyRouteComponent(() => import('@/pages/home'), 'HomePage'),
   getParentRoute: () => rootRoute,
   path: '/',
-  component: lazyRouteComponent(() => import('@/pages/home'), 'HomePage'),
 })
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute]),
   defaultPreload: 'intent',
+  routeTree: rootRoute.addChildren([homeRoute]),
 })

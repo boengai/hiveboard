@@ -40,18 +40,18 @@ mock.module('../src/db', () => ({
 
 // Mock pubsub to a no-op so publish calls don't throw
 mock.module('../src/pubsub', () => ({
-  pubsub: { publish: () => {} },
-  publishTaskUpdated: () => {},
   publishAgentLog: () => {},
   publishCommentAdded: () => {},
   publishTaskEvent: () => {},
+  publishTaskUpdated: () => {},
+  pubsub: { publish: () => {} },
 }))
 
 // We will control runAgent per-test via this mutable reference
 let mockRunAgentImpl: (...args: unknown[]) => Promise<unknown> = async () => ({
-  taskId: '',
-  success: true,
   output: 'ok',
+  success: true,
+  taskId: '',
 })
 
 mock.module('../src/agent/runner', () => ({
@@ -73,29 +73,29 @@ function makeConfig(
   overrides: { maxAgents?: number; maxRetryBackoffMs?: number } = {},
 ) {
   return {
-    polling: { interval_ms: 60_000 },
-    workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
-    claude: {
-      command: 'claude',
-      max_turns: 5,
-      allowed_tools: [],
-      permission_mode: undefined,
-      model: undefined,
-    },
     agent: {
       max_concurrent_agents: overrides.maxAgents ?? 5,
       max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
     },
+    claude: {
+      allowed_tools: [],
+      command: 'claude',
+      max_turns: 5,
+      model: undefined,
+      permission_mode: undefined,
+    },
     hooks: { timeout_ms: 5_000 },
+    polling: { interval_ms: 60_000 },
+    workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
   }
 }
 
 /** Build a WorkspaceManager stub that immediately resolves. */
 function makeWorkspaceStub() {
   return {
-    ttlMs: 0,
-    createForTask: async () => ({ path: '/tmp/fake-workspace', created: true }),
+    createForTask: async () => ({ created: true, path: '/tmp/fake-workspace' }),
     sweepExpired: async () => {},
+    ttlMs: 0,
   }
 }
 
@@ -175,7 +175,7 @@ describe('Orchestrator – dispatch flow', () => {
     // Default: agent succeeds immediately
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: true, output: 'agent output' }
+      return { output: 'agent output', success: true, taskId: task.id }
     }
     orchestrator = new Orchestrator(
       makeConfig() as never,
@@ -216,10 +216,10 @@ describe('Orchestrator – dispatch flow', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        taskId: task.id,
-        success: false,
-        output: '',
         error: 'something broke',
+        output: '',
+        success: false,
+        taskId: task.id,
       }
     }
 
@@ -267,7 +267,7 @@ describe('Orchestrator – dispatch flow', () => {
   it('records an agent_failed event on failure', async () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: false, output: '', error: 'boom' }
+      return { error: 'boom', output: '', success: false, taskId: task.id }
     }
 
     const taskId = insertQueuedTask({ action: 'plan' })
@@ -321,7 +321,7 @@ describe('Orchestrator – concurrency limit', () => {
       await latch
       activeAgents--
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: true, output: 'ok' }
+      return { output: 'ok', success: true, taskId: task.id }
     }
 
     // Insert 4 queued tasks but max_concurrent_agents = 2
@@ -354,7 +354,7 @@ describe('Orchestrator – concurrency limit', () => {
       firstWaveCount++
       if (firstWaveCount <= 2) await firstWave
       const { task } = opts as { task: { id: string } }
-      return { taskId: task.id, success: true, output: 'ok' }
+      return { output: 'ok', success: true, taskId: task.id }
     }
 
     const _t1 = insertQueuedTask({ action: 'plan' })
@@ -387,10 +387,10 @@ describe('Orchestrator – retry scheduling', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        taskId: task.id,
-        success: false,
-        output: '',
         error: 'transient error',
+        output: '',
+        success: false,
+        taskId: task.id,
       }
     }
     orchestrator = new Orchestrator(

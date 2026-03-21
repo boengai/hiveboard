@@ -91,8 +91,8 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
       HIVEBOARD_TASK_TITLE: task.title,
       HIVEBOARD_WORKSPACE: workspacePath,
     },
-    stdout: 'pipe',
     stderr: 'pipe',
+    stdout: 'pipe',
   })
 
   // Handle abort signal
@@ -139,17 +139,17 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
       `Claude CLI failed for task ${task.id} (exit ${exitCode}): ${stderr.slice(0, 200)}`,
     )
     return {
-      taskId: task.id,
-      success: false,
-      output,
       error: stderr || `Exit code ${exitCode}`,
+      output,
+      success: false,
+      taskId: task.id,
     }
   }
 
   consola.info(`Claude CLI completed for task ${task.id}`)
   return {
-    taskId: task.id,
-    success: true,
     output,
+    success: true,
+    taskId: task.id,
   }
 }

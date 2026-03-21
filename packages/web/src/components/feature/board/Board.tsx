@@ -179,7 +179,7 @@ export function Board() {
 
     // Persist to server
     graphqlClient
-      .request(MOVE_TASK, { id: taskId, columnId: targetColumnId, position })
+      .request(MOVE_TASK, { columnId: targetColumnId, id: taskId, position })
       .catch((err) => {
         console.error('moveTask failed', err)
         // TODO: revert optimistic update
@@ -190,7 +190,7 @@ export function Board() {
     return (
       <div className="flex h-full flex-col overflow-hidden">
         {/* Skeleton header */}
-        <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
+        <div className="flex items-center justify-between border-border-default border-b px-4 py-3">
           <div className="h-5 w-40 animate-pulse rounded bg-surface-overlay" />
           <div className="h-8 w-28 animate-pulse rounded-md bg-surface-overlay" />
         </div>
@@ -198,14 +198,14 @@ export function Board() {
         <div className="flex flex-1 gap-3 overflow-x-auto p-4">
           {[0, 1, 2].map((i) => (
             <div
-              key={i}
               className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3"
+              key={i}
             >
               <div className="h-5 w-24 animate-pulse rounded bg-surface-overlay" />
               {[0, 1, 2].map((j) => (
                 <div
-                  key={j}
                   className="h-16 animate-pulse rounded-md bg-surface-overlay"
+                  key={j}
                 />
               ))}
             </div>
@@ -239,22 +239,22 @@ export function Board() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Board columns */}
       <DndContext
-        sensors={sensors}
         collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragStart={handleDragStart}
+        sensors={sensors}
       >
         <div className="flex flex-1 gap-3 overflow-x-auto p-4">
           {sortedColumns.map((col) => (
             <Column
-              key={col.id}
               column={col}
               dropTargetTaskId={
                 dropIndicator?.columnId === col.id
                   ? dropIndicator.taskId
                   : undefined
               }
+              key={col.id}
             />
           ))}
         </div>

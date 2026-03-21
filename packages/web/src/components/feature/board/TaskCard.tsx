@@ -9,13 +9,13 @@ import { tv } from '@/utils'
 
 // Action badge styles
 const actionBadge = tv({
-  base: 'inline-flex items-center rounded-full px-1.5 py-0.5 text-body-xs font-medium',
+  base: 'inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-body-xs',
   variants: {
     action: {
-      plan: 'bg-info-400/15 text-info-400',
-      research: 'bg-purple-400/15 text-purple-400',
       implement: 'bg-success-400/15 text-success-400',
       'implement-e2e': 'bg-teal-400/15 text-teal-400',
+      plan: 'bg-info-400/15 text-info-400',
+      research: 'bg-purple-400/15 text-purple-400',
       revise: 'bg-warning-400/15 text-warning-400',
     } as Record<string, string>,
   },
@@ -85,10 +85,10 @@ export function TaskCard({ task }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      whileHover={{ y: -1 }}
-      onClick={() => openDrawerView(task.id)}
-      className="cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 hover:border-border-hover hover:shadow-xs select-none opacity-100 data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md flex flex-col gap-1"
+      className="flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md"
       data-dragging={isDragging ? 'true' : 'false'}
+      onClick={() => openDrawerView(task.id)}
+      whileHover={{ y: -1 }}
     >
       {/* Title */}
       <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
@@ -97,7 +97,7 @@ export function TaskCard({ task }: TaskCardProps) {
         {/* Target repo */}
         {task.targetRepo && (
           <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 text-body-xs font-mono text-text-tertiary">
+            <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary">
               <GitHubIcon size={14} />
               <span>{task.targetRepo}</span>
             </div>
@@ -123,9 +123,9 @@ export function TaskCard({ task }: TaskCardProps) {
                 const bg = `${tag.color}20`
                 return (
                   <span
+                    className="inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 font-medium text-body-xs"
                     key={tag.id}
-                    className="inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-body-xs font-medium"
-                    style={{ color: tag.color, backgroundColor: bg }}
+                    style={{ backgroundColor: bg, color: tag.color }}
                   >
                     {tag.name}
                   </span>

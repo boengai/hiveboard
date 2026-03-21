@@ -24,7 +24,7 @@ function splitFrontMatter(content: string): { yaml: string; body: string } {
 
   const yaml = lines.slice(1, closingIdx).join('\n')
   const body = lines.slice(closingIdx + 1).join('\n')
-  return { yaml, body }
+  return { body, yaml }
 }
 
 /** Load and validate a WORKFLOW.md file. */

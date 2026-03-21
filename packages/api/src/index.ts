@@ -34,19 +34,18 @@ async function startOrchestrator() {
 startOrchestrator()
 
 const yoga = createYoga({
-  schema: createSchema({ typeDefs, resolvers }),
+  cors: {
+    credentials: true,
+    origin: '*',
+  },
   graphqlEndpoint: '/graphql',
   maskedErrors: false,
-  cors: {
-    origin: '*',
-    credentials: true,
-  },
+  schema: createSchema({ resolvers, typeDefs }),
 })
 
 const port = Number(process.env.API_PORT ?? 8080)
 
 Bun.serve({
-  port,
   fetch(req) {
     const url = new URL(req.url)
     if (url.pathname === '/health') {
@@ -67,6 +66,7 @@ Bun.serve({
     }
     return yoga.fetch(req)
   },
+  port,
 })
 
 console.log(`API server running on http://localhost:${port}/graphql`)
