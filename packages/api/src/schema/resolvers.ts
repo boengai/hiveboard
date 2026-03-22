@@ -1014,9 +1014,10 @@ export const resolvers = {
             newAction ? JSON.stringify({ action: newAction }) : null,
           ])
 
-          // Auto-queue with 15s grace period when action is set
+          // Auto-queue with 15s grace period when action is set (skip 'idle' action)
           if (
             newAction &&
+            newAction !== 'idle' &&
             (existing.agent_status === 'idle' ||
               existing.agent_status === 'failed' ||
               existing.agent_status === 'success')

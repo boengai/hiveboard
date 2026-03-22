@@ -459,14 +459,20 @@ const AgentPanel = ({
           />
           <SectionLabel>Agent</SectionLabel>
         </div>
-        <Badge color={agentStatusColor(task.agentStatus)}>
-          {task.agentStatus}
-        </Badge>
-        {isAgentActive && (
-          <Button color="danger" disabled={loading} onClick={onInterruptAgent}>
-            Cancel
-          </Button>
-        )}
+        <div className="flex items-center justify-center gap-2">
+          <Badge color={agentStatusColor(task.agentStatus)}>
+            {task.agentStatus}
+          </Badge>
+          {isAgentActive && (
+            <Button
+              color="danger"
+              disabled={loading}
+              onClick={onInterruptAgent}
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Retry count */}
