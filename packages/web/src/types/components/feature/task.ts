@@ -17,7 +17,7 @@ export type ActionColor =
   | 'honey'
 
 export type CreateModeProps = {
-  onSubmit: (values: TaskFormValues) => Promise<void>
+  onSubmit: (values: TaskFormValues) => void
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
   onCreateTag: (
@@ -33,21 +33,24 @@ export type CreateModeProps = {
 export type ViewModeProps = {
   task: Task
   onEdit: () => void
-  onArchive: () => Promise<void>
+  onArchive: () => void
+  onDispatch: (action: string) => void
+  onInterruptAgent: () => void
+  onUpdateAction: (action: string) => void
   loading: boolean
 }
 
 export type AgentPanelProps = {
   task: Task
-  onDispatch: (action: string) => Promise<void>
-  onCancel: () => Promise<void>
-  onUpdateAction: (action: string) => Promise<void>
+  onDispatch: (action: string) => void
+  onInterruptAgent: () => void
+  onUpdateAction: (action: string) => void
   loading: boolean
 }
 
 export type EditModeProps = {
   initialValues: TaskFormValues
-  onSubmit: (values: TaskFormValues) => Promise<void>
+  onSubmit: (values: TaskFormValues) => void
   onCancel: () => void
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
