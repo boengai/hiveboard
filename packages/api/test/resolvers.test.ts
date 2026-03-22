@@ -471,36 +471,8 @@ describe('addComment', () => {
 })
 
 // ---------------------------------------------------------------------------
-// dispatchAgent / cancelAgent
+// cancelAgent
 // ---------------------------------------------------------------------------
-
-describe('dispatchAgent', () => {
-  test('sets agent_status to queued', () => {
-    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-    const col = db
-      .query(
-        'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
-      )
-      .get(board.id) as ColumnRow
-    const taskId = insertTask(db, {
-      boardId: board.id,
-      columnId: col.id,
-      title: 'Dispatch',
-    })
-    const user = getCurrentUser(db)
-
-    db.run(
-      `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-      ['fix the bug', user.id, taskId],
-    )
-
-    const task = db
-      .query('SELECT * FROM tasks WHERE id = ?')
-      .get(taskId) as TaskRow
-    expect(task.agent_status).toBe('queued')
-    expect(task.action).toBe('fix the bug')
-  })
-})
 
 describe('cancelAgent', () => {
   test('sets agent_status back to idle', () => {

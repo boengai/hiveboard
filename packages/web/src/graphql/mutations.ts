@@ -162,16 +162,6 @@ export const DELETE_COMMENT = /* GraphQL */ `
   }
 `
 
-export const DISPATCH_AGENT = /* GraphQL */ `
-  mutation DispatchAgent($taskId: ID!, $action: String!) {
-    dispatchAgent(taskId: $taskId, action: $action) {
-      id
-      agentStatus
-      action
-    }
-  }
-`
-
 export const CANCEL_AGENT = /* GraphQL */ `
   mutation CancelAgent($taskId: ID!) {
     cancelAgent(taskId: $taskId) {

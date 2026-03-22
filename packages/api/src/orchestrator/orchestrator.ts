@@ -21,6 +21,7 @@ type TaskRow = {
   target_branch: string | null
   pr_url: string | null
   agent_status: string
+  queue_after: string | null
   retry_count: number
   created_at: string
   updated_at: string
@@ -223,7 +224,7 @@ export class Orchestrator {
 
       const queued = db
         .query(
-          `SELECT * FROM tasks WHERE agent_status = ? ORDER BY updated_at ASC LIMIT ?`,
+          `SELECT * FROM tasks WHERE agent_status = ? AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
         )
         .all('queued', available) as TaskRow[]
 

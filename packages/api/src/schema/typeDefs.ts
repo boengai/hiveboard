@@ -24,7 +24,6 @@ export const typeDefs = /* GraphQL */ `
     createTag(input: CreateTagInput!): Tag!
     deleteTag(id: ID!): Boolean!
     setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
-    dispatchAgent(taskId: ID!, action: String!): Task!
     cancelAgent(taskId: ID!): Task!
   }
 
@@ -137,7 +136,6 @@ export const typeDefs = /* GraphQL */ `
     columnId: ID
     title: String!
     body: String
-    action: String
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]
