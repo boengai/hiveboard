@@ -7,4 +7,6 @@ export type MarkdownEditorProps = {
   onChange: (value: string) => void
   placeholder?: string
   rows?: number
+  onImageUpload?: (file: File) => Promise<string>
+  uploading?: boolean
 }

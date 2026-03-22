@@ -3,9 +3,11 @@ import { createSchema, createYoga } from 'graphql-yoga'
 import { loadWorkflow } from './config'
 import { db, migrate } from './db'
 import { Orchestrator, setOrchestrator } from './orchestrator'
+import { handleImageServe, handleImageUpload } from './routes/images'
 import { resolvers } from './schema/resolvers'
 import { typeDefs } from './schema/typeDefs'
 import { WorkspaceManager } from './workspace'
+import { startCleanupInterval } from './workspace/cleanup'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const staticDir = isProduction
@@ -45,11 +47,20 @@ const yoga = createYoga({
 
 const port = Number(process.env.API_PORT ?? 8080)
 
+// Start periodic cleanup of orphaned temp uploads
+startCleanupInterval()
+
 Bun.serve({
   fetch(req) {
     const url = new URL(req.url)
     if (url.pathname === '/health') {
       return Response.json({ ok: true, uptime: process.uptime() })
+    }
+    if (url.pathname === '/api/images/upload' && req.method === 'POST') {
+      return handleImageUpload(req)
+    }
+    if (url.pathname.startsWith('/api/images/') && req.method === 'GET') {
+      return handleImageServe(url.pathname)
     }
     if (url.pathname.startsWith('/graphql')) {
       return yoga.fetch(req)

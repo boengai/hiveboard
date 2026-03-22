@@ -33,6 +33,8 @@ export type CreateModeProps = {
   onCreateTag: (name: string) => Promise<void>
   repoOptions: ComboboxOption[]
   branchOptions: ComboboxOption[]
+  onImageUpload?: (file: File) => Promise<string>
+  uploading?: boolean
 }
 
 export type ViewModeProps = {
@@ -60,6 +62,8 @@ export type EditModeProps = {
   onCreateTag: (name: string) => Promise<void>
   repoOptions: ComboboxOption[]
   branchOptions: ComboboxOption[]
+  onImageUpload?: (file: File) => Promise<string>
+  uploading?: boolean
 }
 
 // ---------------------------------------------------------------------------

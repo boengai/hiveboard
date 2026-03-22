@@ -7,7 +7,7 @@ import type {
 // interface: extends native HTML attributes
 export type TextInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  'className' | 'onChange' | 'style'
+  'autoComplete' | 'className' | 'onChange' | 'spellCheck' | 'style'
 > &
   RefAttributes<HTMLInputElement> & {
     onChange?: (value: string) => void
@@ -16,7 +16,7 @@ export type TextInputProps = Omit<
 // interface: extends native HTML attributes
 export type TextAreaInputProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'className' | 'onChange' | 'style'
+  'autoComplete' | 'className' | 'onChange' | 'spellCheck' | 'style'
 > &
   RefAttributes<HTMLTextAreaElement> & {
     onChange?: (value: string) => void

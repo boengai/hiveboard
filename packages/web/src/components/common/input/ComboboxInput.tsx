@@ -215,6 +215,7 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
                   : (placeholder ?? 'Select…')
             }
             ref={inputRef}
+            spellCheck={false}
             type="text"
             value={search}
           />

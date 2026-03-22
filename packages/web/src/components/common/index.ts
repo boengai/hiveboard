@@ -12,6 +12,7 @@ export {
   DotIcon,
   FileTextIcon,
   GitPullRequestIcon,
+  ImageIcon,
   MessageIcon,
   PencilIcon,
   PlayIcon,
