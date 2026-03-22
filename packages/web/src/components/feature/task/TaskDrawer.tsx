@@ -1,6 +1,6 @@
 import { useForm } from '@tanstack/react-form'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import {
   ArchiveIcon,
   Avatar,
@@ -129,10 +129,11 @@ const FieldLabel = ({
 const FieldError = ({
   errors,
 }: {
-  errors: Array<string | { message: string }>
+  errors: Array<string | { message: string } | undefined>
 }) => {
-  if (errors.length === 0) return null
-  const msg = typeof errors[0] === 'string' ? errors[0] : errors[0].message
+  const first = errors.find((e) => e != null)
+  if (!first) return null
+  const msg = typeof first === 'string' ? first : first.message
   return <span className="text-body-xs text-error-400">{msg}</span>
 }
 
@@ -157,8 +158,8 @@ const CreateMode = ({
       targetRepo: '',
       title: '',
     },
-    onSubmit: async ({ value }) => {
-      await onSubmit(value)
+    onSubmit: ({ value }) => {
+      onSubmit(value)
     },
     validators: {
       onSubmit: taskFormSchema,
@@ -312,7 +313,15 @@ const CreateMode = ({
   )
 }
 
-const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
+const ViewMode = ({
+  task,
+  onEdit,
+  onArchive,
+  loading,
+  onInterruptAgent,
+  onDispatch,
+  onUpdateAction,
+}: ViewModeProps) => {
   return (
     <div className="flex grow flex-col gap-6">
       {/* Header area */}
@@ -407,6 +416,24 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
             ` · updated ${timeAgo(task.updatedAt)}`}
         </span>
       </div>
+      <AgentPanel
+        loading={loading}
+        onDispatch={onDispatch}
+        onInterruptAgent={onInterruptAgent}
+        onUpdateAction={onUpdateAction}
+        task={task}
+      />
+      {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
+        <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
+      )}
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Activity</SectionLabel>
+        <TaskTimeline taskId={task.id} />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Comments</SectionLabel>
+        <TaskComments taskId={task.id} />
+      </div>
     </div>
   )
 }
@@ -414,7 +441,7 @@ const ViewMode = ({ task, onEdit, onArchive, loading }: ViewModeProps) => {
 const AgentPanel = ({
   task,
   onDispatch,
-  onCancel,
+  onInterruptAgent,
   loading,
   onUpdateAction,
 }: AgentPanelProps) => {
@@ -477,7 +504,7 @@ const AgentPanel = ({
           Dispatch
         </Button>
         {isAgentActive && (
-          <Button color="danger" disabled={loading} onClick={onCancel}>
+          <Button color="danger" disabled={loading} onClick={onInterruptAgent}>
             Cancel
           </Button>
         )}
@@ -502,8 +529,8 @@ const EditMode = ({
 
   const form = useForm({
     defaultValues: initialValues,
-    onSubmit: async ({ value }) => {
-      await onSubmit(value)
+    onSubmit: ({ value }) => {
+      onSubmit(value)
     },
     validators: {
       onSubmit: taskFormSchema,
@@ -674,7 +701,7 @@ export const TaskDrawer = () => {
   } = useBoardStore()
 
   const [task, setTask] = useState<Task | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
   const [isEditing, setIsEditing] = useState(false)
   const [sessionId] = useState(() => crypto.randomUUID())
@@ -721,18 +748,16 @@ export const TaskDrawer = () => {
     if (drawerMode === 'view' && selectedTaskId) {
       let cancelled = false
       setTask(null)
-      setLoading(true)
-      graphqlClient
-        .request<{ task: Task }>(GET_TASK, { id: selectedTaskId })
-        .then((data) => {
+      startTransition(async () => {
+        try {
+          const data = await graphqlClient.request<{ task: Task }>(GET_TASK, {
+            id: selectedTaskId,
+          })
           if (!cancelled) setTask(data.task)
-        })
-        .catch((err) => {
+        } catch (err) {
           if (!cancelled) console.error(err)
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false)
-        })
+        }
+      })
       return () => {
         cancelled = true
       }
@@ -744,7 +769,6 @@ export const TaskDrawer = () => {
     if (drawerMode === 'closed') {
       setIsEditing(false)
       setTask(null)
-      setLoading(false)
     }
   }, [drawerMode])
 
@@ -758,135 +782,128 @@ export const TaskDrawer = () => {
     setBoard(data.board)
   }
 
-  const handleCreate = async (values: TaskFormValues) => {
+  const handleCreate = (values: TaskFormValues) => {
     if (!createTaskColumnId || !board) return
-    setLoading(true)
-    try {
-      await graphqlClient.request(CREATE_TASK, {
-        input: {
-          action: 'idle',
-          boardId: board.id,
-          body: values.body || null,
-          columnId: createTaskColumnId,
-          sessionId,
-          tagIds: values.tagIds.length > 0 ? values.tagIds : null,
-          targetBranch: values.targetBranch.trim() || 'main',
-          targetRepo: values.targetRepo.trim() || null,
-          title: values.title.trim(),
-        },
-      })
-      await refetchBoard()
-      closeDrawer()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSaveEdit = async (values: TaskFormValues) => {
-    if (!task) return
-    setLoading(true)
-    try {
-      const updated = await graphqlClient.request<{ updateTask: Task }>(
-        UPDATE_TASK,
-        {
-          id: task.id,
+    startTransition(async () => {
+      try {
+        await graphqlClient.request(CREATE_TASK, {
           input: {
-            action: values.action || null,
-            body: values.body,
-            tagIds: values.tagIds,
-            targetBranch: values.targetBranch.trim() || null,
+            action: 'idle',
+            boardId: board.id,
+            body: values.body || null,
+            columnId: createTaskColumnId,
+            sessionId,
+            tagIds: values.tagIds.length > 0 ? values.tagIds : null,
+            targetBranch: values.targetBranch.trim() || 'main',
             targetRepo: values.targetRepo.trim() || null,
             title: values.title.trim(),
           },
-        },
-      )
-      setTask(updated.updateTask)
-      await refetchBoard()
-      setIsEditing(false)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+        })
+        await refetchBoard()
+        closeDrawer()
+      } catch (e) {
+        console.error(e)
+      }
+    })
   }
 
-  const handleArchive = async () => {
+  const handleSaveEdit = (values: TaskFormValues) => {
     if (!task) return
-    setLoading(true)
-    try {
-      const mutation = task.archived ? UNARCHIVE_TASK : ARCHIVE_TASK
-      const key = task.archived ? 'unarchiveTask' : 'archiveTask'
-      const data = await graphqlClient.request<Record<string, Partial<Task>>>(
-        mutation,
-        {
-          id: task.id,
-        },
-      )
-      setTask({ ...task, ...data[key] })
-      await refetchBoard()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    startTransition(async () => {
+      try {
+        const updated = await graphqlClient.request<{ updateTask: Task }>(
+          UPDATE_TASK,
+          {
+            id: task.id,
+            input: {
+              action: values.action || null,
+              body: values.body,
+              tagIds: values.tagIds,
+              targetBranch: values.targetBranch.trim() || null,
+              targetRepo: values.targetRepo.trim() || null,
+              title: values.title.trim(),
+            },
+          },
+        )
+        setTask(updated.updateTask)
+        await refetchBoard()
+        setIsEditing(false)
+      } catch (e) {
+        console.error(e)
+      }
+    })
   }
 
-  const handleUpdateAction = async (action: string) => {
+  const handleArchive = () => {
     if (!task) return
-    setLoading(true)
-    try {
-      const updated = await graphqlClient.request<{ updateTask: Task }>(
-        UPDATE_TASK,
-        {
-          id: task.id,
-          input: { action: action || null },
-        },
-      )
-      setTask(updated.updateTask)
-      await refetchBoard()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    startTransition(async () => {
+      try {
+        const mutation = task.archived ? UNARCHIVE_TASK : ARCHIVE_TASK
+        const key = task.archived ? 'unarchiveTask' : 'archiveTask'
+        const data = await graphqlClient.request<Record<string, Partial<Task>>>(
+          mutation,
+          {
+            id: task.id,
+          },
+        )
+        setTask({ ...task, ...data[key] })
+        await refetchBoard()
+      } catch (e) {
+        console.error(e)
+      }
+    })
   }
 
-  const handleDispatch = async (action: string) => {
+  const handleUpdateAction = (action: string) => {
     if (!task) return
-    setLoading(true)
-    try {
-      const data = await graphqlClient.request<{
-        dispatchAgent: Partial<Task>
-      }>(DISPATCH_AGENT, {
-        action,
-        taskId: task.id,
-      })
-      setTask({ ...task, ...data.dispatchAgent })
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    startTransition(async () => {
+      try {
+        const updated = await graphqlClient.request<{ updateTask: Task }>(
+          UPDATE_TASK,
+          {
+            id: task.id,
+            input: { action: action || null },
+          },
+        )
+        setTask(updated.updateTask)
+        await refetchBoard()
+      } catch (e) {
+        console.error(e)
+      }
+    })
   }
 
-  const handleCancelAgent = async () => {
+  const handleDispatch = (action: string) => {
     if (!task) return
-    setLoading(true)
-    try {
-      const data = await graphqlClient.request<{ cancelAgent: Partial<Task> }>(
-        CANCEL_AGENT,
-        {
+    startTransition(async () => {
+      try {
+        const data = await graphqlClient.request<{
+          dispatchAgent: Partial<Task>
+        }>(DISPATCH_AGENT, {
+          action,
           taskId: task.id,
-        },
-      )
-      setTask({ ...task, ...data.cancelAgent })
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+        })
+        setTask({ ...task, ...data.dispatchAgent })
+      } catch (e) {
+        console.error(e)
+      }
+    })
+  }
+
+  const handleInterruptAgent = () => {
+    if (!task) return
+    startTransition(async () => {
+      try {
+        const data = await graphqlClient.request<{
+          cancelAgent: Partial<Task>
+        }>(CANCEL_AGENT, {
+          taskId: task.id,
+        })
+        setTask({ ...task, ...data.cancelAgent })
+      } catch (e) {
+        console.error(e)
+      }
+    })
   }
 
   const enterEdit = () => {
@@ -923,7 +940,7 @@ export const TaskDrawer = () => {
       ? 'New Task'
       : task?.id
         ? `Task #${task.id}`
-        : loading
+        : isPending
           ? 'Loading…'
           : 'Task'
 
@@ -952,7 +969,7 @@ export const TaskDrawer = () => {
         <CreateMode
           boardTags={board?.tags ?? []}
           branchOptions={branchOptions}
-          loading={loading}
+          loading={isPending}
           onCreateTag={handleCreateTag}
           onImageUpload={createUpload.uploadImage}
           onSubmit={handleCreate}
@@ -960,29 +977,29 @@ export const TaskDrawer = () => {
           uploading={createUpload.uploading}
         />
       )}
-
-      {drawerMode === 'view' && loading && !task && (
+      {drawerMode === 'view' && isPending && !task && (
         <div className="flex grow items-center justify-center">
           <span className="text-body-sm text-text-tertiary">Loading…</span>
         </div>
       )}
-
       {drawerMode === 'view' && task && !isEditing && (
         <ViewMode
-          loading={loading}
+          loading={isPending}
           onArchive={handleArchive}
+          onDispatch={handleDispatch}
           onEdit={enterEdit}
+          onInterruptAgent={handleInterruptAgent}
+          onUpdateAction={handleUpdateAction}
           task={task}
         />
       )}
-
       {drawerMode === 'view' && task && isEditing && editInitialValues && (
         <EditMode
           boardTags={board?.tags ?? []}
           branchOptions={branchOptions}
           initialValues={editInitialValues}
           key={task.id}
-          loading={loading}
+          loading={isPending}
           onCancel={cancelEdit}
           onCreateTag={handleCreateTag}
           onImageUpload={editUpload.uploadImage}
@@ -990,41 +1007,6 @@ export const TaskDrawer = () => {
           repoOptions={repoOptions}
           uploading={editUpload.uploading}
         />
-      )}
-
-      {/* Agent panel — view mode only, hidden during edit */}
-      {drawerMode === 'view' && task && !isEditing && (
-        <AgentPanel
-          loading={loading}
-          onCancel={handleCancelAgent}
-          onDispatch={handleDispatch}
-          onUpdateAction={handleUpdateAction}
-          task={task}
-        />
-      )}
-
-      {/* Agent log stream — visible when running or has been run */}
-      {drawerMode === 'view' &&
-        task &&
-        !isEditing &&
-        (task.agentStatus === 'RUNNING' || task.agentOutput) && (
-          <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
-        )}
-
-      {/* Timeline — view mode only, not during edit */}
-      {drawerMode === 'view' && task && !isEditing && (
-        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-          <SectionLabel>Activity</SectionLabel>
-          <TaskTimeline taskId={task.id} />
-        </div>
-      )}
-
-      {/* Comments — view mode only, not during edit */}
-      {drawerMode === 'view' && task && !isEditing && (
-        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-          <SectionLabel>Comments</SectionLabel>
-          <TaskComments taskId={task.id} />
-        </div>
       )}
     </Drawer>
   )
