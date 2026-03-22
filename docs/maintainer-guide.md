@@ -275,7 +275,7 @@ In `resolvers.ts`, the `dispatchAgent` mutation validates actions against a whit
 
 ```ts
 const validActions = [
-  'idle', 'plan', 'research', 'implement', 'implement-e2e', 'revise',
+  'idle', 'plan', 'research', 'implement', 'revise',
   'my-new-action',  // add here
 ]
 ```
@@ -285,7 +285,7 @@ const validActions = [
 In `orchestrator.ts`, actions control two things:
 
 - **Column movement on dispatch:** `plan` and `research` stay in their current column; all others move to "In Progress".
-- **Column movement on completion:** `plan` moves to "Todo", `implement`/`implement-e2e`/`revise` move to "Review", `research` stays put.
+- **Column movement on completion:** `plan` moves to "Todo", `implement`/`revise` move to "Review", `research` stays put.
 
 Add your action to the appropriate conditional blocks in `dispatchTask()` and `onComplete()`:
 

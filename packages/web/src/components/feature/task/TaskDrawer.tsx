@@ -60,24 +60,8 @@ const ACTION_OPTIONS = [
   { label: 'Idle', value: 'idle' },
   { label: 'Plan', value: 'plan' },
   { label: 'Implement', value: 'implement' },
-  { label: 'Implement E2E', value: 'implement-e2e' },
   { label: 'Revise', value: 'revise' },
 ]
-
-function actionColor(action: string | null): ActionColor {
-  switch (action) {
-    case 'plan':
-      return 'info'
-    case 'implement':
-      return 'honey'
-    case 'implement-e2e':
-      return 'teal'
-    case 'revise':
-      return 'warning'
-    default:
-      return 'default'
-  }
-}
 
 function agentStatusColor(status: string): ActionColor {
   switch (status) {
@@ -362,11 +346,6 @@ const ViewMode = ({
               </div>
             </div>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {task.action && (
-            <Badge color={actionColor(task.action)}>{task.action}</Badge>
-          )}
           {task.prUrl && (
             <a
               className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 font-medium text-body-xs text-info-400 transition-colors hover:bg-info-400/20"
@@ -377,6 +356,8 @@ const ViewMode = ({
               PR #{task.prNumber}
             </a>
           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {task.tags?.map((tag) => {
             const bg = `${tag.color}20`
             return (
@@ -391,6 +372,21 @@ const ViewMode = ({
           })}
         </div>
       </div>
+
+      {/* Agent panel */}
+      {task.column?.name !== 'Done' && (
+        <>
+          <AgentPanel
+            loading={loading}
+            onInterruptAgent={onInterruptAgent}
+            onUpdateAction={onUpdateAction}
+            task={task}
+          />
+          {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
+            <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
+          )}
+        </>
+      )}
 
       {/* Body */}
 
@@ -413,19 +409,7 @@ const ViewMode = ({
             ` · updated ${timeAgo(task.updatedAt)}`}
         </span>
       </div>
-      {task.column?.name !== 'Done' && (
-        <>
-          <AgentPanel
-            loading={loading}
-            onInterruptAgent={onInterruptAgent}
-            onUpdateAction={onUpdateAction}
-            task={task}
-          />
-          {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
-            <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
-          )}
-        </>
-      )}
+
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Activity</SectionLabel>
         <TaskTimeline taskId={task.id} />

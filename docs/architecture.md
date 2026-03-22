@@ -189,7 +189,6 @@ updates as agents move tasks through columns.
 | `plan` | Todo | No |
 | `research` | *(stays in place)* | No |
 | `implement` | Review | Yes |
-| `implement-e2e` | Review | Yes |
 | `revise` | Review | Yes (pushes to existing) |
 
 ---

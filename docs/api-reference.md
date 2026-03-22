@@ -146,10 +146,10 @@ Deletes a comment permanently.
 
 Dispatches an AI agent to work on a task.
 
-- **Valid actions:** `idle`, `plan`, `research`, `implement`, `implement-e2e`, `revise`
+- **Valid actions:** `idle`, `plan`, `research`, `implement`, `revise`
 - **Preconditions:**
   - Task `agentStatus` must be `IDLE` or `FAILED`.
-  - Actions `implement`, `implement-e2e`, and `revise` require `targetRepo` to be set on the task.
+  - Actions `implement` and `revise` require `targetRepo` to be set on the task.
 - Sets `agentStatus` to `QUEUED` and `action` to the requested value.
 - **Task events recorded:** `action_set` with `{ action }`, `status_changed` with `{ from: "idle", to: "queued" }`
 - **PubSub:** `TASK_UPDATED` (scoped to boardId), `TASK_EVENT` for each event (scoped to taskId)
