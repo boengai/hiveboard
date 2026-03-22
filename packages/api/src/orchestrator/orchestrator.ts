@@ -2,7 +2,7 @@ import { consola } from 'consola'
 import { runAgent } from '../agent/runner'
 import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
-import { GitHubClient, type ReviewComment } from '../github/client'
+import type { GitHubClient, ReviewComment } from '../github/client'
 import { publishAgentLog, pubsub } from '../pubsub'
 import type { WorkspaceManager } from '../workspace/manager'
 
@@ -20,9 +20,16 @@ type TaskRow = {
   target_repo: string | null
   target_branch: string | null
   pr_url: string | null
+  pr_number: number | null
   agent_status: string
+  agent_output: string | null
+  agent_error: string | null
   queue_after: string | null
   retry_count: number
+  archived: number
+  archived_at: string | null
+  created_by: string
+  updated_by: string
   created_at: string
   updated_at: string
 }
@@ -43,23 +50,23 @@ type RunState = {
 
 function mapTask(row: TaskRow) {
   return {
-    action: row.action,
-    agent_status: row.agent_status,
+    ...row,
+    // Internal refs for field resolvers (column, createdBy, updatedBy)
+    _columnId: row.column_id,
+    _createdBy: row.created_by,
+    _updatedBy: row.updated_by,
+    agentError: row.agent_error,
+    agentOutput: row.agent_output,
     agentStatus: row.agent_status.toUpperCase(),
-    board_id: row.board_id,
-    body: row.body,
-    column_id: row.column_id,
-    created_at: row.created_at,
-    id: row.id,
-    retry_count: row.retry_count,
+    archived: Boolean(row.archived),
+    archivedAt: row.archived_at,
+    createdAt: row.created_at,
+    prNumber: row.pr_number,
+    prUrl: row.pr_url,
     retryCount: row.retry_count,
-    target_branch: row.target_branch,
-    target_repo: row.target_repo,
     targetBranch: row.target_branch,
-    // GraphQL-cased fields
     targetRepo: row.target_repo,
-    title: row.title,
-    updated_at: row.updated_at,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -165,6 +172,7 @@ export class Orchestrator {
 
   constructor(
     private config: Config,
+    private github: GitHubClient,
     private workspace: WorkspaceManager,
     private promptTemplate: string,
   ) {}
@@ -385,13 +393,18 @@ export class Orchestrator {
         } as unknown as Record<string, unknown>)
       }
 
-      // 6. Create workspace
-      const ws = await this.workspace.createForTask({
-        id: task.id,
-        targetBranch: task.target_branch,
-        targetRepo: task.target_repo,
-        title: task.title,
-      })
+      // 6. Create workspace with fresh access token for git clone
+      const accessToken = await this.github.getAccessToken()
+      const ws = await this.workspace.createForTask(
+        {
+          action: task.action,
+          id: task.id,
+          targetBranch: task.target_branch,
+          targetRepo: task.target_repo,
+          title: task.title,
+        },
+        accessToken,
+      )
 
       // 7. Set up RunState
       const abortController = new AbortController()
@@ -441,8 +454,7 @@ export class Orchestrator {
       let reviewComments: string | undefined
       if (task.action === 'revise' && task.pr_url) {
         try {
-          const github = new GitHubClient()
-          const comments = await github.fetchReviewComments(task.pr_url)
+          const comments = await this.github.fetchReviewComments(task.pr_url)
           if (comments.length > 0) {
             reviewComments = formatReviewComments(comments)
             consola.info(
@@ -478,6 +490,7 @@ export class Orchestrator {
           action: task.action,
           body: task.body,
           id: task.id,
+          prUrl: task.pr_url,
           targetBranch: task.target_branch,
           targetRepo: task.target_repo,
           title: task.title,

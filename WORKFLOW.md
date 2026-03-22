@@ -11,7 +11,7 @@ workspace:
 hooks:
   after_create: >-
     git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ task.repo_owner }}/{{ task.repo_name }} . &&
-    git checkout -b issue-{{ task.number }}/{{ task.action }}
+    git checkout -b task-{{ task.id }}/{{ task.slug }}
 claude:
   command: claude
   model: sonnet
@@ -31,14 +31,12 @@ worker:
   ssh_hosts: []
 ---
 
-You are working on GitHub issue #{{ task.number }} in {{ task.repo_owner }}/{{ task.repo_name }}
+You are working on task {{ task.id }} in {{ task.repo_owner }}/{{ task.repo_name }}
 
 Action: {{ task.action }}
 
-Issue context:
+Task context:
 Title: {{ task.title }}
-URL: {{ task.url }}
-Labels: {{ task.labels }}
 
 Description:
 {{ task.body }}
@@ -56,36 +54,28 @@ Instructions:
 
 1. This is an unattended orchestration session. Never ask a human to perform follow-up actions.
 2. Only stop early for a true blocker (missing required auth/permissions/secrets).
-3. Before starting work, fetch the latest issue body to get the full acceptance criteria:
-   `gh issue view {{ task.number }} --repo {{ task.repo_owner }}/{{ task.repo_name }} --json body --jq .body`
-4. Follow the action-specific instructions below for action "{{ task.action }}".
-5. Final message must report completed actions and blockers only. Do not include "next steps for user".
+3. Follow the action-specific instructions below for action "{{ task.action }}".
+4. Final message must report completed actions and blockers only. Do not include "next steps for user".
 
 ### Action: plan
 If the action is "plan", do NOT write any code. Instead:
-- Research the issue context using all available methods:
+- Research the codebase using all available methods:
    a. Search the codebase (grep for relevant patterns, read key files, trace call paths).
    b. Review git history for related changes (`git log`, `git blame`).
    c. Check existing documentation, comments, and tests.
+   d. Identify the project's build system, linter, test runner, and verification commands (e.g. check `package.json` scripts, `Makefile`, `Cargo.toml`, CI config, etc.).
 - Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
-- Fetch the current issue body. If a `## Implementation Plan` section already exists, replace it; otherwise append it:
-  `gh issue edit {{ task.number }} --repo {{ task.repo_owner }}/{{ task.repo_name }} --body "$(updated body with plan)"`
-- Do NOT commit, push, or create a PR.
+- The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
+- Output the plan as your final response. Do NOT commit, push, or create a PR.
 
 ### Action: implement
 If the action is "implement":
-- Implement the changes described in the issue.
-- Before committing, verify your changes:
-   a. Run `bun run lint` and fix any errors.
-   b. Run `bun test` and ensure all tests pass.
+- Implement the changes described in the task.
+- Before committing, verify your changes using the verification commands described in the task's implementation plan. If no plan exists, discover the project's lint/test/build commands from its config files (package.json, Makefile, etc.) and run them.
 - After verification passes:
-   a. Commit all changes with a descriptive commit message referencing issue #{{ task.number }}.
+   a. Commit all changes with a descriptive commit message.
    b. Push the branch to the remote (`git push -u origin HEAD`).
-   c. Create a pull request using `gh pr create` targeting the main branch, referencing "Closes #{{ task.number }}" in the body.
-   d. Link the PR on the issue by posting a comment with the PR URL:
-      `gh issue comment {{ task.number }} --repo {{ task.repo_owner }}/{{ task.repo_name }} --body "PR: $(gh pr view --json url --jq .url)"`
-   e. Check off completed acceptance criteria on the issue by updating the issue body — replace `- [ ]` with `- [x]` for each item you completed:
-      `gh issue edit {{ task.number }} --repo {{ task.repo_owner }}/{{ task.repo_name }} --body "$(updated body)"`
+   c. Create a pull request using `gh pr create` targeting the {{ task.target_branch }} branch.
 
 ### Action: implement-e2e
 If the action is "implement-e2e":
@@ -93,7 +83,7 @@ If the action is "implement-e2e":
 - Place test files alongside existing tests or in the appropriate `__tests__`/`tests` directory.
 - Tests should verify both the happy path and important edge cases.
 - All tests (existing and new) must pass before committing.
-- Follow the same verification, commit, push, PR, and link steps as "implement".
+- Follow the same verification, commit, push, and PR steps as "implement".
 
 ### Action: revise
 If the action is "revise":
@@ -104,16 +94,12 @@ If the action is "revise":
 - Do not refactor, reformat, or change code that is not related to the review feedback.
 {{/has_review_comments}}
 {{^has_review_comments}}
-- Check the existing PR for review comments using `gh pr view --json reviewDecision,reviews`.
+- Check the existing PR for review comments: `gh pr view {{ task.pr_url }} --json reviewDecision,reviews`.
 - Address each review comment with targeted changes.
 {{/has_review_comments}}
-- After addressing all comments, verify your changes:
-   a. Run `bun run lint` and fix any errors.
-   b. Run `bun test` and ensure all tests pass.
+- After addressing all comments, verify your changes using the verification commands described in the task's implementation plan. If no plan exists, discover the project's lint/test/build commands from its config files and run them.
 - After verification passes:
    a. Commit changes with a message summarizing what was revised.
    b. Push to the same branch (`git push`).
-   c. If any review comment affects the plan, approach, or acceptance criteria (e.g. scope changes, new requirements, architectural feedback), update the issue body to reflect those changes:
-      `gh issue edit {{ task.number }} --repo {{ task.repo_owner }}/{{ task.repo_name }} --body "$(updated body)"`
 
 Work only in the provided repository copy. Do not touch any other path.

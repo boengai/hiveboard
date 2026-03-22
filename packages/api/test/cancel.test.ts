@@ -83,6 +83,13 @@ function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
   }
 }
 
+function makeGitHubStub() {
+  return {
+    getAccessToken: async () => 'fake-token',
+    fetchReviewComments: async () => [],
+  }
+}
+
 function makeWorkspaceStub() {
   return {
     createForTask: async () => ({ created: true, path: '/tmp/fake-ws' }),
@@ -226,6 +233,7 @@ describe('cancelAgent – running task', () => {
   beforeEach(() => {
     orchestrator = new Orchestrator(
       makeConfig() as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )
@@ -320,6 +328,7 @@ describe('cancelAgent – retry timer cleared', () => {
     // Use a long backoff so the timer does NOT fire before we call cancel
     const orchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )

@@ -7,6 +7,61 @@ import { type Task, useBoardStore } from '@/store'
 import type { TaskCardProps } from '@/types'
 import { tv } from '@/utils'
 
+const parseActionLabel = (
+  status: Task['agentStatus'],
+  action: Task['action'],
+) => {
+  switch (status) {
+    case 'QUEUED':
+      return 'In Queue'
+    case 'SUCCESS':
+      switch (action) {
+        case 'implement':
+          return 'Implemented'
+        case 'implement-e2e':
+          return 'Implemented E2E'
+        case 'plan':
+          return 'Planned'
+        case 'revise':
+          return 'Revised'
+        default:
+          return 'Completed'
+      }
+    case 'FAILED':
+      return 'Failed'
+    case 'RUNNING':
+      switch (action) {
+        case 'idle':
+          return 'Idle'
+        case 'implement':
+          return 'Implementing'
+        case 'implement-e2e':
+          return 'Implementing E2E'
+        case 'plan':
+          return 'Planning'
+        case 'revise':
+          return 'Revising'
+        default:
+          return 'Unknown'
+      }
+    default:
+      switch (action) {
+        case 'idle':
+          return 'Idle'
+        case 'implement':
+          return 'Implement'
+        case 'implement-e2e':
+          return 'Implement E2E'
+        case 'plan':
+          return 'Plan'
+        case 'revise':
+          return 'Revise'
+        default:
+          return 'Unknown'
+      }
+  }
+}
+
 // Action badge styles
 const actionBadge = tv({
   base: 'inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-body-xs',
@@ -89,6 +144,19 @@ export function TaskCard({ task }: TaskCardProps) {
       onClick={() => openDrawerView(task.id)}
       whileHover={{ y: -1 }}
     >
+      {/* Header row, Agent status + Action badge */}
+      <div className="flex items-center gap-1 self-start rounded-full border border-honey-400 px-1.5 py-0">
+        {/* Agent status — hidden when idle */}
+        {task.agentStatus !== 'IDLE' && (
+          <AgentStatusDot status={task.agentStatus} />
+        )}
+        {/* Action badge */}
+        {task.action && badgeClass && (
+          <span className={badgeClass}>
+            {parseActionLabel(task.agentStatus, task.action)}
+          </span>
+        )}
+      </div>
       {/* Title */}
       <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
 
@@ -105,16 +173,7 @@ export function TaskCard({ task }: TaskCardProps) {
 
         {/* Footer row */}
         <div className="flex items-center gap-2">
-          {/* Agent status — hidden when idle */}
-          {task.agentStatus !== 'IDLE' && (
-            <AgentStatusDot status={task.agentStatus} />
-          )}
-
-          {/* Action badge */}
-          {task.action && badgeClass && (
-            <span className={badgeClass}>{task.action}</span>
-          )}
-
+          <div />
           {/* Tags */}
           {task.tags?.length > 0 && (
             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">

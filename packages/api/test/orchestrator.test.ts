@@ -90,6 +90,13 @@ function makeConfig(
   }
 }
 
+function makeGitHubStub() {
+  return {
+    getAccessToken: async () => 'fake-token',
+    fetchReviewComments: async () => [],
+  }
+}
+
 /** Build a WorkspaceManager stub that immediately resolves. */
 function makeWorkspaceStub() {
   return {
@@ -179,6 +186,7 @@ describe('Orchestrator – dispatch flow', () => {
     }
     orchestrator = new Orchestrator(
       makeConfig() as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )
@@ -293,6 +301,7 @@ describe('Orchestrator – concurrency limit', () => {
     releaseLatch = () => {}
     orchestrator = new Orchestrator(
       makeConfig({ maxAgents: 2 }) as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )
@@ -395,6 +404,7 @@ describe('Orchestrator – retry scheduling', () => {
     }
     orchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 50 }) as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )
@@ -444,6 +454,7 @@ describe('Orchestrator – retry scheduling', () => {
     // We need a separate orchestrator instance with a longer backoff for this test.
     const longBackoffOrchestrator = new Orchestrator(
       makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
+      makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )

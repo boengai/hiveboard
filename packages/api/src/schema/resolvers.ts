@@ -441,7 +441,7 @@ export const resolvers = {
 
       db.transaction(() => {
         db.run(
-          `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+          `UPDATE tasks SET agent_status = 'idle', action = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
           [user.id, taskId],
         )
         db.run(
@@ -559,8 +559,8 @@ export const resolvers = {
 
       db.transaction(() => {
         db.run(
-          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, action, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             input.boardId,
@@ -570,6 +570,7 @@ export const resolvers = {
             position,
             input.targetRepo ?? null,
             input.targetBranch ?? 'main',
+            'idle',
             user.id,
             user.id,
           ],

@@ -2,6 +2,7 @@ import path from 'node:path'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { loadWorkflow } from './config'
 import { db, migrate } from './db'
+import { GitHubClient } from './github/client'
 import { Orchestrator, setOrchestrator } from './orchestrator'
 import { handleImageServe, handleImageUpload } from './routes/images'
 import { resolvers } from './schema/resolvers'
@@ -22,8 +23,9 @@ async function startOrchestrator() {
   const workflowPath = process.env.WORKFLOW_MD ?? 'WORKFLOW.md'
   try {
     const { config, promptTemplate } = await loadWorkflow(workflowPath)
+    const github = GitHubClient.create()
     const workspace = new WorkspaceManager(config)
-    const orchestrator = new Orchestrator(config, workspace, promptTemplate)
+    const orchestrator = new Orchestrator(config, github, workspace, promptTemplate)
     setOrchestrator(orchestrator)
     orchestrator.start()
   } catch (err) {
