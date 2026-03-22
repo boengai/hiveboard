@@ -34,6 +34,23 @@ export const sseClient = createClient({
 
 const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000, 16000, 30000]
 
+// ---------------------------------------------------------------------------
+// Visibility-based reconnect
+// ---------------------------------------------------------------------------
+
+type ReconnectCallback = () => void
+const reconnectCallbacks = new Set<ReconnectCallback>()
+
+// When the tab becomes visible again, force all subscriptions to drop
+// their current (likely dead) connection and reconnect immediately.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      for (const cb of reconnectCallbacks) cb()
+    }
+  })
+}
+
 function getBackoffDelay(attempt: number): number {
   const index = Math.min(attempt, BACKOFF_INTERVALS.length - 1)
   return BACKOFF_INTERVALS[index] ?? BACKOFF_INTERVALS[0] ?? 1000
@@ -61,6 +78,22 @@ export function subscribe<T>(
   }
 
   let activeIterator: AsyncIterableIterator<unknown> | null = null
+
+  // Called on tab visibility change — reset backoff and kill the (likely dead)
+  // connection. The natural run() flow will call scheduleReconnect exactly once.
+  const forceReconnect = () => {
+    if (disposed) return
+    // Clear any pending backoff timer so we don't get a second reconnect
+    clearTimer()
+    // Reset backoff so the next reconnect is immediate (1s)
+    attempt = 0
+    // Kill the active iterator — run() will exit the for-await and
+    // hit the `if (!disposed) scheduleReconnect()` path exactly once
+    if (activeIterator?.return) {
+      activeIterator.return(undefined)
+    }
+  }
+  reconnectCallbacks.add(forceReconnect)
 
   const run = async () => {
     try {
@@ -104,6 +137,7 @@ export function subscribe<T>(
   return () => {
     disposed = true
     clearTimer()
+    reconnectCallbacks.delete(forceReconnect)
     // Close the SSE connection immediately instead of waiting for the next
     // data event to break the for-await loop.
     if (activeIterator?.return) {

@@ -1,3 +1,4 @@
+import { createAppAuth } from '@octokit/auth-app'
 import { consola } from 'consola'
 
 export type ReviewComment = {
@@ -9,14 +10,66 @@ export type ReviewComment = {
 }
 
 export class GitHubClient {
-  private token: string
+  private getToken: () => Promise<string>
+  private isAppAuth: boolean
 
-  constructor() {
-    const token = process.env.GITHUB_TOKEN
-    if (!token) {
-      throw new Error('GITHUB_TOKEN environment variable is not set')
+  private constructor(
+    getToken: () => Promise<string>,
+    isAppAuth: boolean,
+  ) {
+    this.getToken = getToken
+    this.isAppAuth = isAppAuth
+  }
+
+  /**
+   * Create a GitHubClient with auth auto-detected from env vars:
+   * - GITHUB_TOKEN → PAT mode (static token)
+   * - GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY + GITHUB_APP_INSTALLATION_ID → App mode
+   */
+  static create(): GitHubClient {
+    const pat = process.env.GITHUB_TOKEN
+    const appId = process.env.GITHUB_APP_ID
+    const privateKey = process.env.GITHUB_APP_PRIVATE_KEY
+    const installationId = process.env.GITHUB_APP_INSTALLATION_ID
+
+    if (pat) {
+      consola.debug('GitHub client initialized with PAT auth')
+      return new GitHubClient(async () => pat, false)
     }
-    this.token = token
+
+    if (appId && privateKey && installationId) {
+      const auth = createAppAuth({
+        appId,
+        installationId: Number(installationId),
+        privateKey,
+      })
+
+      const getToken = async () => {
+        const { token } = await auth({ type: 'installation' })
+        return token
+      }
+
+      consola.debug('GitHub client initialized with GitHub App auth')
+      return new GitHubClient(getToken, true)
+    }
+
+    throw new Error(
+      'GitHub auth not configured. Set GITHUB_TOKEN, or set all of ' +
+        'GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID.',
+    )
+  }
+
+  /**
+   * Get a fresh access token (for injection into hook env).
+   * For App auth, generates a short-lived installation token.
+   * For PAT auth, returns the static token.
+   */
+  async getAccessToken(): Promise<string> {
+    const token = await this.getToken()
+    if (this.isAppAuth) {
+      process.env.GITHUB_TOKEN = token
+    }
+    return token
   }
 
   /**
@@ -30,6 +83,7 @@ export class GitHubClient {
     baseBranch: string,
     headBranch: string,
   ): Promise<string> {
+    const token = await this.getAccessToken()
     const proc = Bun.spawn(
       [
         'gh',
@@ -46,7 +100,7 @@ export class GitHubClient {
       ],
       {
         cwd: workspacePath,
-        env: { ...process.env, GITHUB_TOKEN: this.token },
+        env: { ...process.env, GITHUB_TOKEN: token },
         stderr: 'pipe',
         stdout: 'pipe',
       },
@@ -78,6 +132,7 @@ export class GitHubClient {
     }
 
     const [, owner, repo, number] = match
+    const token = await this.getAccessToken()
 
     const proc = Bun.spawn(
       [
@@ -88,7 +143,7 @@ export class GitHubClient {
         '[.[] | {author: .user.login, body: .body, path: .path, line: .line, diffHunk: .diff_hunk}]',
       ],
       {
-        env: { ...process.env, GITHUB_TOKEN: this.token },
+        env: { ...process.env, GITHUB_TOKEN: token },
         stderr: 'pipe',
         stdout: 'pipe',
       },

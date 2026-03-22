@@ -10,19 +10,19 @@ export type TaskForPrompt = {
   action: string | null
   targetRepo: string | null
   targetBranch: string | null
+  prUrl: string | null
 }
 
 export type PromptContext = {
   task: {
-    number: string
+    id: string
     title: string
     body: string
     action: string
     repo_owner: string
     repo_name: string
     target_branch: string
-    labels: string
-    url: string
+    pr_url: string
   }
   attempt?: number
   review_comments?: string
@@ -45,13 +45,12 @@ export function renderPrompt(
     task: {
       action: task.action ?? '',
       body: task.body,
-      labels: '',
-      number: task.id,
+      id: task.id,
+      pr_url: task.prUrl ?? '',
       repo_name: repoName ?? '',
       repo_owner: repoOwner ?? '',
       target_branch: task.targetBranch ?? 'main',
       title: task.title,
-      url: '',
     },
   }
 

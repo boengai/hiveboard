@@ -8,6 +8,7 @@ import { validateWorkspacePath } from './path-safety'
 export type TaskForWorkspace = {
   id: string
   title: string
+  action: string | null
   targetRepo: string | null
   targetBranch: string | null
 }
@@ -198,9 +199,11 @@ export class WorkspaceManager {
 
     const script = Mustache.render(rawScript, {
       task: {
+        action: task.action ?? '',
         id: task.id,
         repo_name: repoName ?? '',
         repo_owner: repoOwner ?? '',
+        slug: slugify(task.title),
         title: task.title,
       },
     }).trim()
