@@ -175,7 +175,7 @@ export const MarkdownEditor = ({
       <Tabs.Content className="pt-2" value="write">
         <textarea
           autoComplete="off"
-          className={`w-full resize-y rounded-md border bg-surface-inset px-3 py-2 text-body-sm text-text-primary outline-none transition-colors placeholder:text-text-tertiary focus:border-honey-400 focus:shadow-glow-honey ${
+          className={`w-full resize-y rounded-md border bg-surface-inset px-3 py-2 text-body text-text-primary leading-relaxed outline-none transition-colors placeholder:text-text-tertiary focus:border-honey-400 focus:shadow-glow-honey ${
             isDragOver
               ? 'border-honey-400 shadow-glow-honey'
               : 'border-border-default'

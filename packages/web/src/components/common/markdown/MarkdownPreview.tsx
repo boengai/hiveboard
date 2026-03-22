@@ -11,18 +11,18 @@ export const MarkdownPreview = ({ content }: MarkdownPreviewProps) => {
   return (
     <div
       className={[
-        'prose prose-invert prose-sm max-w-none',
+        'prose prose-invert max-w-none',
         // headings
         'prose-headings:font-semibold prose-headings:text-text-primary',
         // body text
-        'prose-p:text-body-sm prose-p:text-text-secondary',
+        'prose-p:text-body prose-p:leading-relaxed prose-p:text-text-secondary',
         // links
         'prose-a:text-honey-400 prose-a:no-underline hover:prose-a:underline',
         // code
-        'prose-code:rounded prose-code:bg-surface-inset prose-code:px-1.5 prose-code:py-0.5 prose-code:text-body-xs prose-code:text-text-secondary prose-code:before:content-none prose-code:after:content-none',
+        'prose-code:rounded prose-code:bg-surface-inset prose-code:px-1.5 prose-code:py-0.5 prose-code:text-body-sm prose-code:text-text-secondary prose-code:before:content-none prose-code:after:content-none',
         'prose-pre:rounded-md prose-pre:border prose-pre:border-border-default prose-pre:bg-surface-inset',
         // lists
-        'prose-li:text-body-sm prose-li:text-text-secondary prose-li:marker:text-text-tertiary',
+        'prose-li:text-body prose-li:leading-relaxed prose-li:text-text-secondary prose-li:marker:text-text-tertiary',
         // blockquote
         'prose-blockquote:border-honey-400/40 prose-blockquote:text-text-tertiary',
         // table
