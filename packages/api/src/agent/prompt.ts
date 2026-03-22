@@ -13,7 +13,7 @@ export type TaskForPrompt = {
 }
 
 export type PromptContext = {
-  issue: {
+  task: {
     number: string
     title: string
     body: string
@@ -41,7 +41,8 @@ export function renderPrompt(
   const context: PromptContext = {
     attempt,
     has_review_comments: !!reviewComments,
-    issue: {
+    review_comments: reviewComments,
+    task: {
       action: task.action ?? '',
       body: task.body,
       labels: '',
@@ -52,7 +53,6 @@ export function renderPrompt(
       title: task.title,
       url: '',
     },
-    review_comments: reviewComments,
   }
 
   return Mustache.render(template, context)

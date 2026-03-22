@@ -15,7 +15,6 @@ const actionBadge = tv({
       implement: 'bg-success-400/15 text-success-400',
       'implement-e2e': 'bg-teal-400/15 text-teal-400',
       plan: 'bg-info-400/15 text-info-400',
-      research: 'bg-purple-400/15 text-purple-400',
       revise: 'bg-warning-400/15 text-warning-400',
     } as Record<string, string>,
   },

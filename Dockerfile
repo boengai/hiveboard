@@ -8,6 +8,7 @@ RUN bun install --frozen-lockfile
 
 # ── Stage 2: Build web assets ──
 FROM deps AS build-web
+COPY package.json ./
 COPY packages/web/ packages/web/
 RUN bun run --filter web build
 
