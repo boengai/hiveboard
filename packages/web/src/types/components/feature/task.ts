@@ -1,4 +1,5 @@
 import type { Task } from '@/store'
+import type { ComboboxOption } from '../common/input'
 
 // ---------------------------------------------------------------------------
 // TaskDrawer
@@ -30,6 +31,8 @@ export type CreateModeProps = {
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
   onCreateTag: (name: string) => Promise<void>
+  repoOptions: ComboboxOption[]
+  branchOptions: ComboboxOption[]
 }
 
 export type ViewModeProps = {
@@ -55,6 +58,8 @@ export type EditModeProps = {
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
   onCreateTag: (name: string) => Promise<void>
+  repoOptions: ComboboxOption[]
+  branchOptions: ComboboxOption[]
 }
 
 // ---------------------------------------------------------------------------

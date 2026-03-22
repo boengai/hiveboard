@@ -138,7 +138,7 @@ function CommentBlock({
         {editing ? (
           <div className="flex flex-col gap-2">
             <TextAreaInput
-              onChange={(e) => setEditBody(e.target.value)}
+              onChange={(v) => setEditBody(v)}
               rows={2}
               value={editBody}
             />
@@ -187,7 +187,7 @@ function CommentBlock({
       {showReplyInput && (
         <div className="mt-3 flex flex-col gap-2 border-honey-400/30 border-l-2 pl-3">
           <TextAreaInput
-            onChange={(e) => setReplyBody(e.target.value)}
+            onChange={(v) => setReplyBody(v)}
             placeholder="Write a reply…"
             rows={2}
             value={replyBody}
@@ -390,7 +390,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
       {/* New comment input */}
       <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/20 p-3">
         <TextAreaInput
-          onChange={(e) => setNewBody(e.target.value)}
+          onChange={(v) => setNewBody(v)}
           placeholder="Leave a comment…"
           rows={2}
           value={newBody}
