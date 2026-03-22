@@ -28,6 +28,10 @@ export default defineConfig(({ mode }) => {
             })
           },
         },
+        '/api': {
+          target: `http://localhost:${env.API_PORT ?? 8080}`,
+          changeOrigin: true,
+        },
       },
     },
   }

@@ -141,6 +141,7 @@ export const typeDefs = /* GraphQL */ `
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]
+    sessionId: String
   }
 
   input UpdateTaskInput {

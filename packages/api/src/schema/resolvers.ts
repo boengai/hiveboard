@@ -1,6 +1,10 @@
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { db, generateId } from '../db'
 import { getOrchestrator } from '../orchestrator'
 import { pubsub } from '../pubsub'
+import { cleanupUnusedImages } from '../routes/images'
+import { getUploadDir } from '../routes/uploadDir'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
@@ -513,7 +517,7 @@ export const resolvers = {
       return mapTag(row)
     },
 
-    createTask(
+    async createTask(
       _: unknown,
       {
         input,
@@ -527,6 +531,7 @@ export const resolvers = {
           targetRepo?: string | null
           targetBranch?: string | null
           tagIds?: string[] | null
+          sessionId?: string | null
         }
       },
     ) {
@@ -580,6 +585,56 @@ export const resolvers = {
           setTaskTags(id, input.tagIds)
         }
       })()
+
+      // Migrate temp uploads to permanent location
+      if (input.sessionId) {
+        const root = getUploadDir()
+        const tmpDir = join(root, 'tmp', input.sessionId)
+        const permDir = join(root, input.boardId, id)
+
+        try {
+          const tmpStat = await stat(tmpDir).catch(() => null)
+          if (tmpStat?.isDirectory()) {
+            await mkdir(permDir, { recursive: true })
+            const files = await readdir(tmpDir)
+            for (const file of files) {
+              await rename(join(tmpDir, file), join(permDir, file))
+            }
+
+            // Rewrite body URLs
+            const currentBody = (
+              db.query('SELECT body FROM tasks WHERE id = ?').get(id) as {
+                body: string
+              }
+            ).body
+            if (currentBody.includes(`/api/images/tmp/${input.sessionId}/`)) {
+              const newBody = currentBody.replaceAll(
+                `/api/images/tmp/${input.sessionId}/`,
+                `/api/images/${input.boardId}/${id}/`,
+              )
+              db.run('UPDATE tasks SET body = ? WHERE id = ?', [newBody, id])
+            }
+
+            // Cleanup empty temp directories
+            await rm(join(root, 'tmp', input.sessionId), {
+              force: true,
+              recursive: true,
+            })
+          }
+        } catch (err) {
+          console.error('Failed to migrate temp uploads:', err)
+        }
+      }
+
+      // Clean up uploaded images not referenced in the body
+      const savedBody = (
+        db.query('SELECT body FROM tasks WHERE id = ?').get(id) as {
+          body: string
+        }
+      ).body
+      await cleanupUnusedImages(input.boardId, id, savedBody).catch((err) =>
+        console.error('Image cleanup error:', err),
+      )
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)
@@ -999,7 +1054,7 @@ export const resolvers = {
       return comment
     },
 
-    updateTask(
+    async updateTask(
       _: unknown,
       {
         id,
@@ -1114,6 +1169,21 @@ export const resolvers = {
           )
         }
       })()
+
+      // Clean up uploaded images no longer referenced in the body
+      if (input.body !== undefined) {
+        const updatedBody = db
+          .query('SELECT body, board_id FROM tasks WHERE id = ?')
+          .get(id) as {
+          body: string
+          board_id: string
+        }
+        await cleanupUnusedImages(
+          updatedBody.board_id,
+          id,
+          updatedBody.body,
+        ).catch((err) => console.error('Image cleanup error:', err))
+      }
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)

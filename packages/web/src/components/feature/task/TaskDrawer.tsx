@@ -28,6 +28,7 @@ import {
   UNARCHIVE_TASK,
   UPDATE_TASK,
 } from '@/graphql'
+import { useImageUpload } from '@/hooks/useImageUpload'
 import { type Tag, type Task, useBoardStore } from '@/store'
 import type {
   ActionColor,
@@ -141,6 +142,8 @@ const CreateMode = ({
   onCreateTag,
   repoOptions,
   branchOptions,
+  onImageUpload,
+  uploading,
 }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -188,8 +191,10 @@ const CreateMode = ({
         <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
           onChange={(v) => setForm({ ...form, body: v })}
+          onImageUpload={onImageUpload}
           placeholder="Optional description…"
           rows={12}
+          uploading={uploading}
           value={form.body}
         />
       </div>
@@ -439,6 +444,8 @@ const EditMode = ({
   onCreateTag,
   repoOptions,
   branchOptions,
+  onImageUpload,
+  uploading,
 }: EditModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -484,7 +491,9 @@ const EditMode = ({
         <FieldLabel>Body</FieldLabel>
         <MarkdownEditor
           onChange={(v) => setForm({ ...form, body: v })}
+          onImageUpload={onImageUpload}
           rows={12}
+          uploading={uploading}
           value={form.body}
         />
       </div>
@@ -579,6 +588,17 @@ export const TaskDrawer = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState<FormState>(emptyForm)
   const [createForm, setCreateForm] = useState<FormState>(emptyForm)
+  const [sessionId] = useState(() => crypto.randomUUID())
+
+  // Image upload hooks
+  const createUpload = useImageUpload({
+    boardId: board?.id ?? '',
+    sessionId,
+  })
+  const editUpload = useImageUpload({
+    boardId: board?.id ?? '',
+    taskId: task?.id,
+  })
 
   // Derive unique repo/branch options from existing tasks
   const repoOptions = useMemo(() => {
@@ -661,6 +681,7 @@ export const TaskDrawer = () => {
           boardId: board.id,
           body: createForm.body || null,
           columnId: createTaskColumnId,
+          sessionId,
           tagIds: createForm.tagIds.length > 0 ? createForm.tagIds : null,
           targetBranch: createForm.targetBranch.trim() || 'main',
           targetRepo: createForm.targetRepo.trim() || null,
@@ -844,9 +865,11 @@ export const TaskDrawer = () => {
           form={createForm}
           loading={loading}
           onCreateTag={(name) => handleCreateTag(name, setCreateForm)}
+          onImageUpload={createUpload.uploadImage}
           onSubmit={handleCreate}
           repoOptions={repoOptions}
           setForm={setCreateForm}
+          uploading={createUpload.uploading}
         />
       )}
 
@@ -873,9 +896,11 @@ export const TaskDrawer = () => {
           loading={loading}
           onCancel={cancelEdit}
           onCreateTag={(name) => handleCreateTag(name, setEditForm)}
+          onImageUpload={editUpload.uploadImage}
           onSave={handleSaveEdit}
           repoOptions={repoOptions}
           setForm={setEditForm}
+          uploading={editUpload.uploading}
         />
       )}
 
