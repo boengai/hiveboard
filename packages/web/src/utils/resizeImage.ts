@@ -24,7 +24,7 @@ export async function resizeImage(
   const newHeight = Math.round(bitmap.height * scale)
 
   const canvas = new OffscreenCanvas(newWidth, newHeight)
-  const ctx = canvas.getContext('2d')!
+  const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
   ctx.drawImage(bitmap, 0, 0, newWidth, newHeight)
   bitmap.close()
 

@@ -64,7 +64,7 @@ const parseActionLabel = (
 
 // Action badge styles
 const actionBadge = tv({
-  base: 'inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-body-xs',
+  base: 'flex items-center justify-center gap-1 self-start rounded-full px-1.5 py-0.5 font-medium text-body-xs',
   variants: {
     action: {
       implement: 'bg-success-400/15 text-success-400',
@@ -145,18 +145,18 @@ export function TaskCard({ task }: TaskCardProps) {
       whileHover={{ y: -1 }}
     >
       {/* Header row, Agent status + Action badge */}
-      <div className="flex items-center gap-1 self-start rounded-full border border-honey-400 px-1.5 py-0">
-        {/* Agent status — hidden when idle */}
-        {task.agentStatus !== 'IDLE' && (
-          <AgentStatusDot status={task.agentStatus} />
-        )}
-        {/* Action badge */}
-        {task.action && badgeClass && (
-          <span className={badgeClass}>
-            {parseActionLabel(task.agentStatus, task.action)}
-          </span>
-        )}
-      </div>
+      {badgeClass && (
+        <div className={badgeClass}>
+          {/* Agent status — hidden when idle */}
+          {task.agentStatus !== 'IDLE' && (
+            <AgentStatusDot status={task.agentStatus} />
+          )}
+          {/* Action badge */}
+          {task.action && (
+            <span>{parseActionLabel(task.agentStatus, task.action)}</span>
+          )}
+        </div>
+      )}
       {/* Title */}
       <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
 

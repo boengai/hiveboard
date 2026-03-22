@@ -15,7 +15,7 @@ hooks:
 claude:
   command: claude
   model: sonnet
-  max_turns: 50
+  max_turns: 200
   permission_mode: bypassPermissions
   allowed_tools:
     - Bash
@@ -101,5 +101,9 @@ If the action is "revise":
 - After verification passes:
    a. Commit changes with a message summarizing what was revised.
    b. Push to the same branch (`git push`).
+   c. Resolve each addressed review thread on the PR. First list the threads:
+      `gh api graphql -f query='{ repository(owner:"{{ task.repo_owner }}", name:"{{ task.repo_name }}") { pullRequest(number:PR_NUMBER) { reviewThreads(first:100) { nodes { id isResolved } } } } }'`
+      Then resolve each unresolved thread:
+      `gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"THREAD_ID"}) { thread { id } } }'`
 
 Work only in the provided repository copy. Do not touch any other path.

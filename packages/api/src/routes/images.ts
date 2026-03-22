@@ -73,7 +73,7 @@ export async function handleImageUpload(req: Request): Promise<Response> {
       dir = join(root, boardId, taskId)
       urlPath = `/api/images/${boardId}/${taskId}/${filename}`
     } else {
-      dir = join(root, 'tmp', sessionId!)
+      dir = join(root, 'tmp', sessionId ?? '')
       urlPath = `/api/images/tmp/${sessionId}/${filename}`
     }
 

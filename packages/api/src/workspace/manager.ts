@@ -66,15 +66,17 @@ export class WorkspaceManager {
   async createForTask(
     task: TaskForWorkspace,
     accessToken?: string,
+    gitIdentity?: { name: string; email: string },
   ): Promise<WorkspaceResult> {
     const wsPath = this.pathForTask(task)
-    return this.createLocal(wsPath, task, accessToken)
+    return this.createLocal(wsPath, task, accessToken, gitIdentity)
   }
 
   private async createLocal(
     wsPath: string,
     task: TaskForWorkspace,
     accessToken?: string,
+    gitIdentity?: { name: string; email: string },
   ): Promise<WorkspaceResult> {
     await validateWorkspacePath(wsPath, this.root)
 
@@ -92,7 +94,7 @@ export class WorkspaceManager {
     }
 
     if (created) {
-      await this.runHook('after_create', wsPath, task, accessToken)
+      await this.runHook('after_create', wsPath, task, accessToken, gitIdentity)
     }
 
     consola.info(`Workspace ready: ${wsPath} (created=${created})`)
@@ -169,6 +171,7 @@ export class WorkspaceManager {
     wsPath: string,
     task: TaskForWorkspace,
     accessToken?: string,
+    gitIdentity?: { name: string; email: string },
   ): Record<string, string> {
     const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
     const env: Record<string, string> = {
@@ -182,6 +185,12 @@ export class WorkspaceManager {
     if (accessToken) {
       env.GITHUB_TOKEN = accessToken
     }
+    if (gitIdentity) {
+      env.GIT_AUTHOR_NAME = gitIdentity.name
+      env.GIT_AUTHOR_EMAIL = gitIdentity.email
+      env.GIT_COMMITTER_NAME = gitIdentity.name
+      env.GIT_COMMITTER_EMAIL = gitIdentity.email
+    }
     return env
   }
 
@@ -190,6 +199,7 @@ export class WorkspaceManager {
     wsPath: string,
     task: TaskForWorkspace,
     accessToken?: string,
+    gitIdentity?: { name: string; email: string },
   ): Promise<void> {
     if (name === 'timeout_ms') return
     const rawScript = this.hooks[name]
@@ -212,7 +222,10 @@ export class WorkspaceManager {
 
     const proc = Bun.spawn(['sh', '-lc', script], {
       cwd: wsPath,
-      env: { ...process.env, ...this.hookEnv(wsPath, task, accessToken) },
+      env: {
+        ...process.env,
+        ...this.hookEnv(wsPath, task, accessToken, gitIdentity),
+      },
       stderr: 'pipe',
       stdout: 'pipe',
     })

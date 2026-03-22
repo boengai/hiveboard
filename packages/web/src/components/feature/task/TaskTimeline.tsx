@@ -1,4 +1,10 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   ArchiveIcon,
   ArrowRightIcon,
@@ -144,7 +150,9 @@ function eventDescription(
 /** Key used to determine if consecutive events are "the same" and can be grouped. */
 function eventGroupKey(entry: TimelineEntry): string {
   const desc = eventDescription(entry.eventType ?? '', entry.data)
-  const actorId = entry.isSystem ? '__SYSTEM__' : (entry.actor?.username ?? '__NONE__')
+  const actorId = entry.isSystem
+    ? '__SYSTEM__'
+    : (entry.actor?.username ?? '__NONE__')
   return `${actorId}::${desc}`
 }
 
@@ -154,18 +162,23 @@ function eventGroupKey(entry: TimelineEntry): string {
 
 type GroupedEntry =
   | { kind: 'single'; entry: TimelineEntry }
-  | { kind: 'cluster'; entries: TimelineEntry[]; description: string; eventType: string }
+  | {
+      kind: 'cluster'
+      entries: TimelineEntry[]
+      description: string
+      eventType: string
+    }
 
 function groupConsecutiveEvents(entries: TimelineEntry[]): GroupedEntry[] {
   if (entries.length === 0) return []
 
-  const first = entries[0]!
+  const first = entries[0] as TimelineEntry
   const groups: GroupedEntry[] = []
   let run: TimelineEntry[] = [first]
   let runKey = eventGroupKey(first)
 
   for (let i = 1; i < entries.length; i++) {
-    const entry = entries[i]!
+    const entry = entries[i] as TimelineEntry
     const key = eventGroupKey(entry)
     if (key === runKey) {
       run.push(entry)
@@ -180,15 +193,15 @@ function groupConsecutiveEvents(entries: TimelineEntry[]): GroupedEntry[] {
 }
 
 function flush(run: TimelineEntry[], groups: GroupedEntry[]) {
-  const head = run[0]!
+  const head = run[0] as TimelineEntry
   if (run.length === 1) {
-    groups.push({ kind: 'single', entry: head })
+    groups.push({ entry: head, kind: 'single' })
   } else {
     groups.push({
-      kind: 'cluster',
-      entries: run,
       description: eventDescription(head.eventType ?? '', head.data),
+      entries: run,
       eventType: head.eventType ?? '',
+      kind: 'cluster',
     })
   }
 }
@@ -236,8 +249,8 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
 function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
   const [expanded, setExpanded] = useState(false)
   const { entries, description, eventType } = group
-  const first = entries[0]!
-  const last = entries[entries.length - 1]!
+  const first = entries[0] as TimelineEntry
+  const last = entries[entries.length - 1] as TimelineEntry
   const icon = eventIcon(eventType)
 
   return (
@@ -262,7 +275,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
 
         <span className="flex-1 text-body-xs text-text-secondary">
           {description}
-          <span className="ml-1.5 inline-flex items-center rounded-full bg-surface-overlay px-1.5 py-px text-[10px] font-medium tabular-nums text-text-tertiary">
+          <span className="ml-1.5 inline-flex items-center rounded-full bg-surface-overlay px-1.5 py-px font-medium text-[10px] text-text-tertiary tabular-nums">
             {entries.length}x
           </span>
         </span>
@@ -280,7 +293,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
 
       {/* Expanded individual rows */}
       {expanded && (
-        <div className="ml-5 border-l border-border-default/40 pl-2.5">
+        <div className="ml-5 border-border-default/40 border-l pl-2.5">
           {entries.map((entry) => (
             <div className="flex items-center gap-2.5 py-1" key={entry.id}>
               {entry.isSystem ? (
@@ -438,7 +451,7 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
       {visibleGroups.map((group) => (
         <GroupRow
           group={group}
-          key={group.kind === 'single' ? group.entry.id : group.entries[0]!.id}
+          key={group.kind === 'single' ? group.entry.id : group.entries[0]?.id}
         />
       ))}
     </div>

@@ -4,28 +4,6 @@ import { z } from 'zod/v4'
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Resolves `$ENV_VAR` strings to their process.env value. */
-function _envString(fallback?: string) {
-  return z
-    .string()
-    .optional()
-    .transform((val, ctx) => {
-      if (!val) return fallback
-      if (val.startsWith('$')) {
-        const envVal = process.env[val.slice(1)]
-        if (!envVal) {
-          ctx.addIssue({
-            code: 'custom',
-            message: `Environment variable ${val} is not set`,
-          })
-          return z.NEVER
-        }
-        return envVal
-      }
-      return val
-    })
-}
-
 /**
  * Helper: make an object schema optional-with-defaults.
  * When the key is missing from input, use all field-level defaults.
