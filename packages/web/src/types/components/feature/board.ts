@@ -8,4 +8,5 @@ export type ColumnProps = {
 
 export type TaskCardProps = {
   task: Task
+  column: Pick<ColumnType, 'id' | 'name'>
 }

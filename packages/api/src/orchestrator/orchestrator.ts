@@ -84,6 +84,13 @@ function findColumnId(boardId: string, preferredName: string): string | null {
   return row?.id ?? null
 }
 
+function findColumnName(columnId: string): string | null {
+  const row = db
+    .query('SELECT name FROM columns WHERE id = ?')
+    .get(columnId) as { name: string } | null
+  return row?.name ?? null
+}
+
 /**
  * Format an array of PR review comments into a readable string for the agent prompt.
  */
@@ -347,6 +354,7 @@ export class Orchestrator {
       if (task.action !== 'plan') {
         const inProgressColId = findColumnId(task.board_id, 'In Progress')
         if (inProgressColId) {
+          const fromColumnName = findColumnName(task.column_id)
           db.run(
             `UPDATE tasks SET column_id = ?, updated_at = datetime('now') WHERE id = ?`,
             [inProgressColId, task.id],
@@ -360,7 +368,7 @@ export class Orchestrator {
               task.id,
               'SYSTEM',
               'moved',
-              JSON.stringify({ to_column: 'In Progress' }),
+              JSON.stringify({ from_column: fromColumnName, to_column: 'In Progress' }),
             ],
           )
         }
@@ -640,6 +648,7 @@ export class Orchestrator {
 
         // INSERT event: moved (if column changed)
         if (targetColumnId && targetColumnName) {
+          const fromColumnName = findColumnName(task.column_id)
           db.run(
             'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
             [
@@ -647,7 +656,7 @@ export class Orchestrator {
               task.id,
               'SYSTEM',
               'moved',
-              JSON.stringify({ to_column: targetColumnName }),
+              JSON.stringify({ from_column: fromColumnName, to_column: targetColumnName }),
             ],
           )
         }

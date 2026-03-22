@@ -52,12 +52,12 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
     items[highlightedIndex]?.scrollIntoView({ block: 'nearest' })
   }, [highlightedIndex])
 
-  // For single mode: restore search text to selected label on close
+  // For single mode: select text on open so typing replaces it; restore on close
   // biome-ignore lint/correctness/useExhaustiveDependencies: sync display on open/close
   useEffect(() => {
     if (!isMulti) {
       if (open) {
-        setSearch('')
+        inputRef.current?.select()
       } else {
         const selected = options.find((opt) => opt.value === valueArr[0])
         setSearch(selected?.label ?? valueArr[0] ?? '')
@@ -154,15 +154,19 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
 
   return (
     <Popover.Root onOpenChange={setOpen} open={open}>
-      <Popover.Trigger asChild disabled={disabled}>
+      <Popover.Anchor asChild>
         <div
           aria-expanded={open}
           aria-haspopup="listbox"
           className="flex w-full flex-wrap items-center gap-1 rounded-md border border-border-default bg-surface-inset px-3 py-2 text-body-sm text-text-primary outline-none transition-colors focus-within:border-honey-400 focus-within:shadow-glow-honey disabled:opacity-50"
-          onClick={() => inputRef.current?.focus()}
+          onClick={() => {
+            if (!disabled) {
+              inputRef.current?.focus()
+              if (!open) setOpen(true)
+            }
+          }}
           onKeyDown={handleKeyDown}
           role="combobox"
-          tabIndex={0}
         >
           {isMulti &&
             selectedOptions.map(
@@ -220,7 +224,7 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
             value={search}
           />
         </div>
-      </Popover.Trigger>
+      </Popover.Anchor>
 
       <Popover.Portal>
         <Popover.Content

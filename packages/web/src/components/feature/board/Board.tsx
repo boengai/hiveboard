@@ -165,12 +165,12 @@ export function Board() {
         position = (lastTask?.position ?? 0) + 1024
       } else if (overIndex === 0) {
         // Insert before first task
-        position = visibleTasks[0].position - 1024
+        position = (visibleTasks[0]?.position ?? 0) - 1024
       } else {
         // Insert between prev and the indicated task
-        const prev = visibleTasks[overIndex - 1]
-        const next = visibleTasks[overIndex]
-        position = (prev.position + next.position) / 2
+        const prevPos = visibleTasks[overIndex - 1]?.position ?? 0
+        const nextPos = visibleTasks[overIndex]?.position ?? 0
+        position = (prevPos + nextPos) / 2
       }
     }
 
@@ -262,7 +262,7 @@ export function Board() {
         <DragOverlay>
           {activeTask ? (
             <div className="w-72 rotate-1 opacity-90">
-              <TaskCard task={activeTask} />
+              <TaskCard column={activeTask.column} task={activeTask} />
             </div>
           ) : null}
         </DragOverlay>

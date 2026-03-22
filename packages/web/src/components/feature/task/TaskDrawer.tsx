@@ -326,14 +326,16 @@ const ViewMode = ({
             {task.title}
           </h2>
           <div className="flex shrink-0 items-center gap-1 pt-0.5">
-            <Button
-              color="ghost"
-              onClick={onEdit}
-              size="small"
-              title="Edit task"
-            >
-              <PencilIcon size={16} />
-            </Button>
+            {task.column?.name !== 'Done' && (
+              <Button
+                color="ghost"
+                onClick={onEdit}
+                size="small"
+                title="Edit task"
+              >
+                <PencilIcon size={16} />
+              </Button>
+            )}
             <Button
               color="ghost"
               disabled={loading}
@@ -411,23 +413,29 @@ const ViewMode = ({
             ` · updated ${timeAgo(task.updatedAt)}`}
         </span>
       </div>
-      <AgentPanel
-        loading={loading}
-        onInterruptAgent={onInterruptAgent}
-        onUpdateAction={onUpdateAction}
-        task={task}
-      />
-      {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
-        <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
+      {task.column?.name !== 'Done' && (
+        <>
+          <AgentPanel
+            loading={loading}
+            onInterruptAgent={onInterruptAgent}
+            onUpdateAction={onUpdateAction}
+            task={task}
+          />
+          {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
+            <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
+          )}
+        </>
       )}
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Activity</SectionLabel>
         <TaskTimeline taskId={task.id} />
       </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Comments</SectionLabel>
-        <TaskComments taskId={task.id} />
-      </div>
+      {task.column?.name !== 'Done' && (
+        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+          <SectionLabel>Comments</SectionLabel>
+          <TaskComments taskId={task.id} />
+        </div>
+      )}
     </div>
   )
 }

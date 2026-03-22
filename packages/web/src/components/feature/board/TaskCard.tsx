@@ -110,7 +110,7 @@ function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
   return null
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, column }: TaskCardProps) {
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
 
   const {
@@ -144,8 +144,8 @@ export function TaskCard({ task }: TaskCardProps) {
       onClick={() => openDrawerView(task.id)}
       whileHover={{ y: -1 }}
     >
-      {/* Header row, Agent status + Action badge */}
-      {badgeClass && (
+      {/* Header row, Agent status + Action badge — hidden in Done column */}
+      {badgeClass && column.name !== 'Done' && (
         <div className={badgeClass}>
           {/* Agent status — hidden when idle */}
           {task.agentStatus !== 'IDLE' && (
