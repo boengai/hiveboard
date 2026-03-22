@@ -45,6 +45,7 @@ type TaskRow = {
   target_repo: string | null
   target_branch: string | null
   agent_status: string
+  queue_after: string | null
   agent_output: string | null
   agent_error: string | null
   retry_count: number
@@ -527,7 +528,6 @@ export const resolvers = {
           columnId?: string | null
           title: string
           body?: string | null
-          action?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
           tagIds?: string[] | null
@@ -559,8 +559,8 @@ export const resolvers = {
 
       db.transaction(() => {
         db.run(
-          `INSERT INTO tasks (id, board_id, column_id, title, body, position, action, target_repo, target_branch, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             input.boardId,
@@ -568,7 +568,6 @@ export const resolvers = {
             input.title,
             input.body ?? '',
             position,
-            input.action ?? null,
             input.targetRepo ?? null,
             input.targetBranch ?? 'main',
             user.id,
@@ -727,111 +726,6 @@ export const resolvers = {
     deleteTag(_: unknown, { id }: { id: string }) {
       db.run('DELETE FROM tags WHERE id = ?', [id])
       return true
-    },
-
-    dispatchAgent(
-      _: unknown,
-      { taskId, action }: { taskId: string; action: string },
-    ) {
-      const user = getCurrentUser()
-
-      // Validate action is one of the allowed values
-      const validActions = [
-        'idle',
-        'plan',
-        'research',
-        'implement',
-        'implement-e2e',
-        'revise',
-      ]
-      if (!validActions.includes(action)) {
-        throw new Error(
-          `Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`,
-        )
-      }
-
-      // Fetch task and validate preconditions
-      const existingTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(taskId) as TaskRow | null
-      if (!existingTask) throw new Error(`Task ${taskId} not found`)
-
-      if (
-        existingTask.agent_status !== 'idle' &&
-        existingTask.agent_status !== 'failed'
-      ) {
-        throw new Error(
-          `Cannot dispatch agent: task is currently '${existingTask.agent_status}'. Must be 'idle' or 'failed'.`,
-        )
-      }
-
-      if (
-        action === 'implement' ||
-        action === 'implement-e2e' ||
-        action === 'revise'
-      ) {
-        if (!existingTask.target_repo) {
-          throw new Error(
-            `Action '${action}' requires target_repo to be set on the task.`,
-          )
-        }
-      }
-
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [action, user.id, taskId],
-        )
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            taskId,
-            user.id,
-            'action_set',
-            JSON.stringify({ action }),
-          ],
-        )
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            taskId,
-            user.id,
-            'status_changed',
-            JSON.stringify({ from: 'idle', to: 'queued' }),
-          ],
-        )
-      })()
-
-      const task = getTaskById(taskId)
-      if (!task) throw new Error(`Task ${taskId} not found`)
-      publishTaskUpdated(task)
-
-      // Publish TASK_EVENTs for the action_set + status_changed events
-      const dispatchEvents = db
-        .query(
-          `SELECT * FROM task_events WHERE task_id = ? AND type IN ('action_set', 'status_changed') ORDER BY created_at DESC LIMIT 2`,
-        )
-        .all(taskId) as Array<{
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      }>
-      for (const ev of dispatchEvents) {
-        pubsub.publish('TASK_EVENT', taskId, {
-          _actor: ev.actor,
-          createdAt: ev.created_at,
-          data: ev.data,
-          id: ev.id,
-          isSystem: false,
-          type: ev.type,
-        } as unknown as Record<string, unknown>)
-      }
-
-      return task
     },
 
     moveTask(
@@ -1119,6 +1013,25 @@ export const resolvers = {
             newAction ? 'action_set' : 'action_cleared',
             newAction ? JSON.stringify({ action: newAction }) : null,
           ])
+
+          // Auto-queue with 15s grace period when action is set
+          if (
+            newAction &&
+            (existing.agent_status === 'idle' ||
+              existing.agent_status === 'failed' ||
+              existing.agent_status === 'success')
+          ) {
+            setClauses.push("agent_status = 'queued'")
+            setClauses.push("queue_after = datetime('now', '+15 seconds')")
+            events.push([
+              generateId(),
+              'status_changed',
+              JSON.stringify({
+                from: existing.agent_status,
+                to: 'queued',
+              }),
+            ])
+          }
         }
       }
 

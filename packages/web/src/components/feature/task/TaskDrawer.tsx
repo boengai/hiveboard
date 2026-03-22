@@ -22,7 +22,6 @@ import {
   CANCEL_AGENT,
   CREATE_TAG,
   CREATE_TASK,
-  DISPATCH_AGENT,
   GET_BOARD,
   GET_TASK,
   graphqlClient,
@@ -319,7 +318,6 @@ const ViewMode = ({
   onArchive,
   loading,
   onInterruptAgent,
-  onDispatch,
   onUpdateAction,
 }: ViewModeProps) => {
   return (
@@ -418,7 +416,6 @@ const ViewMode = ({
       </div>
       <AgentPanel
         loading={loading}
-        onDispatch={onDispatch}
         onInterruptAgent={onInterruptAgent}
         onUpdateAction={onUpdateAction}
         task={task}
@@ -440,7 +437,6 @@ const ViewMode = ({
 
 const AgentPanel = ({
   task,
-  onDispatch,
   onInterruptAgent,
   loading,
   onUpdateAction,
@@ -469,6 +465,11 @@ const AgentPanel = ({
         <Badge color={agentStatusColor(task.agentStatus)}>
           {task.agentStatus}
         </Badge>
+        {isAgentActive && (
+          <Button color="danger" disabled={loading} onClick={onInterruptAgent}>
+            Cancel
+          </Button>
+        )}
       </div>
 
       {/* Retry count */}
@@ -496,18 +497,6 @@ const AgentPanel = ({
             value={task.action || undefined}
           />
         </div>
-        <Button
-          color="primary"
-          disabled={!task.action || isAgentActive || loading}
-          onClick={() => task.action && onDispatch(task.action)}
-        >
-          Dispatch
-        </Button>
-        {isAgentActive && (
-          <Button color="danger" disabled={loading} onClick={onInterruptAgent}>
-            Cancel
-          </Button>
-        )}
       </div>
     </div>
   )
@@ -788,7 +777,6 @@ export const TaskDrawer = () => {
       try {
         await graphqlClient.request(CREATE_TASK, {
           input: {
-            action: 'idle',
             boardId: board.id,
             body: values.body || null,
             columnId: createTaskColumnId,
@@ -867,23 +855,6 @@ export const TaskDrawer = () => {
         )
         setTask(updated.updateTask)
         await refetchBoard()
-      } catch (e) {
-        console.error(e)
-      }
-    })
-  }
-
-  const handleDispatch = (action: string) => {
-    if (!task) return
-    startTransition(async () => {
-      try {
-        const data = await graphqlClient.request<{
-          dispatchAgent: Partial<Task>
-        }>(DISPATCH_AGENT, {
-          action,
-          taskId: task.id,
-        })
-        setTask({ ...task, ...data.dispatchAgent })
       } catch (e) {
         console.error(e)
       }
@@ -986,7 +957,6 @@ export const TaskDrawer = () => {
         <ViewMode
           loading={isPending}
           onArchive={handleArchive}
-          onDispatch={handleDispatch}
           onEdit={enterEdit}
           onInterruptAgent={handleInterruptAgent}
           onUpdateAction={handleUpdateAction}

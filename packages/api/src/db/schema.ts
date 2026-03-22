@@ -37,6 +37,7 @@ export function createTables(db: Database): void {
       target_repo    TEXT,
       target_branch  TEXT DEFAULT 'main',
       agent_status   TEXT NOT NULL DEFAULT 'idle',
+      queue_after    TEXT,
       agent_output   TEXT,
       agent_error    TEXT,
       retry_count    INTEGER NOT NULL DEFAULT 0,
