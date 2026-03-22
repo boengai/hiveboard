@@ -41,7 +41,7 @@ tmp/**
 !tmp/**/
 !tmp/**/*/.gitkeep
 
-tmp/database/
+
 packages/web/dist/
 
 
