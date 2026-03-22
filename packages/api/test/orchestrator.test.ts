@@ -92,8 +92,9 @@ function makeConfig(
 
 function makeGitHubStub() {
   return {
-    getAccessToken: async () => 'fake-token',
     fetchReviewComments: async () => [],
+    getAccessToken: async () => 'fake-token',
+    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
   }
 }
 

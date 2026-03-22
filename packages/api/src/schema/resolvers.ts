@@ -762,8 +762,9 @@ export const resolvers = {
 
         let needsReindex = false
         for (let i = 1; i < siblings.length; i++) {
-          const gap = siblings[i]?.position - siblings[i - 1]?.position
-          if (gap < 1.0) {
+          const prev = siblings[i - 1]?.position ?? 0
+          const curr = siblings[i]?.position ?? 0
+          if (curr - prev < 1.0) {
             needsReindex = true
             break
           }
@@ -773,7 +774,7 @@ export const resolvers = {
           for (let i = 0; i < siblings.length; i++) {
             db.run('UPDATE tasks SET position = ? WHERE id = ?', [
               (i + 1) * 1024,
-              siblings[i]?.id,
+              siblings[i]?.id ?? '',
             ])
           }
         }

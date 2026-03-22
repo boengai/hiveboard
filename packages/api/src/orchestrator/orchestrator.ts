@@ -126,7 +126,10 @@ function extractPlanFromOutput(
       for (const block of parsed) {
         if (block.type === 'text' && typeof block.text === 'string') {
           planText = block.text
-        } else if (block.type === 'result' && typeof block.result === 'string') {
+        } else if (
+          block.type === 'result' &&
+          typeof block.result === 'string'
+        ) {
           planText = block.result
         }
       }
@@ -262,6 +265,9 @@ export class Orchestrator {
     if (this.shutdownRequested) return
 
     try {
+      // Refresh installation token every poll cycle so long-running agents
+      // and subprocesses (gh, git) always have a valid GITHUB_TOKEN.
+      await this.github.getAccessToken()
       // 1. Reconciliation: verify running agents still have agent_status='running' in DB
       for (const [taskId, runState] of this.running) {
         const task = db
@@ -393,8 +399,9 @@ export class Orchestrator {
         } as unknown as Record<string, unknown>)
       }
 
-      // 6. Create workspace with fresh access token for git clone
+      // 6. Create workspace with fresh access token and git identity
       const accessToken = await this.github.getAccessToken()
+      const gitIdentity = await this.github.getIdentity()
       const ws = await this.workspace.createForTask(
         {
           action: task.action,
@@ -404,6 +411,7 @@ export class Orchestrator {
           title: task.title,
         },
         accessToken,
+        gitIdentity,
       )
 
       // 7. Set up RunState
@@ -473,8 +481,10 @@ export class Orchestrator {
         }
       }
 
+      const gitIdentity = await this.github.getIdentity()
       const result = await runAgent({
         config: this.config,
+        gitIdentity,
         onLog: (chunk) => {
           pubsub.publish('AGENT_LOG', task.id, {
             chunk,

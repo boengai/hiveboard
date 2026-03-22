@@ -9,14 +9,22 @@ export type ReviewComment = {
   diffHunk: string | null
 }
 
+// GitHub App tokens last 1 hour. Refresh at 45 minutes to stay safe.
+const TOKEN_REFRESH_MS = 45 * 60 * 1000
+
+export type GitIdentity = {
+  name: string
+  email: string
+}
+
 export class GitHubClient {
   private getToken: () => Promise<string>
   private isAppAuth: boolean
+  private cachedToken: string | null = null
+  private tokenExpiresAt = 0
+  private _identity: GitIdentity | null = null
 
-  private constructor(
-    getToken: () => Promise<string>,
-    isAppAuth: boolean,
-  ) {
+  private constructor(getToken: () => Promise<string>, isAppAuth: boolean) {
     this.getToken = getToken
     this.isAppAuth = isAppAuth
   }
@@ -60,16 +68,96 @@ export class GitHubClient {
   }
 
   /**
-   * Get a fresh access token (for injection into hook env).
-   * For App auth, generates a short-lived installation token.
-   * For PAT auth, returns the static token.
+   * Get an access token, refreshing only when expired or close to expiry.
+   * For App auth, caches the token and refreshes every 45 minutes.
+   * For PAT auth, returns the static token immediately.
+   * Also sets process.env.GITHUB_TOKEN so subprocesses (gh, git) work.
    */
   async getAccessToken(): Promise<string> {
-    const token = await this.getToken()
-    if (this.isAppAuth) {
-      process.env.GITHUB_TOKEN = token
+    if (!this.isAppAuth) {
+      return this.getToken()
     }
+
+    if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
+      return this.cachedToken
+    }
+
+    const token = await this.getToken()
+    this.cachedToken = token
+    this.tokenExpiresAt = Date.now() + TOKEN_REFRESH_MS
+    process.env.GITHUB_TOKEN = token
+    consola.debug('GitHub App token refreshed')
     return token
+  }
+
+  /**
+   * Fetch the git identity from GitHub.
+   * - PAT: fetches authenticated user profile
+   * - App: uses the app's slug as bot identity
+   * Cached after first call.
+   */
+  async getIdentity(): Promise<GitIdentity> {
+    if (this._identity) return this._identity
+
+    const token = await this.getAccessToken()
+
+    if (this.isAppAuth) {
+      // GitHub App: GET /app returns { slug, id }
+      // Bot commits should use: "app-slug[bot]" / "id+app-slug[bot]@users.noreply.github.com"
+      const proc = Bun.spawn(
+        ['gh', 'api', '/app', '--jq', '[.slug, .id] | @tsv'],
+        {
+          env: { ...process.env, GITHUB_TOKEN: token },
+          stderr: 'pipe',
+          stdout: 'pipe',
+        },
+      )
+      const stdout = (
+        await new Response(proc.stdout as ReadableStream).text()
+      ).trim()
+      await proc.exited
+      const [slug, appId] = stdout.split('\t')
+      if (slug && appId) {
+        this._identity = {
+          email: `${appId}+${slug}[bot]@users.noreply.github.com`,
+          name: `${slug}[bot]`,
+        }
+      }
+    } else {
+      // PAT: GET /user returns { login, id, name }
+      const proc = Bun.spawn(
+        ['gh', 'api', '/user', '--jq', '[.login, .id, .name] | @tsv'],
+        {
+          env: { ...process.env, GITHUB_TOKEN: token },
+          stderr: 'pipe',
+          stdout: 'pipe',
+        },
+      )
+      const stdout = (
+        await new Response(proc.stdout as ReadableStream).text()
+      ).trim()
+      await proc.exited
+      const [login, userId, displayName] = stdout.split('\t')
+      if (login && userId) {
+        this._identity = {
+          email: `${userId}+${login}@users.noreply.github.com`,
+          name: displayName || login,
+        }
+      }
+    }
+
+    if (!this._identity) {
+      this._identity = {
+        email: 'hiveboard[bot]@users.noreply.github.com',
+        name: 'hiveboard[bot]',
+      }
+      consola.warn('Could not fetch GitHub identity, using fallback')
+    }
+
+    consola.info(
+      `Git identity: ${this._identity.name} <${this._identity.email}>`,
+    )
+    return this._identity
   }
 
   /**

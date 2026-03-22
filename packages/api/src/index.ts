@@ -24,8 +24,16 @@ async function startOrchestrator() {
   try {
     const { config, promptTemplate } = await loadWorkflow(workflowPath)
     const github = GitHubClient.create()
+    // Generate initial token so process.env.GITHUB_TOKEN is set
+    // before any agent spawns (gh/git need it immediately)
+    await github.getAccessToken()
     const workspace = new WorkspaceManager(config)
-    const orchestrator = new Orchestrator(config, github, workspace, promptTemplate)
+    const orchestrator = new Orchestrator(
+      config,
+      github,
+      workspace,
+      promptTemplate,
+    )
     setOrchestrator(orchestrator)
     orchestrator.start()
   } catch (err) {

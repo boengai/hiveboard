@@ -9,6 +9,7 @@ export type TaskForAgent = {
   action: string | null
   targetRepo: string | null
   targetBranch: string | null
+  prUrl: string | null
 }
 
 export type AgentResult = {
@@ -27,6 +28,7 @@ export type RunAgentOptions = {
   reviewComments?: string
   signal?: AbortSignal
   onLog?: (chunk: string) => void
+  gitIdentity?: { name: string; email: string }
 }
 
 /** Build Claude CLI arguments from config. */
@@ -68,6 +70,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     reviewComments,
     signal,
     onLog,
+    gitIdentity,
   } = options
 
   const prompt = renderPrompt(
@@ -90,6 +93,12 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
       HIVEBOARD_TASK_ID: task.id,
       HIVEBOARD_TASK_TITLE: task.title,
       HIVEBOARD_WORKSPACE: workspacePath,
+      ...(gitIdentity && {
+        GIT_AUTHOR_EMAIL: gitIdentity.email,
+        GIT_AUTHOR_NAME: gitIdentity.name,
+        GIT_COMMITTER_EMAIL: gitIdentity.email,
+        GIT_COMMITTER_NAME: gitIdentity.name,
+      }),
     },
     stderr: 'pipe',
     stdout: 'pipe',
