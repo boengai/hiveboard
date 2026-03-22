@@ -1,3 +1,4 @@
+import type { TaskFormValues } from '@/schemas/task'
 import type { Task } from '@/store'
 import type { ComboboxOption } from '../common/input'
 
@@ -15,22 +16,14 @@ export type ActionColor =
   | 'error'
   | 'honey'
 
-export type FormState = {
-  title: string
-  body: string
-  action: string
-  targetRepo: string
-  targetBranch: string
-  tagIds: string[]
-}
-
 export type CreateModeProps = {
-  form: FormState
-  setForm: (f: FormState) => void
-  onSubmit: () => Promise<void>
+  onSubmit: (values: TaskFormValues) => Promise<void>
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
-  onCreateTag: (name: string) => Promise<void>
+  onCreateTag: (
+    name: string,
+    updateTagIds: (ids: string[]) => void,
+  ) => Promise<void>
   repoOptions: ComboboxOption[]
   branchOptions: ComboboxOption[]
   onImageUpload?: (file: File) => Promise<string>
@@ -53,13 +46,15 @@ export type AgentPanelProps = {
 }
 
 export type EditModeProps = {
-  form: FormState
-  setForm: (f: FormState) => void
-  onSave: () => Promise<void>
+  initialValues: TaskFormValues
+  onSubmit: (values: TaskFormValues) => Promise<void>
   onCancel: () => void
   loading: boolean
   boardTags: Array<{ id: string; name: string; color: string }>
-  onCreateTag: (name: string) => Promise<void>
+  onCreateTag: (
+    name: string,
+    updateTagIds: (ids: string[]) => void,
+  ) => Promise<void>
   repoOptions: ComboboxOption[]
   branchOptions: ComboboxOption[]
   onImageUpload?: (file: File) => Promise<string>

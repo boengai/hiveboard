@@ -1,3 +1,4 @@
+import { useForm } from '@tanstack/react-form'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -29,13 +30,14 @@ import {
   UPDATE_TASK,
 } from '@/graphql'
 import { useImageUpload } from '@/hooks/useImageUpload'
+import type { TaskFormValues } from '@/schemas/task'
+import { taskFormSchema } from '@/schemas/task'
 import { type Tag, type Task, useBoardStore } from '@/store'
 import type {
   ActionColor,
   AgentPanelProps,
   CreateModeProps,
   EditModeProps,
-  FormState,
   ViewModeProps,
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
@@ -100,15 +102,6 @@ function agentStatusColor(status: string): ActionColor {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-const emptyForm: FormState = {
-  action: '',
-  body: '## Description\n',
-  tagIds: [],
-  targetBranch: 'main',
-  targetRepo: '',
-  title: '',
-}
-
 const SectionLabel = ({ children }: { children: ReactNode }) => (
   <span className="font-semibold text-body-xs text-text-tertiary uppercase tracking-widest">
     {children}
@@ -133,9 +126,17 @@ const FieldLabel = ({
   </label>
 )
 
+const FieldError = ({
+  errors,
+}: {
+  errors: Array<string | { message: string }>
+}) => {
+  if (errors.length === 0) return null
+  const msg = typeof errors[0] === 'string' ? errors[0] : errors[0].message
+  return <span className="text-body-xs text-error-400">{msg}</span>
+}
+
 const CreateMode = ({
-  form,
-  setForm,
   onSubmit,
   loading,
   boardTags,
@@ -147,116 +148,167 @@ const CreateMode = ({
 }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
+  const form = useForm({
+    defaultValues: {
+      action: '',
+      body: '## Description\n',
+      tagIds: [] as string[],
+      targetBranch: 'main',
+      targetRepo: '',
+      title: '',
+    },
+    onSubmit: async ({ value }) => {
+      await onSubmit(value)
+    },
+    validators: {
+      onSubmit: taskFormSchema,
+    },
+  })
+
   useEffect(() => {
     titleRef.current?.focus()
   }, [])
 
   return (
-    <div className="flex grow flex-col gap-6">
+    <form
+      className="flex grow flex-col gap-6"
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        form.handleSubmit()
+      }}
+    >
       {/* Title */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel htmlFor="create-title" required>
-          Title
-        </FieldLabel>
-        <TextInput
-          id="create-title"
-          onChange={(v) => setForm({ ...form, title: v })}
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSubmit()}
-          placeholder="Task title"
-          ref={titleRef}
-          value={form.title}
-        />
-      </div>
+      <form.Field name="title">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel htmlFor="create-title" required>
+              Title
+            </FieldLabel>
+            <TextInput
+              id="create-title"
+              onChange={field.handleChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  form.handleSubmit()
+                }
+              }}
+              placeholder="Task title"
+              ref={titleRef}
+              value={field.state.value}
+            />
+            <FieldError errors={field.state.meta.errors} />
+          </div>
+        )}
+      </form.Field>
 
       {/* Tags */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Tags</FieldLabel>
-        <ComboboxInput
-          createLabel="Add tag"
-          multiple
-          onCreateOption={onCreateTag}
-          onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
-          options={boardTags.map((t) => ({
-            color: t.color,
-            label: t.name,
-            value: t.id,
-          }))}
-          placeholder="Search or create tags…"
-          value={form.tagIds}
-        />
-      </div>
+      <form.Field name="tagIds">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Tags</FieldLabel>
+            <ComboboxInput
+              createLabel="Add tag"
+              multiple
+              onCreateOption={(name) =>
+                onCreateTag(name, (newIds) =>
+                  field.handleChange([...field.state.value, ...newIds]),
+                )
+              }
+              onValueChange={field.handleChange}
+              options={boardTags.map((t) => ({
+                color: t.color,
+                label: t.name,
+                value: t.id,
+              }))}
+              placeholder="Search or create tags…"
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
 
       {/* Body */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Body</FieldLabel>
-        <MarkdownEditor
-          onChange={(v) => setForm({ ...form, body: v })}
-          onImageUpload={onImageUpload}
-          placeholder="Optional description…"
-          rows={12}
-          uploading={uploading}
-          value={form.body}
-        />
-      </div>
+      <form.Field name="body">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Body</FieldLabel>
+            <MarkdownEditor
+              onChange={field.handleChange}
+              onImageUpload={onImageUpload}
+              placeholder="Optional description…"
+              rows={12}
+              uploading={uploading}
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
 
       {/* Target config */}
       <div className="flex flex-col gap-3">
         <SectionLabel>Configuration</SectionLabel>
         <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
           <div className="grid grid-cols-[1fr_1fr] gap-3">
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="create-target-repo" required>
-                Target Repository
-              </FieldLabel>
-              <ComboboxInput
-                createLabel="Use"
-                id="create-target-repo"
-                onCreateOption={(name) =>
-                  setForm({ ...form, targetRepo: name })
-                }
-                onValueChange={(v) => setForm({ ...form, targetRepo: v })}
-                options={repoOptions}
-                placeholder="owner/repo"
-                value={form.targetRepo}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="create-target-branch" required>
-                Branch
-              </FieldLabel>
-              <ComboboxInput
-                createLabel="Use"
-                id="create-target-branch"
-                onCreateOption={(name) =>
-                  setForm({ ...form, targetBranch: name })
-                }
-                onValueChange={(v) => setForm({ ...form, targetBranch: v })}
-                options={branchOptions}
-                placeholder="main"
-                value={form.targetBranch}
-              />
-            </div>
+            <form.Field name="targetRepo">
+              {(field) => (
+                <div className="flex flex-col gap-2">
+                  <FieldLabel htmlFor="create-target-repo" required>
+                    Target Repository
+                  </FieldLabel>
+                  <ComboboxInput
+                    createLabel="Use"
+                    id="create-target-repo"
+                    onCreateOption={(name) => field.handleChange(name)}
+                    onValueChange={field.handleChange}
+                    options={repoOptions}
+                    placeholder="owner/repo"
+                    value={field.state.value}
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="targetBranch">
+              {(field) => (
+                <div className="flex flex-col gap-2">
+                  <FieldLabel htmlFor="create-target-branch" required>
+                    Branch
+                  </FieldLabel>
+                  <ComboboxInput
+                    createLabel="Use"
+                    id="create-target-branch"
+                    onCreateOption={(name) => field.handleChange(name)}
+                    onValueChange={field.handleChange}
+                    options={branchOptions}
+                    placeholder="main"
+                    value={field.state.value}
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </div>
+              )}
+            </form.Field>
           </div>
         </div>
       </div>
 
       {/* Footer */}
       <div className="mt-auto border-border-default border-t pt-5">
-        <Button
-          block
-          color="primary"
-          disabled={
-            !form.title.trim() ||
-            !form.targetRepo.trim() ||
-            !form.targetBranch.trim() ||
-            loading
-          }
-          onClick={onSubmit}
-        >
-          {loading ? 'Creating…' : 'Create Task'}
-        </Button>
+        <form.Subscribe selector={(s) => s.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              block
+              color="primary"
+              disabled={loading || isSubmitting}
+              type="submit"
+            >
+              {loading || isSubmitting ? 'Creating…' : 'Create Task'}
+            </Button>
+          )}
+        </form.Subscribe>
       </div>
-    </div>
+    </form>
   )
 }
 
@@ -435,9 +487,8 @@ const AgentPanel = ({
 }
 
 const EditMode = ({
-  form,
-  setForm,
-  onSave,
+  initialValues,
+  onSubmit,
   onCancel,
   loading,
   boardTags,
@@ -449,54 +500,88 @@ const EditMode = ({
 }: EditModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
+  const form = useForm({
+    defaultValues: initialValues,
+    onSubmit: async ({ value }) => {
+      await onSubmit(value)
+    },
+    validators: {
+      onSubmit: taskFormSchema,
+    },
+  })
+
   useEffect(() => {
     titleRef.current?.focus()
   }, [])
 
   return (
-    <div className="flex grow flex-col gap-6">
+    <form
+      className="flex grow flex-col gap-6"
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        form.handleSubmit()
+      }}
+    >
       {/* Title */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel htmlFor="edit-title" required>
-          Title
-        </FieldLabel>
-        <TextInput
-          id="edit-title"
-          onChange={(v) => setForm({ ...form, title: v })}
-          ref={titleRef}
-          value={form.title}
-        />
-      </div>
+      <form.Field name="title">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel htmlFor="edit-title" required>
+              Title
+            </FieldLabel>
+            <TextInput
+              id="edit-title"
+              onChange={field.handleChange}
+              ref={titleRef}
+              value={field.state.value}
+            />
+            <FieldError errors={field.state.meta.errors} />
+          </div>
+        )}
+      </form.Field>
 
       {/* Tags */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Tags</FieldLabel>
-        <ComboboxInput
-          createLabel="Add tag"
-          multiple
-          onCreateOption={onCreateTag}
-          onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
-          options={boardTags.map((t) => ({
-            color: t.color,
-            label: t.name,
-            value: t.id,
-          }))}
-          placeholder="Search or create tags…"
-          value={form.tagIds}
-        />
-      </div>
+      <form.Field name="tagIds">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Tags</FieldLabel>
+            <ComboboxInput
+              createLabel="Add tag"
+              multiple
+              onCreateOption={(name) =>
+                onCreateTag(name, (newIds) =>
+                  field.handleChange([...field.state.value, ...newIds]),
+                )
+              }
+              onValueChange={field.handleChange}
+              options={boardTags.map((t) => ({
+                color: t.color,
+                label: t.name,
+                value: t.id,
+              }))}
+              placeholder="Search or create tags…"
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
 
       {/* Body */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Body</FieldLabel>
-        <MarkdownEditor
-          onChange={(v) => setForm({ ...form, body: v })}
-          onImageUpload={onImageUpload}
-          rows={12}
-          uploading={uploading}
-          value={form.body}
-        />
-      </div>
+      <form.Field name="body">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Body</FieldLabel>
+            <MarkdownEditor
+              onChange={field.handleChange}
+              onImageUpload={onImageUpload}
+              rows={12}
+              uploading={uploading}
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
 
       {/* Configuration section */}
       <div className="flex flex-col gap-3">
@@ -504,67 +589,73 @@ const EditMode = ({
 
         <div className="rounded-lg border border-border-default bg-surface-overlay/30 p-4">
           <div className="grid grid-cols-[1fr_1fr] gap-3">
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-repo" required>
-                Target Repository
-              </FieldLabel>
-              <ComboboxInput
-                createLabel="Use"
-                id="edit-target-repo"
-                onCreateOption={(name) =>
-                  setForm({ ...form, targetRepo: name })
-                }
-                onValueChange={(v) => setForm({ ...form, targetRepo: v })}
-                options={repoOptions}
-                placeholder="owner/repo"
-                value={form.targetRepo}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <FieldLabel htmlFor="edit-target-branch" required>
-                Branch
-              </FieldLabel>
-              <ComboboxInput
-                createLabel="Use"
-                id="edit-target-branch"
-                onCreateOption={(name) =>
-                  setForm({ ...form, targetBranch: name })
-                }
-                onValueChange={(v) => setForm({ ...form, targetBranch: v })}
-                options={branchOptions}
-                placeholder="main"
-                value={form.targetBranch}
-              />
-            </div>
+            <form.Field name="targetRepo">
+              {(field) => (
+                <div className="flex flex-col gap-2">
+                  <FieldLabel htmlFor="edit-target-repo" required>
+                    Target Repository
+                  </FieldLabel>
+                  <ComboboxInput
+                    createLabel="Use"
+                    id="edit-target-repo"
+                    onCreateOption={(name) => field.handleChange(name)}
+                    onValueChange={field.handleChange}
+                    options={repoOptions}
+                    placeholder="owner/repo"
+                    value={field.state.value}
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="targetBranch">
+              {(field) => (
+                <div className="flex flex-col gap-2">
+                  <FieldLabel htmlFor="edit-target-branch" required>
+                    Branch
+                  </FieldLabel>
+                  <ComboboxInput
+                    createLabel="Use"
+                    id="edit-target-branch"
+                    onCreateOption={(name) => field.handleChange(name)}
+                    onValueChange={field.handleChange}
+                    options={branchOptions}
+                    placeholder="main"
+                    value={field.state.value}
+                  />
+                  <FieldError errors={field.state.meta.errors} />
+                </div>
+              )}
+            </form.Field>
           </div>
         </div>
       </div>
 
       {/* Footer */}
       <div className="mt-auto flex items-center gap-3 border-border-default border-t pt-5 *:w-1/2">
-        <Button
-          color="primary"
-          disabled={
-            !form.title.trim() ||
-            !form.targetRepo.trim() ||
-            !form.targetBranch.trim() ||
-            loading
-          }
-          onClick={onSave}
-          size="large"
-        >
-          {loading ? 'Saving…' : 'Save Changes'}
-        </Button>
+        <form.Subscribe selector={(s) => s.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              color="primary"
+              disabled={loading || isSubmitting}
+              size="large"
+              type="submit"
+            >
+              {loading || isSubmitting ? 'Saving…' : 'Save Changes'}
+            </Button>
+          )}
+        </form.Subscribe>
         <Button
           color="ghost"
           disabled={loading}
           onClick={onCancel}
           size="large"
+          type="button"
         >
           Cancel
         </Button>
       </div>
-    </div>
+    </form>
   )
 }
 
@@ -586,8 +677,6 @@ export const TaskDrawer = () => {
   const [loading, setLoading] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState<FormState>(emptyForm)
-  const [createForm, setCreateForm] = useState<FormState>(emptyForm)
   const [sessionId] = useState(() => crypto.randomUUID())
 
   // Image upload hooks
@@ -656,8 +745,6 @@ export const TaskDrawer = () => {
       setIsEditing(false)
       setTask(null)
       setLoading(false)
-      setCreateForm(emptyForm)
-      setEditForm(emptyForm)
     }
   }, [drawerMode])
 
@@ -671,21 +758,21 @@ export const TaskDrawer = () => {
     setBoard(data.board)
   }
 
-  const handleCreate = async () => {
-    if (!createForm.title.trim() || !createTaskColumnId || !board) return
+  const handleCreate = async (values: TaskFormValues) => {
+    if (!createTaskColumnId || !board) return
     setLoading(true)
     try {
       await graphqlClient.request(CREATE_TASK, {
         input: {
           action: 'idle',
           boardId: board.id,
-          body: createForm.body || null,
+          body: values.body || null,
           columnId: createTaskColumnId,
           sessionId,
-          tagIds: createForm.tagIds.length > 0 ? createForm.tagIds : null,
-          targetBranch: createForm.targetBranch.trim() || 'main',
-          targetRepo: createForm.targetRepo.trim() || null,
-          title: createForm.title.trim(),
+          tagIds: values.tagIds.length > 0 ? values.tagIds : null,
+          targetBranch: values.targetBranch.trim() || 'main',
+          targetRepo: values.targetRepo.trim() || null,
+          title: values.title.trim(),
         },
       })
       await refetchBoard()
@@ -697,8 +784,8 @@ export const TaskDrawer = () => {
     }
   }
 
-  const handleSaveEdit = async () => {
-    if (!task || !editForm.title.trim()) return
+  const handleSaveEdit = async (values: TaskFormValues) => {
+    if (!task) return
     setLoading(true)
     try {
       const updated = await graphqlClient.request<{ updateTask: Task }>(
@@ -706,12 +793,12 @@ export const TaskDrawer = () => {
         {
           id: task.id,
           input: {
-            action: editForm.action || null,
-            body: editForm.body,
-            tagIds: editForm.tagIds,
-            targetBranch: editForm.targetBranch.trim() || null,
-            targetRepo: editForm.targetRepo.trim() || null,
-            title: editForm.title.trim(),
+            action: values.action || null,
+            body: values.body,
+            tagIds: values.tagIds,
+            targetBranch: values.targetBranch.trim() || null,
+            targetRepo: values.targetRepo.trim() || null,
+            title: values.title.trim(),
           },
         },
       )
@@ -770,7 +857,6 @@ export const TaskDrawer = () => {
     if (!task) return
     setLoading(true)
     try {
-      ;``
       const data = await graphqlClient.request<{
         dispatchAgent: Partial<Task>
       }>(DISPATCH_AGENT, {
@@ -805,25 +891,16 @@ export const TaskDrawer = () => {
 
   const enterEdit = () => {
     if (!task) return
-    setEditForm({
-      action: task.action ?? '',
-      body: task.body ?? '',
-      tagIds: task.tags?.map((t) => t.id) ?? [],
-      targetBranch: task.targetBranch ?? 'main',
-      targetRepo: task.targetRepo ?? '',
-      title: task.title,
-    })
     setIsEditing(true)
   }
 
   const cancelEdit = () => {
     setIsEditing(false)
-    setEditForm(emptyForm)
   }
 
   const handleCreateTag = async (
     name: string,
-    formSetter: React.Dispatch<React.SetStateAction<FormState>>,
+    updateTagIds: (ids: string[]) => void,
   ) => {
     if (!board) return
     try {
@@ -834,7 +911,8 @@ export const TaskDrawer = () => {
       })
       const newTag = data.createTag
       await refetchBoard()
-      formSetter((prev) => ({ ...prev, tagIds: [...prev.tagIds, newTag.id] }))
+      // The caller passes the current tagIds + new tag via the form field updater
+      updateTagIds([newTag.id])
     } catch (e) {
       console.error(e)
     }
@@ -849,6 +927,18 @@ export const TaskDrawer = () => {
           ? 'Loading…'
           : 'Task'
 
+  // Build edit initial values from current task
+  const editInitialValues: TaskFormValues | null = task
+    ? {
+        action: task.action ?? '',
+        body: task.body ?? '',
+        tagIds: task.tags?.map((t) => t.id) ?? [],
+        targetBranch: task.targetBranch ?? 'main',
+        targetRepo: task.targetRepo ?? '',
+        title: task.title,
+      }
+    : null
+
   return (
     <Drawer
       onOpenChange={(open) => {
@@ -862,13 +952,11 @@ export const TaskDrawer = () => {
         <CreateMode
           boardTags={board?.tags ?? []}
           branchOptions={branchOptions}
-          form={createForm}
           loading={loading}
-          onCreateTag={(name) => handleCreateTag(name, setCreateForm)}
+          onCreateTag={handleCreateTag}
           onImageUpload={createUpload.uploadImage}
           onSubmit={handleCreate}
           repoOptions={repoOptions}
-          setForm={setCreateForm}
           uploading={createUpload.uploading}
         />
       )}
@@ -888,18 +976,18 @@ export const TaskDrawer = () => {
         />
       )}
 
-      {drawerMode === 'view' && task && isEditing && (
+      {drawerMode === 'view' && task && isEditing && editInitialValues && (
         <EditMode
           boardTags={board?.tags ?? []}
           branchOptions={branchOptions}
-          form={editForm}
+          initialValues={editInitialValues}
+          key={task.id}
           loading={loading}
           onCancel={cancelEdit}
-          onCreateTag={(name) => handleCreateTag(name, setEditForm)}
+          onCreateTag={handleCreateTag}
           onImageUpload={editUpload.uploadImage}
-          onSave={handleSaveEdit}
+          onSubmit={handleSaveEdit}
           repoOptions={repoOptions}
-          setForm={setEditForm}
           uploading={editUpload.uploading}
         />
       )}
