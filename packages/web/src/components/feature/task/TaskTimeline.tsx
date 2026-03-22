@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArchiveIcon,
   ArrowRightIcon,
@@ -6,9 +6,11 @@ import {
   Badge,
   BoltIcon,
   CheckIcon,
+  ChevronDownIcon,
   DotIcon,
   FileTextIcon,
   GitPullRequestIcon,
+  MessageIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
@@ -139,6 +141,61 @@ function eventDescription(
   }
 }
 
+/** Key used to determine if consecutive events are "the same" and can be grouped. */
+function eventGroupKey(entry: TimelineEntry): string {
+  const desc = eventDescription(entry.eventType ?? '', entry.data)
+  const actorId = entry.isSystem ? '__SYSTEM__' : (entry.actor?.username ?? '__NONE__')
+  return `${actorId}::${desc}`
+}
+
+// ---------------------------------------------------------------------------
+// Grouping logic — merge consecutive identical events into clusters
+// ---------------------------------------------------------------------------
+
+type GroupedEntry =
+  | { kind: 'single'; entry: TimelineEntry }
+  | { kind: 'cluster'; entries: TimelineEntry[]; description: string; eventType: string }
+
+function groupConsecutiveEvents(entries: TimelineEntry[]): GroupedEntry[] {
+  if (entries.length === 0) return []
+
+  const first = entries[0]!
+  const groups: GroupedEntry[] = []
+  let run: TimelineEntry[] = [first]
+  let runKey = eventGroupKey(first)
+
+  for (let i = 1; i < entries.length; i++) {
+    const entry = entries[i]!
+    const key = eventGroupKey(entry)
+    if (key === runKey) {
+      run.push(entry)
+    } else {
+      flush(run, groups)
+      run = [entry]
+      runKey = key
+    }
+  }
+  flush(run, groups)
+  return groups
+}
+
+function flush(run: TimelineEntry[], groups: GroupedEntry[]) {
+  const head = run[0]!
+  if (run.length === 1) {
+    groups.push({ kind: 'single', entry: head })
+  } else {
+    groups.push({
+      kind: 'cluster',
+      entries: run,
+      description: eventDescription(head.eventType ?? '', head.data),
+      eventType: head.eventType ?? '',
+    })
+  }
+}
+
+/** How many recent groups to show before collapsing older ones. */
+const VISIBLE_TAIL = 6
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -148,9 +205,9 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
   const description = eventDescription(entry.eventType ?? '', entry.data)
 
   return (
-    <div className="flex items-start gap-2.5 py-1.5">
+    <div className="flex items-center gap-2.5 py-1.5">
       {/* Icon */}
-      <span className="mt-0.5 w-5 shrink-0 text-center font-mono text-body-xs text-text-tertiary">
+      <span className="w-5 shrink-0 text-center font-mono text-body-xs text-text-tertiary">
         {icon}
       </span>
 
@@ -176,6 +233,82 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
   )
 }
 
+function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
+  const [expanded, setExpanded] = useState(false)
+  const { entries, description, eventType } = group
+  const first = entries[0]!
+  const last = entries[entries.length - 1]!
+  const icon = eventIcon(eventType)
+
+  return (
+    <div>
+      {/* Summary row */}
+      <button
+        className="flex w-full items-center gap-2.5 py-1.5 text-left transition-colors hover:bg-surface-overlay/40"
+        onClick={() => setExpanded((v) => !v)}
+        type="button"
+      >
+        <span className="w-5 shrink-0 text-center font-mono text-body-xs text-text-tertiary">
+          {icon}
+        </span>
+
+        {first.isSystem ? (
+          <span className="shrink-0 font-mono">
+            <Badge>SYSTEM</Badge>
+          </span>
+        ) : first.actor ? (
+          <Avatar name={first.actor.username} size="sm" />
+        ) : null}
+
+        <span className="flex-1 text-body-xs text-text-secondary">
+          {description}
+          <span className="ml-1.5 inline-flex items-center rounded-full bg-surface-overlay px-1.5 py-px text-[10px] font-medium tabular-nums text-text-tertiary">
+            {entries.length}x
+          </span>
+        </span>
+
+        <span className="flex shrink-0 items-center gap-1.5 text-body-xs text-text-tertiary">
+          {timeAgo(last.createdAt)}
+          <span
+            className="transition-transform duration-150"
+            style={{ transform: expanded ? 'rotate(180deg)' : undefined }}
+          >
+            <ChevronDownIcon size={10} />
+          </span>
+        </span>
+      </button>
+
+      {/* Expanded individual rows */}
+      {expanded && (
+        <div className="ml-5 border-l border-border-default/40 pl-2.5">
+          {entries.map((entry) => (
+            <div className="flex items-center gap-2.5 py-1" key={entry.id}>
+              {entry.isSystem ? (
+                <span className="shrink-0 font-mono">
+                  <Badge>SYSTEM</Badge>
+                </span>
+              ) : entry.actor ? (
+                <Avatar name={entry.actor.username} size="sm" />
+              ) : null}
+              <span className="flex-1 text-body-xs text-text-tertiary">
+                {eventDescription(entry.eventType ?? '', entry.data)}
+              </span>
+              <span className="shrink-0 text-body-xs text-text-tertiary">
+                {timeAgo(entry.createdAt)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GroupRow({ group }: { group: GroupedEntry }) {
+  if (group.kind === 'single') return <EventRow entry={group.entry} />
+  return <ClusterRow group={group} />
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -183,6 +316,7 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
 export function TaskTimeline({ taskId }: TaskTimelineProps) {
   const [entries, setEntries] = useState<TimelineEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAll, setShowAll] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -249,6 +383,14 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
     return dispose
   }, [taskId])
 
+  // Group consecutive identical events
+  const grouped = useMemo(() => groupConsecutiveEvents(entries), [entries])
+
+  // Split into collapsed / visible
+  const needsCollapse = !showAll && grouped.length > VISIBLE_TAIL
+  const hiddenCount = needsCollapse ? grouped.length - VISIBLE_TAIL : 0
+  const visibleGroups = needsCollapse ? grouped.slice(-VISIBLE_TAIL) : grouped
+
   if (loading) {
     return (
       <div className="flex flex-col gap-1 pt-2">
@@ -271,8 +413,33 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
 
   return (
     <div className="flex flex-col divide-y divide-border-default/50">
-      {entries.map((entry) => (
-        <EventRow entry={entry} key={entry.id} />
+      {/* "Show earlier / Show less" toggle */}
+      {grouped.length > VISIBLE_TAIL && (
+        <button
+          className="flex w-full items-center justify-center gap-1.5 py-1.5 text-body-xs text-text-tertiary transition-colors hover:text-honey-400"
+          onClick={() => setShowAll((v) => !v)}
+          type="button"
+        >
+          <span
+            className="transition-transform duration-150"
+            style={{ transform: showAll ? 'rotate(180deg)' : undefined }}
+          >
+            <ChevronDownIcon size={10} />
+          </span>
+          <span>
+            {showAll
+              ? 'Show less'
+              : `Show ${hiddenCount} earlier ${hiddenCount === 1 ? 'event' : 'events'}`}
+          </span>
+        </button>
+      )}
+
+      {/* Visible rows */}
+      {visibleGroups.map((group) => (
+        <GroupRow
+          group={group}
+          key={group.kind === 'single' ? group.entry.id : group.entries[0]!.id}
+        />
       ))}
     </div>
   )
