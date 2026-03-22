@@ -97,6 +97,61 @@ function formatReviewComments(comments: ReviewComment[]): string {
   return lines.join('\n').trim()
 }
 
+/**
+ * Extract the plan text from Claude CLI JSON output and merge it into the task body.
+ * Claude CLI with --print --output-format json returns a JSON array of content blocks.
+ * We extract the final text response and append/replace the ## Implementation Plan section.
+ */
+function extractPlanFromOutput(
+  rawOutput: string,
+  existingBody: string,
+): string | null {
+  try {
+    // Claude --print --output-format json outputs a JSON array of message blocks
+    // The last text block from the assistant is the plan
+    const parsed = JSON.parse(rawOutput)
+
+    let planText = ''
+    if (typeof parsed === 'string') {
+      planText = parsed
+    } else if (Array.isArray(parsed)) {
+      // Find the last assistant text content
+      for (const block of parsed) {
+        if (block.type === 'text' && typeof block.text === 'string') {
+          planText = block.text
+        } else if (block.type === 'result' && typeof block.result === 'string') {
+          planText = block.result
+        }
+      }
+    } else if (parsed?.result) {
+      planText = String(parsed.result)
+    }
+
+    if (!planText.trim()) return null
+
+    // Merge into existing body: replace ## Implementation Plan section if it exists
+    const planSection = `## Implementation Plan\n\n${planText.trim()}`
+    const planRegex = /## Implementation Plan[\s\S]*$/
+    if (planRegex.test(existingBody)) {
+      return existingBody.replace(planRegex, planSection)
+    }
+    return existingBody
+      ? `${existingBody.trimEnd()}\n\n${planSection}`
+      : planSection
+  } catch {
+    // Output wasn't valid JSON — use raw text as the plan
+    consola.warn('Could not parse Claude CLI output as JSON, using raw text')
+    const planSection = `## Implementation Plan\n\n${rawOutput.trim()}`
+    const planRegex = /## Implementation Plan[\s\S]*$/
+    if (planRegex.test(existingBody)) {
+      return existingBody.replace(planRegex, planSection)
+    }
+    return existingBody
+      ? `${existingBody.trimEnd()}\n\n${planSection}`
+      : planSection
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
@@ -224,7 +279,7 @@ export class Orchestrator {
 
       const queued = db
         .query(
-          `SELECT * FROM tasks WHERE agent_status = ? AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
+          `SELECT * FROM tasks WHERE agent_status = ? AND action IS NOT NULL AND action != 'idle' AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
         )
         .all('queued', available) as TaskRow[]
 
@@ -504,14 +559,26 @@ export class Orchestrator {
         targetColumnId = findColumnId(task.board_id, targetColumnName)
       }
 
+      // For plan actions, extract the plan text and update the task body
+      let planBody: string | null = null
+      if (task.action === 'plan' && result.output) {
+        planBody = extractPlanFromOutput(result.output, task.body)
+      }
+
       db.transaction(() => {
-        // UPDATE tasks
+        // UPDATE tasks — clear action so the task returns to idle state
         const setParts = [
           `agent_status = 'success'`,
+          `action = 'idle'`,
           `agent_output = ?`,
           `updated_at = datetime('now')`,
         ]
         const setValues: (string | number | null)[] = [result.output]
+
+        if (planBody) {
+          setParts.push('body = ?')
+          setValues.push(planBody)
+        }
 
         if (prUrl) {
           setParts.push('pr_url = ?', 'pr_number = ?')
