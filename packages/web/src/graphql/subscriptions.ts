@@ -79,12 +79,11 @@ export function subscribe<T>(
       if (disposed) return
       console.error('Subscription error:', err)
       connectionStateManager.setState('error')
-      scheduleReconnect()
     } finally {
       activeIterator = null
     }
 
-    // Iterable ended without error (server closed cleanly) — reconnect too
+    // Reconnect whether the iterable ended cleanly or via error
     if (!disposed) {
       scheduleReconnect()
     }
