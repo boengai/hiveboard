@@ -14,7 +14,6 @@ export type {
   CommentUser,
   CreateModeProps,
   EditModeProps,
-  FormState,
   RawComment,
   RawTimelineEvent,
   Reply,
