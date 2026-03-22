@@ -1,4 +1,5 @@
-.PHONY: dev dev-api dev-web build start test lint fmt
+.PHONY: dev dev-api dev-web build start test lint fmt \
+       docker-build docker-up docker-down docker-logs docker-clean
 
 dev:
 	bun run dev
@@ -23,3 +24,19 @@ lint:
 
 fmt:
 	bunx biome check --fix .
+
+# ── Docker ──────────────────────────────────────────────────────
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-clean:
+	docker compose down --rmi all --volumes --remove-orphans

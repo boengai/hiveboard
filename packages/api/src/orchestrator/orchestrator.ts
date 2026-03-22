@@ -274,8 +274,8 @@ export class Orchestrator {
         [runId, task.id, task.action ?? ''],
       )
 
-      // 4. Move to "In Progress" (skip for plan/research)
-      if (task.action !== 'plan' && task.action !== 'research') {
+      // 4. Move to "In Progress" (skip for plan)
+      if (task.action !== 'plan') {
         const inProgressColId = findColumnId(task.board_id, 'In Progress')
         if (inProgressColId) {
           db.run(
@@ -497,7 +497,7 @@ export class Orchestrator {
       ) {
         targetColumnName = 'Review'
       }
-      // research stays in current column
+      // plan stays in current column
 
       let targetColumnId: string | null = null
       if (targetColumnName) {

@@ -59,7 +59,6 @@ const agentDot = tv({
 const ACTION_OPTIONS = [
   { label: 'Idle', value: 'idle' },
   { label: 'Plan', value: 'plan' },
-  { label: 'Research', value: 'research' },
   { label: 'Implement', value: 'implement' },
   { label: 'Implement E2E', value: 'implement-e2e' },
   { label: 'Revise', value: 'revise' },
@@ -69,8 +68,6 @@ function actionColor(action: string | null): ActionColor {
   switch (action) {
     case 'plan':
       return 'info'
-    case 'research':
-      return 'purple'
     case 'implement':
       return 'honey'
     case 'implement-e2e':
