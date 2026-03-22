@@ -560,7 +560,6 @@ export class Orchestrator {
       let prNumber: number | null = null
       if (
         task.action === 'implement' ||
-        task.action === 'implement-e2e' ||
         task.action === 'revise'
       ) {
         const prMatch = result.output.match(
@@ -578,7 +577,6 @@ export class Orchestrator {
         targetColumnName = 'Todo'
       } else if (
         task.action === 'implement' ||
-        task.action === 'implement-e2e' ||
         task.action === 'revise'
       ) {
         targetColumnName = 'Review'

@@ -64,26 +64,21 @@ If the action is "plan", do NOT write any code. Instead:
    b. Review git history for related changes (`git log`, `git blame`).
    c. Check existing documentation, comments, and tests.
    d. Identify the project's build system, linter, test runner, and verification commands (e.g. check `package.json` scripts, `Makefile`, `Cargo.toml`, CI config, etc.).
+   e. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
 - Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
 - The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
-- Output the plan as your final response. Do NOT commit, push, or create a PR.
+- Output the plan as plain text in your final message. Do NOT write the plan to a file. Do NOT commit, push, or create a PR.
 
 ### Action: implement
 If the action is "implement":
 - Implement the changes described in the task.
+- If the implementation plan includes end-to-end tests (e.g. the project has an e2e setup like Playwright, Cypress, etc.), also write e2e tests covering the feature's key user flows and important edge cases. Place test files alongside existing tests or in the appropriate test directory.
 - Before committing, verify your changes using the verification commands described in the task's implementation plan. If no plan exists, discover the project's lint/test/build commands from its config files (package.json, Makefile, etc.) and run them.
+- All tests (existing and new) must pass before committing.
 - After verification passes:
    a. Commit all changes with a descriptive commit message.
    b. Push the branch to the remote (`git push -u origin HEAD`).
    c. Create a pull request using `gh pr create` targeting the {{ task.target_branch }} branch.
-
-### Action: implement-e2e
-If the action is "implement-e2e":
-- Same as "implement", but also write end-to-end tests that cover the feature's key user flows.
-- Place test files alongside existing tests or in the appropriate `__tests__`/`tests` directory.
-- Tests should verify both the happy path and important edge cases.
-- All tests (existing and new) must pass before committing.
-- Follow the same verification, commit, push, and PR steps as "implement".
 
 ### Action: revise
 If the action is "revise":

@@ -18,8 +18,6 @@ const parseActionLabel = (
       switch (action) {
         case 'implement':
           return 'Implemented'
-        case 'implement-e2e':
-          return 'Implemented E2E'
         case 'plan':
           return 'Planned'
         case 'revise':
@@ -35,8 +33,6 @@ const parseActionLabel = (
           return 'Idle'
         case 'implement':
           return 'Implementing'
-        case 'implement-e2e':
-          return 'Implementing E2E'
         case 'plan':
           return 'Planning'
         case 'revise':
@@ -50,8 +46,6 @@ const parseActionLabel = (
           return 'Idle'
         case 'implement':
           return 'Implement'
-        case 'implement-e2e':
-          return 'Implement E2E'
         case 'plan':
           return 'Plan'
         case 'revise':
@@ -67,8 +61,8 @@ const actionBadge = tv({
   base: 'flex items-center justify-center gap-1 self-start rounded-full px-1.5 py-0.5 font-medium text-body-xs',
   variants: {
     action: {
+      idle: 'bg-gray-400/15 text-gray-400',
       implement: 'bg-success-400/15 text-success-400',
-      'implement-e2e': 'bg-teal-400/15 text-teal-400',
       plan: 'bg-info-400/15 text-info-400',
       revise: 'bg-warning-400/15 text-warning-400',
     } as Record<string, string>,

@@ -23,7 +23,7 @@ export const SelectInput = ({
 
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        className="z-50 overflow-hidden rounded-md border border-border-default bg-surface-overlay shadow-lg"
+        className="z-50 w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border-default bg-surface-overlay shadow-lg"
         position="popper"
         sideOffset={4}
       >

@@ -70,6 +70,8 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
         ? 'Failed'
         : 'Idle'
 
+  if (chunks.length === 0) return null
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3">
       {/* Header row */}
@@ -108,15 +110,9 @@ export function AgentLogStream({ taskId, agentStatus }: AgentLogStreamProps) {
         className="max-h-64 overflow-y-auto rounded bg-gray-950 p-2"
         ref={scrollRef}
       >
-        {chunks.length === 0 ? (
-          <span className="font-mono text-body-xs text-text-tertiary">
-            {streaming ? 'Waiting for output...' : 'No output yet.'}
-          </span>
-        ) : (
-          <pre className="whitespace-pre-wrap font-mono text-body-xs text-gray-300">
-            {chunks.join('')}
-          </pre>
-        )}
+        <pre className="whitespace-pre-wrap font-mono text-body-xs text-gray-300">
+          {chunks.join('')}
+        </pre>
       </div>
     </div>
   )
