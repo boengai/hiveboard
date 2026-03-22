@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArchiveIcon,
   Avatar,
@@ -139,6 +139,8 @@ const CreateMode = ({
   loading,
   boardTags,
   onCreateTag,
+  repoOptions,
+  branchOptions,
 }: CreateModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -155,7 +157,7 @@ const CreateMode = ({
         </FieldLabel>
         <TextInput
           id="create-title"
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          onChange={(v) => setForm({ ...form, title: v })}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSubmit()}
           placeholder="Task title"
           ref={titleRef}
@@ -168,6 +170,7 @@ const CreateMode = ({
         <FieldLabel>Tags</FieldLabel>
         <ComboboxInput
           createLabel="Add tag"
+          multiple
           onCreateOption={onCreateTag}
           onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
           options={boardTags.map((t) => ({
@@ -200,11 +203,14 @@ const CreateMode = ({
               <FieldLabel htmlFor="create-target-repo" required>
                 Target Repository
               </FieldLabel>
-              <TextInput
+              <ComboboxInput
+                createLabel="Use"
                 id="create-target-repo"
-                onChange={(e) =>
-                  setForm({ ...form, targetRepo: e.target.value })
+                onCreateOption={(name) =>
+                  setForm({ ...form, targetRepo: name })
                 }
+                onValueChange={(v) => setForm({ ...form, targetRepo: v })}
+                options={repoOptions}
                 placeholder="owner/repo"
                 value={form.targetRepo}
               />
@@ -213,11 +219,14 @@ const CreateMode = ({
               <FieldLabel htmlFor="create-target-branch" required>
                 Branch
               </FieldLabel>
-              <TextInput
+              <ComboboxInput
+                createLabel="Use"
                 id="create-target-branch"
-                onChange={(e) =>
-                  setForm({ ...form, targetBranch: e.target.value })
+                onCreateOption={(name) =>
+                  setForm({ ...form, targetBranch: name })
                 }
+                onValueChange={(v) => setForm({ ...form, targetBranch: v })}
+                options={branchOptions}
                 placeholder="main"
                 value={form.targetBranch}
               />
@@ -428,6 +437,8 @@ const EditMode = ({
   loading,
   boardTags,
   onCreateTag,
+  repoOptions,
+  branchOptions,
 }: EditModeProps) => {
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -444,7 +455,7 @@ const EditMode = ({
         </FieldLabel>
         <TextInput
           id="edit-title"
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          onChange={(v) => setForm({ ...form, title: v })}
           ref={titleRef}
           value={form.title}
         />
@@ -455,6 +466,7 @@ const EditMode = ({
         <FieldLabel>Tags</FieldLabel>
         <ComboboxInput
           createLabel="Add tag"
+          multiple
           onCreateOption={onCreateTag}
           onValueChange={(ids) => setForm({ ...form, tagIds: ids })}
           options={boardTags.map((t) => ({
@@ -487,11 +499,14 @@ const EditMode = ({
               <FieldLabel htmlFor="edit-target-repo" required>
                 Target Repository
               </FieldLabel>
-              <TextInput
+              <ComboboxInput
+                createLabel="Use"
                 id="edit-target-repo"
-                onChange={(e) =>
-                  setForm({ ...form, targetRepo: e.target.value })
+                onCreateOption={(name) =>
+                  setForm({ ...form, targetRepo: name })
                 }
+                onValueChange={(v) => setForm({ ...form, targetRepo: v })}
+                options={repoOptions}
                 placeholder="owner/repo"
                 value={form.targetRepo}
               />
@@ -500,11 +515,14 @@ const EditMode = ({
               <FieldLabel htmlFor="edit-target-branch" required>
                 Branch
               </FieldLabel>
-              <TextInput
+              <ComboboxInput
+                createLabel="Use"
                 id="edit-target-branch"
-                onChange={(e) =>
-                  setForm({ ...form, targetBranch: e.target.value })
+                onCreateOption={(name) =>
+                  setForm({ ...form, targetBranch: name })
                 }
+                onValueChange={(v) => setForm({ ...form, targetBranch: v })}
+                options={branchOptions}
                 placeholder="main"
                 value={form.targetBranch}
               />
@@ -561,6 +579,33 @@ export const TaskDrawer = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState<FormState>(emptyForm)
   const [createForm, setCreateForm] = useState<FormState>(emptyForm)
+
+  // Derive unique repo/branch options from existing tasks
+  const repoOptions = useMemo(() => {
+    if (!board) return []
+    const repos = new Set<string>()
+    for (const col of board.columns) {
+      for (const t of col.tasks) {
+        if (t.targetRepo) repos.add(t.targetRepo)
+      }
+    }
+    return Array.from(repos)
+      .sort()
+      .map((r) => ({ label: r, value: r }))
+  }, [board])
+
+  const branchOptions = useMemo(() => {
+    if (!board) return []
+    const branches = new Set<string>()
+    for (const col of board.columns) {
+      for (const t of col.tasks) {
+        if (t.targetBranch) branches.add(t.targetBranch)
+      }
+    }
+    return Array.from(branches)
+      .sort()
+      .map((b) => ({ label: b, value: b }))
+  }, [board])
 
   // Fetch task when opening in view mode
   useEffect(() => {
@@ -795,10 +840,12 @@ export const TaskDrawer = () => {
       {drawerMode === 'create' && (
         <CreateMode
           boardTags={board?.tags ?? []}
+          branchOptions={branchOptions}
           form={createForm}
           loading={loading}
           onCreateTag={(name) => handleCreateTag(name, setCreateForm)}
           onSubmit={handleCreate}
+          repoOptions={repoOptions}
           setForm={setCreateForm}
         />
       )}
@@ -821,11 +868,13 @@ export const TaskDrawer = () => {
       {drawerMode === 'view' && task && isEditing && (
         <EditMode
           boardTags={board?.tags ?? []}
+          branchOptions={branchOptions}
           form={editForm}
           loading={loading}
           onCancel={cancelEdit}
           onCreateTag={(name) => handleCreateTag(name, setEditForm)}
           onSave={handleSaveEdit}
+          repoOptions={repoOptions}
           setForm={setEditForm}
         />
       )}

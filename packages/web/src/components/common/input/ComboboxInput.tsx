@@ -3,16 +3,25 @@ import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, PlusIcon, XMarkIcon } from '@/components/common/icon'
 import type { ComboboxInputProps } from '@/types'
 
-export const ComboboxInput = ({
-  value,
-  onValueChange,
-  options,
-  placeholder,
-  disabled,
-  id,
-  onCreateOption,
-  createLabel = 'Create',
-}: ComboboxInputProps) => {
+export const ComboboxInput = (props: ComboboxInputProps) => {
+  const {
+    options,
+    placeholder,
+    disabled,
+    id,
+    onCreateOption,
+    createLabel = 'Create',
+  } = props
+
+  const isMulti = props.multiple === true
+
+  // Normalise value to array internally for shared logic
+  const valueArr: string[] = isMulti
+    ? (props as Extract<ComboboxInputProps, { multiple: true }>).value
+    : (props as Extract<ComboboxInputProps, { multiple?: false }>).value
+      ? [(props as Extract<ComboboxInputProps, { multiple?: false }>).value]
+      : []
+
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
@@ -43,25 +52,62 @@ export const ComboboxInput = ({
     items[highlightedIndex]?.scrollIntoView({ block: 'nearest' })
   }, [highlightedIndex])
 
-  const toggleOption = (optionValue: string) => {
-    if (value.includes(optionValue)) {
-      onValueChange(value.filter((v) => v !== optionValue))
-    } else {
-      onValueChange([...value, optionValue])
+  // For single mode: restore search text to selected label on close
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sync display on open/close
+  useEffect(() => {
+    if (!isMulti) {
+      if (open) {
+        setSearch('')
+      } else {
+        const selected = options.find((opt) => opt.value === valueArr[0])
+        setSearch(selected?.label ?? valueArr[0] ?? '')
+      }
     }
-    setSearch('')
-    inputRef.current?.focus()
+  }, [open, isMulti])
+
+  // For single mode: sync search when value changes from outside while closed
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sync on external value change
+  useEffect(() => {
+    if (!isMulti && !open) {
+      const selected = options.find((opt) => opt.value === valueArr[0])
+      setSearch(selected?.label ?? valueArr[0] ?? '')
+    }
+  }, [valueArr[0], isMulti])
+
+  const selectOption = (optionValue: string) => {
+    if (isMulti) {
+      const p = props as Extract<ComboboxInputProps, { multiple: true }>
+      if (p.value.includes(optionValue)) {
+        p.onValueChange(p.value.filter((v) => v !== optionValue))
+      } else {
+        p.onValueChange([...p.value, optionValue])
+      }
+      setSearch('')
+      inputRef.current?.focus()
+    } else {
+      const p = props as Extract<ComboboxInputProps, { multiple?: false }>
+      const opt = options.find((o) => o.value === optionValue)
+      p.onValueChange(optionValue)
+      setSearch(opt?.label ?? optionValue)
+      setOpen(false)
+    }
   }
 
   const removeOption = (optionValue: string) => {
-    onValueChange(value.filter((v) => v !== optionValue))
+    if (!isMulti) return
+    const p = props as Extract<ComboboxInputProps, { multiple: true }>
+    p.onValueChange(p.value.filter((v) => v !== optionValue))
     inputRef.current?.focus()
   }
 
   const handleCreate = async () => {
     if (!onCreateOption || !search.trim()) return
     await onCreateOption(search.trim())
-    setSearch('')
+    if (isMulti) {
+      setSearch('')
+    } else {
+      setOpen(false)
+    }
     inputRef.current?.focus()
   }
 
@@ -87,16 +133,22 @@ export const ComboboxInput = ({
       if (showCreate && highlightedIndex === filtered.length) {
         handleCreate()
       } else if (filtered[highlightedIndex]) {
-        toggleOption(filtered[highlightedIndex].value)
+        selectOption(filtered[highlightedIndex].value)
       }
-    } else if (e.key === 'Backspace' && search === '' && value.length > 0) {
-      onValueChange(value.slice(0, -1))
+    } else if (
+      e.key === 'Backspace' &&
+      search === '' &&
+      isMulti &&
+      valueArr.length > 0
+    ) {
+      const p = props as Extract<ComboboxInputProps, { multiple: true }>
+      p.onValueChange(p.value.slice(0, -1))
     } else if (e.key === 'Escape') {
       setOpen(false)
     }
   }
 
-  const selectedOptions = value
+  const selectedOptions = valueArr
     .map((v) => options.find((opt) => opt.value === v))
     .filter(Boolean)
 
@@ -112,36 +164,38 @@ export const ComboboxInput = ({
           role="combobox"
           tabIndex={0}
         >
-          {selectedOptions.map(
-            (opt) =>
-              opt && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-body-xs"
-                  key={opt.value}
-                  style={
-                    opt.color
-                      ? {
-                          backgroundColor: `${opt.color}20`,
-                          color: opt.color,
-                        }
-                      : undefined
-                  }
-                >
-                  {opt.label}
-                  <button
-                    className="ml-0.5 inline-flex text-gray-500 hover:text-gray-300"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removeOption(opt.value)
-                    }}
-                    type="button"
+          {isMulti &&
+            selectedOptions.map(
+              (opt) =>
+                opt && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-body-xs"
+                    key={opt.value}
+                    style={
+                      opt.color
+                        ? {
+                            backgroundColor: `${opt.color}20`,
+                            color: opt.color,
+                          }
+                        : undefined
+                    }
                   >
-                    <XMarkIcon size={12} />
-                  </button>
-                </span>
-              ),
-          )}
+                    {opt.label}
+                    <button
+                      className="ml-0.5 inline-flex text-gray-500 hover:text-gray-300"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeOption(opt.value)
+                      }}
+                      type="button"
+                    >
+                      <XMarkIcon size={12} />
+                    </button>
+                  </span>
+                ),
+            )}
           <input
+            autoComplete="off"
             className="min-w-[60px] flex-1 bg-transparent text-body-sm text-text-primary outline-none placeholder:text-text-tertiary"
             disabled={disabled}
             id={id}
@@ -152,7 +206,13 @@ export const ComboboxInput = ({
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
             placeholder={
-              selectedOptions.length === 0 ? (placeholder ?? 'Select…') : ''
+              isMulti
+                ? selectedOptions.length === 0
+                  ? (placeholder ?? 'Select…')
+                  : ''
+                : !open && search
+                  ? undefined
+                  : (placeholder ?? 'Select…')
             }
             ref={inputRef}
             type="text"
@@ -169,7 +229,7 @@ export const ComboboxInput = ({
         >
           <div ref={listRef} role="listbox">
             {filtered.map((opt, index) => {
-              const isSelected = value.includes(opt.value)
+              const isSelected = valueArr.includes(opt.value)
               const isHighlighted = index === highlightedIndex
               return (
                 <div
@@ -178,9 +238,9 @@ export const ComboboxInput = ({
                   data-combobox-item
                   data-highlighted={isHighlighted || undefined}
                   key={opt.value}
-                  onClick={() => toggleOption(opt.value)}
+                  onClick={() => selectOption(opt.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') toggleOption(opt.value)
+                    if (e.key === 'Enter') selectOption(opt.value)
                   }}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   role="option"

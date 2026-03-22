@@ -7,16 +7,20 @@ import type {
 // interface: extends native HTML attributes
 export type TextInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  'className' | 'style'
+  'className' | 'onChange' | 'style'
 > &
-  RefAttributes<HTMLInputElement>
+  RefAttributes<HTMLInputElement> & {
+    onChange?: (value: string) => void
+  }
 
 // interface: extends native HTML attributes
 export type TextAreaInputProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'className' | 'style'
+  'className' | 'onChange' | 'style'
 > &
-  RefAttributes<HTMLTextAreaElement>
+  RefAttributes<HTMLTextAreaElement> & {
+    onChange?: (value: string) => void
+  }
 
 export type SelectOption = {
   value: string
@@ -45,9 +49,7 @@ export type ComboboxOption = {
   color?: string
 }
 
-export type ComboboxInputProps = {
-  value: string[]
-  onValueChange: (value: string[]) => void
+type ComboboxInputBaseProps = {
   options: ComboboxOption[]
   placeholder?: string
   disabled?: boolean
@@ -55,3 +57,17 @@ export type ComboboxInputProps = {
   onCreateOption?: (name: string) => void | Promise<void>
   createLabel?: string
 }
+
+export type ComboboxInputProps = ComboboxInputBaseProps &
+  (
+    | {
+        multiple: true
+        value: string[]
+        onValueChange: (value: string[]) => void
+      }
+    | {
+        multiple?: false
+        value: string
+        onValueChange: (value: string) => void
+      }
+  )

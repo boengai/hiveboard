@@ -13,7 +13,8 @@
     "tsc": "bunx tsc --noEmit",
     "test": "bun test",
     "fmt": "bunx biome check --fix .",
-    "lint": "bunx biome lint ."
+    "lint": "bunx biome lint .",
+    "check": "bun run lint && bun run fmt && bun run test && bun run tsc && bun run build:web"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
