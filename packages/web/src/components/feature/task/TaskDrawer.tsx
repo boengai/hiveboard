@@ -16,7 +16,6 @@ import {
   TextInput,
 } from '@/components/common'
 import { GitHubIcon } from '@/components/common/icon'
-import { AgentLogStream } from '@/components/feature/agent'
 import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
@@ -32,12 +31,13 @@ import { useImageUpload } from '@/hooks/useImageUpload'
 import type { TaskFormValues } from '@/schemas/task'
 import { taskFormSchema } from '@/schemas/task'
 import { useBoardStore } from '@/store'
-import type { Tag, Task } from '@/types'
 import type {
   ActionColor,
   AgentPanelProps,
   CreateModeProps,
   EditModeProps,
+  Tag,
+  Task,
   ViewModeProps,
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
@@ -376,17 +376,12 @@ const ViewMode = ({
 
       {/* Agent panel */}
       {task.column?.name !== 'Done' && (
-        <>
-          <AgentPanel
-            loading={loading}
-            onInterruptAgent={onInterruptAgent}
-            onUpdateAction={onUpdateAction}
-            task={task}
-          />
-          {(task.agentStatus === 'RUNNING' || task.agentOutput) && (
-            <AgentLogStream agentStatus={task.agentStatus} taskId={task.id} />
-          )}
-        </>
+        <AgentPanel
+          loading={loading}
+          onInterruptAgent={onInterruptAgent}
+          onUpdateAction={onUpdateAction}
+          task={task}
+        />
       )}
 
       {/* Body */}
@@ -748,6 +743,27 @@ export const TaskDrawer = () => {
       }
     }
   }, [drawerMode, selectedTaskId])
+
+  // Keep local task state in sync with real-time board subscription updates
+  useEffect(() => {
+    if (!selectedTaskId) return
+    const unsubscribe = useBoardStore.subscribe((state) => {
+      for (const col of state.board?.columns ?? []) {
+        const updated = col.tasks.find((t) => t.id === selectedTaskId)
+        if (updated) {
+          setTask((prev) => {
+            if (!prev) return prev
+            // Merge subscription data into local task to preserve fields
+            // only present from GET_TASK (e.g. comments)
+            if (prev.updatedAt === updated.updatedAt) return prev
+            return { ...prev, ...updated }
+          })
+          return
+        }
+      }
+    })
+    return unsubscribe
+  }, [selectedTaskId])
 
   // Reset local state on close
   useEffect(() => {

@@ -113,25 +113,27 @@ export class GitHubClient {
     if (this.isAppAuth && this.getAppJwt) {
       // GitHub App: GET /app requires JWT auth (not installation token)
       // Bot commits should use: "app-slug[bot]" / "id+app-slug[bot]@users.noreply.github.com"
-      const jwt = await this.getAppJwt()
-      const proc = Bun.spawn(
-        ['gh', 'api', '/app', '--jq', '[.slug, .id] | @tsv'],
-        {
-          env: { ...process.env, GITHUB_TOKEN: jwt },
-          stderr: 'pipe',
-          stdout: 'pipe',
-        },
-      )
-      const stdout = (
-        await new Response(proc.stdout as ReadableStream).text()
-      ).trim()
-      await proc.exited
-      const [slug, appId] = stdout.split('\t')
-      if (slug && appId) {
-        this._identity = {
-          email: `${appId}+${slug}[bot]@users.noreply.github.com`,
-          name: `${slug}[bot]`,
+      try {
+        const jwt = await this.getAppJwt()
+        const res = await fetch('https://api.github.com/app', {
+          headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${jwt}`,
+          },
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { slug: string; id: number }
+          if (data.slug && data.id) {
+            this._identity = {
+              email: `${data.id}+${data.slug}[bot]@users.noreply.github.com`,
+              name: `${data.slug}[bot]`,
+            }
+          }
+        } else {
+          consola.warn(`GET /app failed: ${res.status} ${res.statusText}`)
         }
+      } catch (err) {
+        consola.warn('Failed to fetch GitHub App identity:', err)
       }
     } else {
       // PAT: GET /user returns { login, id, name }
