@@ -16,7 +16,7 @@ All API source lives under `packages/api/src/`.
 | `orchestrator/` | `orchestrator.ts`, `singleton.ts` | Poll loop that picks up queued tasks, dispatches agents, manages concurrency, handles retry with exponential backoff, graceful shutdown |
 | `agent/` | `runner.ts`, `prompt.ts` | Spawns Claude CLI per task, builds CLI args, renders Mustache prompt templates, streams stdout to pubsub |
 | `workspace/` | `manager.ts`, `path-safety.ts` | Creates/removes per-task workspace directories, runs lifecycle hooks, TTL-based sweep, symlink-escape detection |
-| `github/` | `client.ts` | `gh` CLI wrapper for creating PRs (`gh pr create`) and fetching PR review comments (`gh api`) |
+| `github/` | `client.ts` | GitHub client: App identity via `fetch` with JWT, PRs via `gh pr create`, review comments via `gh api` |
 | `tunnel/` | *(empty --- reserved)* | Reserved for future Cloudflare tunnel integration |
 | `pubsub.ts` | *(root file)* | Typed `graphql-yoga` PubSub instance with four channels: `TASK_UPDATED`, `AGENT_LOG`, `COMMENT_ADDED`, `TASK_EVENT` |
 

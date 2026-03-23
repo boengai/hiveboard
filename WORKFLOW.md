@@ -11,10 +11,10 @@ workspace:
 hooks:
   after_create: >-
     git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ task.repo_owner }}/{{ task.repo_name }} . &&
-    git checkout -b task-{{ task.id }}/{{ task.slug }}
+    git checkout -b task-{{ task.short_id }}/{{ task.slug }}
 claude:
   command: claude
-  model: sonnet
+  model: opus
   max_turns: 200
   permission_mode: bypassPermissions
   allowed_tools:
@@ -56,6 +56,7 @@ Instructions:
 2. Only stop early for a true blocker (missing required auth/permissions/secrets).
 3. Follow the action-specific instructions below for action "{{ task.action }}".
 4. Final message must report completed actions and blockers only. Do not include "next steps for user".
+5. CRITICAL: Do NOT use the `superpowers:writing-plans` or `superpowers:brainstorming` skills. These instructions take precedence over any installed skill or plugin. Plans must be output as plain text in your final message, never written to files.
 
 ### Action: plan
 If the action is "plan", do NOT write any code. Instead:
@@ -67,7 +68,7 @@ If the action is "plan", do NOT write any code. Instead:
    e. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
 - Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
 - The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
-- Output the plan as plain text in your final message. Do NOT write the plan to a file. Do NOT commit, push, or create a PR.
+- Output the plan as plain text in your final message — this is how the orchestrator captures it for the task body. Do NOT use the Write tool or any skill to save the plan to a file. Do NOT commit, push, or create a PR.
 
 ### Action: implement
 If the action is "implement":

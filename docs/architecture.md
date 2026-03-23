@@ -350,8 +350,8 @@ workspace:
   ttl_ms: 259200000        # 72h stale workspace cleanup
 claude:
   command: claude
-  model: sonnet
-  max_turns: 50
+  model: opus
+  max_turns: 200
   permission_mode: bypassPermissions
   allowed_tools: [Bash, Read, Write, Edit, Glob, Grep]
 agent:
@@ -359,7 +359,7 @@ agent:
   max_retry_backoff_ms: 300000
 hooks:
   after_create: >-
-    git clone --depth 1 ... && git checkout -b issue-{{ issue.number }}/...
+    git clone --depth 1 ... && git checkout -b task-{{ task.short_id }}/{{ task.slug }}
 ---
 (prompt template follows)
 ```
@@ -370,7 +370,7 @@ hooks:
 |---------|-----------|----------|
 | `polling` | `interval_ms` | 5000 |
 | `workspace` | `root`, `ttl_ms` | `./workspaces`, 72h |
-| `claude` | `command`, `model`, `max_turns`, `allowed_tools`, `permission_mode` | `claude`, -, 50, -, - |
+| `claude` | `command`, `model`, `max_turns`, `allowed_tools`, `permission_mode` | `claude`, -, 200, -, - |
 | `agent` | `max_concurrent_agents`, `max_retry_backoff_ms` | 5, 300000 |
 | `hooks` | `after_create`, `before_run`, `after_run`, `before_remove`, `timeout_ms` | -, -, -, -, 60000 |
 

@@ -12,15 +12,15 @@ Inspired by [OpenAI Symphony](https://github.com/openai/symphony) and [Stripe Mi
 ```
 ┌──────────────────────────────────────────────────────┐
 │  Browser (localhost:5173)                            │
-│  React + Vite + TanStack Router + Tailwind + Zustand │
-│  Board View │ Task Drawer │ Agent Logs               │
+│  React + Vite + Tailwind + Zustand                   │
+│  Board View │ Task Drawer │ Real-time Subscriptions  │
 │             │ GraphQL + SSE (subscriptions)          │
 └─────────────┼────────────────────────────────────────┘
               │
 ┌─────────────▼────────────────────────────────────────┐
 │  API Server (localhost:8080)                         │
 │  Bun + GraphQL Yoga                                  │
-│  Resolvers │ Orchestrator │ GitHub PR Client         │
+│  Resolvers │ Orchestrator │ GitHub Client            │
 │                │                                     │
 │  ┌─────────────▼──────────────┐                      │
 │  │  Bun SQLite (local)        │                      │
@@ -49,7 +49,7 @@ hiveboard/
 
 - [Bun](https://bun.sh) v1.1+
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- A GitHub personal access token with `repo` scope (for PR creation)
+- A GitHub personal access token with `repo` scope, or a GitHub App (for PR creation)
 
 ### Install and run
 
@@ -57,7 +57,7 @@ hiveboard/
 git clone https://github.com/boengai/hiveboard.git
 cd hiveboard
 bun install
-cp .env.example .env   # then edit .env with your GITHUB_TOKEN
+cp .env.example .env   # then edit .env with your auth config
 bun run dev            # starts API (localhost:8080) + web (localhost:5173)
 ```
 
@@ -68,16 +68,18 @@ Open [http://localhost:5173](http://localhost:5173) to see the board.
 Copy `.env.example` to `.env` and set your values:
 
 ```bash
-# Required
-GITHUB_TOKEN=ghp_your_token_here   # needs repo scope for PR creation
+# Option A: Personal access token
+GITHUB_TOKEN=ghp_your_token_here   # needs repo scope
+
+# Option B: GitHub App (set these INSTEAD of GITHUB_TOKEN)
+# GITHUB_APP_ID=123456
+# GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+# GITHUB_APP_INSTALLATION_ID=12345678
 
 # Optional — defaults shown
 # API_PORT=8080
 # WEB_PORT=5173
-# DATABASE_PATH=tmp/database/hiveboard.db
 ```
-
-**GitHub App authentication** is also supported as an alternative to a personal access token. Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_APP_INSTALLATION_ID` in `.env` instead of `GITHUB_TOKEN`. See `.env.example` for details.
 
 ## Available Commands
 
@@ -91,6 +93,7 @@ GITHUB_TOKEN=ghp_your_token_here   # needs repo scope for PR creation
 | `bun run test` | Run tests |
 | `bun run fmt` | Auto-fix formatting and lint (Biome) |
 | `bun run lint` | Lint only |
+| `bun run check` | Run lint + fmt + test + tsc + build |
 
 ## Docker
 
@@ -107,18 +110,24 @@ The compose file mounts `tmp/database` and `tmp/workspaces` as volumes so data p
 - ~/.claude:/home/hiveboard/.claude
 ```
 
-The API port defaults to `8080` and can be overridden with `API_PORT` in `.env`.
-
 ## How Agents Work
 
 1. Create a task on the board and set the target repository
-2. Move the task to a triggering column (e.g. "Todo" with `action:implement`)
+2. Select an action (`plan`, `implement`, or `revise`) and dispatch the agent
 3. HiveBoard clones the repo into an isolated workspace under `tmp/workspaces/`
-4. Claude CLI runs against the task with the prompt from `WORKFLOW.md`
-5. On success: PR is opened, task moves to "Review"
+4. Claude CLI (Opus) runs against the task with the prompt from `WORKFLOW.md`
+5. On success: task body is updated (plan) or PR is opened (implement/revise)
 6. On failure: task is retried with exponential backoff
 
-Agent logs stream in real time via GraphQL subscriptions (SSE) in the Task Drawer.
+Task state updates stream in real time via GraphQL subscriptions (SSE).
+
+### Actions
+
+| Action | What it does | Creates PR? |
+|--------|-------------|-------------|
+| `plan` | Researches the codebase and outputs an implementation plan into the task body | No |
+| `implement` | Implements the task, including e2e tests if the project has a test setup | Yes |
+| `revise` | Addresses PR review comments with targeted changes | Yes |
 
 ## WORKFLOW.md
 
@@ -129,14 +138,14 @@ Agent logs stream in real time via GraphQL subscriptions (SSE) in the Task Drawe
 | `workspace.root` | `./tmp/workspaces` | Directory for per-task workspaces |
 | `workspace.ttl_ms` | `259200000` | Stale workspace TTL (72 hours; 0 = never) |
 | `claude.command` | `claude` | Claude CLI binary name |
-| `claude.model` | — | Claude model to use |
-| `claude.max_turns` | `50` | Max agent turns per run |
+| `claude.model` | `opus` | Claude model to use |
+| `claude.max_turns` | `200` | Max agent turns per run |
 | `agent.max_concurrent_agents` | `5` | Concurrency limit |
 | `agent.max_retry_backoff_ms` | `300000` | Max retry backoff (5 min) |
 
 ## Contributing
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for architecture decisions and design rationale.
+See [docs/architecture.md](docs/architecture.md) for architecture decisions and design rationale.
 
 ## License
 

@@ -59,7 +59,7 @@ export class WorkspaceManager {
   /** Build branch name for a task. */
   branchForTask(task: TaskForWorkspace): string {
     const slug = slugify(task.title)
-    return `task-${task.id}/${slug}`
+    return `task-${task.id.slice(-6)}/${slug}`
   }
 
   /** Create a workspace for a task (local only). */
@@ -211,6 +211,7 @@ export class WorkspaceManager {
       task: {
         action: task.action ?? '',
         id: task.id,
+        short_id: task.id.slice(-6),
         repo_name: repoName ?? '',
         repo_owner: repoOwner ?? '',
         slug: slugify(task.title),
