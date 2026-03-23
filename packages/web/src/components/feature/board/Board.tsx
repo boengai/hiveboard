@@ -17,7 +17,8 @@ import {
   subscribe,
   TASK_UPDATED_SUBSCRIPTION,
 } from '@/graphql'
-import { type Task, useBoardStore } from '@/store'
+import { useBoardStore } from '@/store'
+import type { Task } from '@/types'
 import { Column } from './Column'
 import { TaskCard } from './TaskCard'
 
