@@ -1,5 +1,5 @@
 import type { TaskFormValues } from '@/schemas/task'
-import type { Task } from '@/store'
+import type { Task } from '@/types/models'
 import type { ComboboxOption } from '../common/input'
 
 // ---------------------------------------------------------------------------

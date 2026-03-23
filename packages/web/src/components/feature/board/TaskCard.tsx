@@ -3,8 +3,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
 import { Avatar, CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
 import { GitHubIcon } from '@/components/common/icon'
-import { type Task, useBoardStore } from '@/store'
-import type { TaskCardProps } from '@/types'
+import { useBoardStore } from '@/store'
+import type { Task, TaskCardProps } from '@/types'
 import { tv } from '@/utils'
 
 const parseActionLabel = (
@@ -139,7 +139,7 @@ export function TaskCard({ task, column }: TaskCardProps) {
       whileHover={{ y: -1 }}
     >
       {/* Header row, Agent status + Action badge — hidden in Done column */}
-      {badgeClass && column.name !== 'Done' && (
+      {badgeClass && column && column.name !== 'Done' && (
         <div className={badgeClass}>
           {/* Agent status — hidden when idle */}
           {task.agentStatus !== 'IDLE' && (

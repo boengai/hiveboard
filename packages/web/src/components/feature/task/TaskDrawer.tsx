@@ -31,7 +31,8 @@ import {
 import { useImageUpload } from '@/hooks/useImageUpload'
 import type { TaskFormValues } from '@/schemas/task'
 import { taskFormSchema } from '@/schemas/task'
-import { type Tag, type Task, useBoardStore } from '@/store'
+import { useBoardStore } from '@/store'
+import type { Tag, Task } from '@/types'
 import type {
   ActionColor,
   AgentPanelProps,

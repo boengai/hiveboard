@@ -1,4 +1,4 @@
-import type { Column as ColumnType, Task } from '@/store'
+import type { Column as ColumnType, Task } from '@/types/models'
 
 export type ColumnProps = {
   column: ColumnType
@@ -8,5 +8,5 @@ export type ColumnProps = {
 
 export type TaskCardProps = {
   task: Task
-  column: Pick<ColumnType, 'id' | 'name'>
+  column?: Pick<ColumnType, 'id' | 'name'>
 }

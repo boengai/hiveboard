@@ -19,14 +19,20 @@ export type GitIdentity = {
 
 export class GitHubClient {
   private getToken: () => Promise<string>
+  private getAppJwt: (() => Promise<string>) | null = null
   private isAppAuth: boolean
   private cachedToken: string | null = null
   private tokenExpiresAt = 0
   private _identity: GitIdentity | null = null
 
-  private constructor(getToken: () => Promise<string>, isAppAuth: boolean) {
+  private constructor(
+    getToken: () => Promise<string>,
+    isAppAuth: boolean,
+    getAppJwt?: () => Promise<string>,
+  ) {
     this.getToken = getToken
     this.isAppAuth = isAppAuth
+    this.getAppJwt = getAppJwt ?? null
   }
 
   /**
@@ -57,8 +63,13 @@ export class GitHubClient {
         return token
       }
 
+      const getAppJwt = async () => {
+        const { token } = await auth({ type: 'app' })
+        return token
+      }
+
       consola.debug('GitHub client initialized with GitHub App auth')
-      return new GitHubClient(getToken, true)
+      return new GitHubClient(getToken, true, getAppJwt)
     }
 
     throw new Error(
@@ -99,15 +110,14 @@ export class GitHubClient {
   async getIdentity(): Promise<GitIdentity> {
     if (this._identity) return this._identity
 
-    const token = await this.getAccessToken()
-
-    if (this.isAppAuth) {
-      // GitHub App: GET /app returns { slug, id }
+    if (this.isAppAuth && this.getAppJwt) {
+      // GitHub App: GET /app requires JWT auth (not installation token)
       // Bot commits should use: "app-slug[bot]" / "id+app-slug[bot]@users.noreply.github.com"
+      const jwt = await this.getAppJwt()
       const proc = Bun.spawn(
         ['gh', 'api', '/app', '--jq', '[.slug, .id] | @tsv'],
         {
-          env: { ...process.env, GITHUB_TOKEN: token },
+          env: { ...process.env, GITHUB_TOKEN: jwt },
           stderr: 'pipe',
           stdout: 'pipe',
         },
@@ -125,6 +135,7 @@ export class GitHubClient {
       }
     } else {
       // PAT: GET /user returns { login, id, name }
+      const token = await this.getAccessToken()
       const proc = Bun.spawn(
         ['gh', 'api', '/user', '--jq', '[.login, .id, .name] | @tsv'],
         {
