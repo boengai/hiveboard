@@ -199,7 +199,7 @@ export function Board() {
         <div className="flex flex-1 gap-3 overflow-x-auto p-4">
           {[0, 1, 2].map((i) => (
             <div
-              className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3"
+              className="flex w-board-column shrink-0 flex-col gap-2 rounded-lg border border-border-default bg-surface-inset p-3"
               key={i}
             >
               <div className="h-5 w-24 animate-pulse rounded bg-surface-overlay" />
@@ -262,7 +262,7 @@ export function Board() {
 
         <DragOverlay>
           {activeTask ? (
-            <div className="w-72 rotate-1 opacity-90">
+            <div className="w-board-column rotate-1 opacity-90">
               <TaskCard column={activeTask.column} task={activeTask} />
             </div>
           ) : null}

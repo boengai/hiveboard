@@ -134,3 +134,7 @@ body {
 button {
   @apply cursor-pointer;
 }
+
+.w-board-column {
+  @apply min-w-72 w-[calc((100%/5)-10px)];
+}

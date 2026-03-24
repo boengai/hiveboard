@@ -19,7 +19,7 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
   const taskIds = activeTasks.map((t) => t.id)
 
   return (
-    <div className="flex w-72 shrink-0 flex-col rounded-lg border border-border-default bg-surface-inset">
+    <div className="flex w-board-column shrink-0 flex-col rounded-lg border border-border-default bg-surface-inset">
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
