@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="cell" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="#1a1a2e"/>
+  <!-- Honeycomb cells - center -->
+  <polygon points="256,160 299,183 299,229 256,252 213,229 213,183" fill="url(#glow)" opacity="0.95"/>
+  <!-- Top-right -->
+  <polygon points="299,183 342,206 342,252 299,275 256,252 256,206" fill="url(#cell)" opacity="0.85" transform="translate(43,-23)"/>
+  <!-- Top-left -->
+  <polygon points="213,183 256,206 256,252 213,275 170,252 170,206" fill="url(#cell)" opacity="0.85" transform="translate(-43,-23)"/>
+  <!-- Bottom-right -->
+  <polygon points="299,183 342,206 342,252 299,275 256,252 256,206" fill="url(#cell)" opacity="0.75" transform="translate(43,69)"/>
+  <!-- Bottom-left -->
+  <polygon points="213,183 256,206 256,252 213,275 170,252 170,206" fill="url(#cell)" opacity="0.75" transform="translate(-43,69)"/>
+  <!-- Bottom center -->
+  <polygon points="256,160 299,183 299,229 256,252 213,229 213,183" fill="url(#bg)" opacity="0.65" transform="translate(0,92)"/>
+  <!-- Top center -->
+  <polygon points="256,160 299,183 299,229 256,252 213,229 213,183" fill="url(#bg)" opacity="0.65" transform="translate(0,-92)"/>
+  <!-- Board grid lines overlay on center cell -->
+  <line x1="230" y1="195" x2="282" y2="195" stroke="#1a1a2e" stroke-width="2.5" opacity="0.4"/>
+  <line x1="230" y1="210" x2="282" y2="210" stroke="#1a1a2e" stroke-width="2.5" opacity="0.4"/>
+  <line x1="230" y1="225" x2="282" y2="225" stroke="#1a1a2e" stroke-width="2.5" opacity="0.4"/>
+  <line x1="248" y1="178" x2="248" y2="248" stroke="#1a1a2e" stroke-width="2.5" opacity="0.4"/>
+  <line x1="264" y1="178" x2="264" y2="248" stroke="#1a1a2e" stroke-width="2.5" opacity="0.4"/>
+</svg>
