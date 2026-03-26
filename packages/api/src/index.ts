@@ -45,10 +45,102 @@ async function startOrchestrator() {
 
 startOrchestrator()
 
+const defaultQuery = /* GraphQL */ `# Welcome to HiveBoard GraphQL API
+#
+# Example queries to get started:
+
+# List all boards
+query ListBoards {
+  boards {
+    id
+    name
+    createdAt
+    columns {
+      id
+      name
+      position
+      tasks {
+        id
+        title
+        agentStatus
+      }
+    }
+  }
+}
+
+# Get a single board by ID
+# query GetBoard {
+#   board(id: "YOUR_BOARD_ID") {
+#     id
+#     name
+#     columns {
+#       id
+#       name
+#       tasks {
+#         id
+#         title
+#         body
+#         agentStatus
+#         prUrl
+#         tags { id name color }
+#         createdBy { username displayName }
+#         createdAt
+#         updatedAt
+#       }
+#     }
+#   }
+# }
+
+# Get task details with comments and timeline
+# query GetTask {
+#   task(id: "YOUR_TASK_ID") {
+#     id
+#     title
+#     body
+#     agentStatus
+#     agentOutput
+#     prUrl
+#     column { name }
+#     tags { name color }
+#     comments {
+#       id
+#       body
+#       createdBy { username }
+#       createdAt
+#     }
+#   }
+# }
+
+# Create a new board
+# mutation CreateBoard {
+#   createBoard(name: "My Board") {
+#     id
+#     name
+#   }
+# }
+
+# Create a task
+# mutation CreateTask {
+#   createTask(input: {
+#     boardId: "YOUR_BOARD_ID"
+#     title: "Implement feature X"
+#     body: "Description of the task"
+#   }) {
+#     id
+#     title
+#     column { name }
+#   }
+# }
+`
+
 const yoga = createYoga({
   cors: {
     credentials: true,
     origin: '*',
+  },
+  graphiql: {
+    defaultQuery,
+    title: 'HiveBoard GraphQL',
   },
   graphqlEndpoint: '/graphql',
   maskedErrors: false,
