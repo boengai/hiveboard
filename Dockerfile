@@ -65,7 +65,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
 COPY packages/api/ packages/api/
 COPY --from=build-web /app/packages/web/dist ./packages/web/dist
-COPY WORKFLOW.md ./
 
 RUN mkdir -p tmp/workspaces && chown hiveboard:hiveboard tmp/workspaces
 

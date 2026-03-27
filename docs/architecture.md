@@ -391,7 +391,7 @@ Standard dotenv file for secrets and runtime overrides:
 | `API_PORT` | No | `8080` | API server port |
 | `WEB_PORT` | No | `5173` | Vite dev server port |
 | `DATABASE_PATH` | No | `tmp/database/hiveboard.db` | SQLite file location |
-| `WORKFLOW_MD` | No | `WORKFLOW.md` | Path to workflow file |
+
 
 *Either `GITHUB_TOKEN` or the three `GITHUB_APP_*` variables must be set.
 

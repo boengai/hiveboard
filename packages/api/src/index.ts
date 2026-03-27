@@ -20,9 +20,8 @@ migrate(db)
 
 // Boot orchestrator (best-effort — API runs even without WORKFLOW.md)
 async function startOrchestrator() {
-  const workflowPath = process.env.WORKFLOW_MD ?? 'WORKFLOW.md'
   try {
-    const { config, promptTemplate } = await loadWorkflow(workflowPath)
+    const { config, promptTemplate } = await loadWorkflow()
     const github = GitHubClient.create()
     // Generate initial token so process.env.GITHUB_TOKEN is set
     // before any agent spawns (gh/git need it immediately)

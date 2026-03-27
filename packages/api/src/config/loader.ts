@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { consola } from 'consola'
 import { parse as parseYaml } from 'yaml'
 import { type Config, ConfigSchema } from './schema'
@@ -27,9 +28,12 @@ function splitFrontMatter(content: string): { yaml: string; body: string } {
   return { body, yaml }
 }
 
+/** Default path: WORKFLOW.md next to packages/api/ (resolved from this file's dir). */
+const DEFAULT_WORKFLOW_PATH = resolve(import.meta.dir, '../../WORKFLOW.md')
+
 /** Load and validate a WORKFLOW.md file. */
 export async function loadWorkflow(
-  path = 'WORKFLOW.md',
+  path = DEFAULT_WORKFLOW_PATH,
 ): Promise<LoadedWorkflow> {
   const file = Bun.file(path)
   const exists = await file.exists()

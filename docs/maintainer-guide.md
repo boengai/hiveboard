@@ -573,4 +573,4 @@ The API itself (`Bun.serve`) does not need explicit shutdown --- `process.exit(0
 - **Architecture overview:** [architecture.md](./architecture.md)
 - **Coding conventions:** [conventions.md](./conventions.md)
 - **Workflow configuration:** `WORKFLOW.md` (YAML front matter + Mustache prompt template)
-- **Environment variables:** `.env` file (loaded automatically by Bun; `DATABASE_PATH`, `API_PORT`, `WORKFLOW_MD`, `GITHUB_TOKEN`)
+- **Environment variables:** `.env` file (loaded automatically by Bun; `DATABASE_PATH`, `API_PORT`, `GITHUB_TOKEN`)

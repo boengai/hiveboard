@@ -10,7 +10,6 @@ services:
     volumes:
       - ./tmp/database:/app/tmp/database
       - ./tmp/workspaces:/app/tmp/workspaces
-      - ./WORKFLOW.md:/app/WORKFLOW.md:ro
       - ./tmp/agents/.claude:/home/hiveboard/.claude
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1))"]
