@@ -41,7 +41,7 @@ tmp/**
 !tmp/**/
 !tmp/**/*/.gitkeep
 
-
+docs/superpowers/**
 packages/web/dist/
 
 

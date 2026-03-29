@@ -99,13 +99,11 @@ export function subscribe<T>(
     try {
       const subscription = sseClient.iterate({ query, variables })
       activeIterator = subscription as AsyncIterableIterator<unknown>
+      // Stream opened — mark as connected and reset backoff
+      connectionStateManager.setState('connected')
+      attempt = 0
       for await (const result of subscription) {
         if (disposed) break
-        // Successful data means we are connected
-        if (attempt > 0 || connectionStateManager.getState() !== 'connected') {
-          connectionStateManager.setState('connected')
-        }
-        attempt = 0
         if (result.data) onData(result.data as T)
       }
     } catch (err) {

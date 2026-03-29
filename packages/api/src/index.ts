@@ -178,6 +178,11 @@ Bun.serve({
     }
     return yoga.fetch(req)
   },
+  // SSE subscriptions are long-lived connections that may be idle for extended
+  // periods.  Bun's default 10 s idle timeout closes them prematurely, causing
+  // the client to enter an endless reconnect loop.  255 s is the maximum value
+  // Bun allows; the graphql-sse client will reconnect if the connection drops.
+  idleTimeout: 255,
   port,
 })
 
