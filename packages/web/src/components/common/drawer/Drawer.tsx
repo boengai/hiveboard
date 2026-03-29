@@ -54,7 +54,7 @@ export const Drawer = ({
           </VaulDrawer.Description>
         </div>
         <div
-          className="flex size-full grow flex-col gap-5 overflow-y-auto p-5 select-text"
+          className="flex size-full grow select-text flex-col gap-5 overflow-y-auto p-5"
           data-vaul-no-drag
         >
           {children}

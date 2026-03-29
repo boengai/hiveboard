@@ -20,7 +20,7 @@
       "packages/api/test/**/*.ts",
       "packages/web/src/**/*.ts",
       "packages/web/src/**/*.tsx",
-      "!tmp"
+      "!**/tmp"
     ]
   },
   "formatter": {

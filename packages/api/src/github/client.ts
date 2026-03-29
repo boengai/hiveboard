@@ -96,7 +96,7 @@ export class GitHubClient {
    */
   async getAccessToken(): Promise<string> {
     if (!this.isAppAuth) {
-      return this.pat!
+      return this.pat as string
     }
 
     if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
@@ -125,7 +125,7 @@ export class GitHubClient {
     if (this.isAppAuth && this.jwtOctokit) {
       try {
         const { data } = await this.jwtOctokit.rest.apps.getAuthenticated()
-        if (data && data.slug && data.id) {
+        if (data?.slug && data.id) {
           this._identity = {
             email: `${data.id}+${data.slug}[bot]@users.noreply.github.com`,
             name: `${data.slug}[bot]`,

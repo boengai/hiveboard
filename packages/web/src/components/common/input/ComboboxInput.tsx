@@ -167,6 +167,7 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
           }}
           onKeyDown={handleKeyDown}
           role="combobox"
+          tabIndex={0}
         >
           {isMulti &&
             selectedOptions.map(
