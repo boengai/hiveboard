@@ -10,7 +10,7 @@ workspace:
   ttl_ms: 259200000         # 72 hours — stale workspace cleanup
 hooks:
   after_create: >-
-    git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ task.repo_owner }}/{{ task.repo_name }} . &&
+    gh repo clone {{ task.repo_owner }}/{{ task.repo_name }} . -- --depth 1 &&
     git checkout -b task-{{ task.short_id }}/{{ task.slug }}
 claude:
   command: claude
