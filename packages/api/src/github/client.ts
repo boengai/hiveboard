@@ -1,4 +1,5 @@
 import { createAppAuth } from '@octokit/auth-app'
+import { Octokit } from '@octokit/rest'
 import { consola } from 'consola'
 
 export type ReviewComment = {
@@ -18,26 +19,28 @@ export type GitIdentity = {
 }
 
 export class GitHubClient {
-  private getToken: () => Promise<string>
-  private getAppJwt: (() => Promise<string>) | null = null
+  private octokit: Octokit
   private isAppAuth: boolean
+  private jwtOctokit: Octokit | null = null
   private cachedToken: string | null = null
   private tokenExpiresAt = 0
   private _identity: GitIdentity | null = null
+  private pat: string | null = null
 
   private constructor(
-    getToken: () => Promise<string>,
+    octokit: Octokit,
     isAppAuth: boolean,
-    getAppJwt?: () => Promise<string>,
+    opts?: { jwtOctokit?: Octokit; pat?: string },
   ) {
-    this.getToken = getToken
+    this.octokit = octokit
     this.isAppAuth = isAppAuth
-    this.getAppJwt = getAppJwt ?? null
+    this.jwtOctokit = opts?.jwtOctokit ?? null
+    this.pat = opts?.pat ?? null
   }
 
   /**
    * Create a GitHubClient with auth auto-detected from env vars:
-   * - GITHUB_TOKEN → PAT mode (static token)
+   * - GITHUB_TOKEN → PAT mode (rejects ghs_ installation tokens)
    * - GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY + GITHUB_APP_INSTALLATION_ID → App mode
    */
   static create(): GitHubClient {
@@ -47,115 +50,101 @@ export class GitHubClient {
     const installationId = process.env.GITHUB_APP_INSTALLATION_ID
 
     if (pat) {
+      if (pat.startsWith('ghs_')) {
+        throw new Error(
+          'Bare ghs_ installation tokens are not supported — they cannot resolve identity. ' +
+            'Use a personal access token (GITHUB_TOKEN=ghp_...) or configure full GitHub App auth: ' +
+            'GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID.',
+        )
+      }
       consola.debug('GitHub client initialized with PAT auth')
-      return new GitHubClient(async () => pat, false)
+      const octokit = new Octokit({ auth: pat })
+      return new GitHubClient(octokit, false, { pat })
     }
 
     if (appId && privateKey && installationId) {
-      const auth = createAppAuth({
+      const authOpts = {
         appId,
         installationId: Number(installationId),
         privateKey,
+      }
+      const octokit = new Octokit({
+        authStrategy: createAppAuth,
+        auth: authOpts,
       })
-
-      const getToken = async () => {
-        const { token } = await auth({ type: 'installation' })
-        return token
-      }
-
-      const getAppJwt = async () => {
-        const { token } = await auth({ type: 'app' })
-        return token
-      }
-
+      // Separate Octokit instance for JWT-level calls (GET /app for identity).
+      // Only appId + privateKey — no installationId — so createAppAuth defaults to JWT.
+      const jwtOctokit = new Octokit({
+        authStrategy: createAppAuth,
+        auth: { appId, privateKey },
+      })
       consola.debug('GitHub client initialized with GitHub App auth')
-      return new GitHubClient(getToken, true, getAppJwt)
+      return new GitHubClient(octokit, true, { jwtOctokit })
     }
 
     throw new Error(
-      'GitHub auth not configured. Set GITHUB_TOKEN, or set all of ' +
+      'GitHub auth not configured. Set GITHUB_TOKEN (personal access token), or set all of ' +
         'GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, and GITHUB_APP_INSTALLATION_ID.',
     )
   }
 
   /**
-   * Get an access token, refreshing only when expired or close to expiry.
-   * For App auth, caches the token and refreshes every 45 minutes.
-   * For PAT auth, returns the static token immediately.
-   * Also sets process.env.GITHUB_TOKEN so subprocesses (gh, git) work.
+   * Get a raw access token string for subprocess env vars (gh, git).
+   * - PAT: returns the static token.
+   * - App: generates an installation token, caches for 45 min.
+   * Sets process.env.GITHUB_TOKEN so subprocesses pick it up.
    */
   async getAccessToken(): Promise<string> {
     if (!this.isAppAuth) {
-      return this.getToken()
+      return this.pat!
     }
 
     if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
       return this.cachedToken
     }
 
-    const token = await this.getToken()
-    this.cachedToken = token
+    const auth = (await this.octokit.auth({
+      type: 'installation',
+    })) as { token: string }
+    this.cachedToken = auth.token
     this.tokenExpiresAt = Date.now() + TOKEN_REFRESH_MS
-    process.env.GITHUB_TOKEN = token
+    process.env.GITHUB_TOKEN = auth.token
     consola.debug('GitHub App token refreshed')
-    return token
+    return auth.token
   }
 
   /**
    * Fetch the git identity from GitHub.
-   * - PAT: fetches authenticated user profile
-   * - App: uses the app's slug as bot identity
+   * - App: GET /app via JWT → "{slug}[bot]"
+   * - PAT: GET /user → user profile
    * Cached after first call.
    */
   async getIdentity(): Promise<GitIdentity> {
     if (this._identity) return this._identity
 
-    if (this.isAppAuth && this.getAppJwt) {
-      // GitHub App: GET /app requires JWT auth (not installation token)
-      // Bot commits should use: "app-slug[bot]" / "id+app-slug[bot]@users.noreply.github.com"
+    if (this.isAppAuth && this.jwtOctokit) {
       try {
-        const jwt = await this.getAppJwt()
-        const res = await fetch('https://api.github.com/app', {
-          headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${jwt}`,
-          },
-        })
-        if (res.ok) {
-          const data = (await res.json()) as { slug: string; id: number }
-          if (data.slug && data.id) {
-            this._identity = {
-              email: `${data.id}+${data.slug}[bot]@users.noreply.github.com`,
-              name: `${data.slug}[bot]`,
-            }
+        const { data } = await this.jwtOctokit.rest.apps.getAuthenticated()
+        if (data && data.slug && data.id) {
+          this._identity = {
+            email: `${data.id}+${data.slug}[bot]@users.noreply.github.com`,
+            name: `${data.slug}[bot]`,
           }
-        } else {
-          consola.warn(`GET /app failed: ${res.status} ${res.statusText}`)
         }
       } catch (err) {
         consola.warn('Failed to fetch GitHub App identity:', err)
       }
     } else {
-      // PAT: GET /user returns { login, id, name }
-      const token = await this.getAccessToken()
-      const proc = Bun.spawn(
-        ['gh', 'api', '/user', '--jq', '[.login, .id, .name] | @tsv'],
-        {
-          env: { ...process.env, GITHUB_TOKEN: token },
-          stderr: 'pipe',
-          stdout: 'pipe',
-        },
-      )
-      const stdout = (
-        await new Response(proc.stdout as ReadableStream).text()
-      ).trim()
-      await proc.exited
-      const [login, userId, displayName] = stdout.split('\t')
-      if (login && userId) {
-        this._identity = {
-          email: `${userId}+${login}@users.noreply.github.com`,
-          name: displayName || login,
+      try {
+        const { data } = await this.octokit.rest.users.getAuthenticated()
+        if (data.login && data.id) {
+          this._identity = {
+            email: `${data.id}+${data.login}@users.noreply.github.com`,
+            name: data.name || data.login,
+          }
         }
+      } catch (err) {
+        consola.warn('Failed to fetch GitHub user identity:', err)
       }
     }
 
@@ -174,98 +163,58 @@ export class GitHubClient {
   }
 
   /**
-   * Create a pull request using `gh pr create` in the given workspace.
+   * Create a pull request via the GitHub API.
    * Returns the PR URL on success.
    */
   async createPullRequest(
-    workspacePath: string,
+    repo: { owner: string; repo: string },
     title: string,
     body: string,
     baseBranch: string,
     headBranch: string,
   ): Promise<string> {
-    const token = await this.getAccessToken()
-    const proc = Bun.spawn(
-      [
-        'gh',
-        'pr',
-        'create',
-        '--title',
-        title,
-        '--body',
-        body,
-        '--base',
-        baseBranch,
-        '--head',
-        headBranch,
-      ],
-      {
-        cwd: workspacePath,
-        env: { ...process.env, GITHUB_TOKEN: token },
-        stderr: 'pipe',
-        stdout: 'pipe',
-      },
-    )
-
-    const exitCode = await proc.exited
-    const stdout = await new Response(proc.stdout as ReadableStream).text()
-    const stderr = await new Response(proc.stderr as ReadableStream).text()
-
-    if (exitCode !== 0) {
-      throw new Error(`gh pr create failed (exit ${exitCode}): ${stderr}`)
-    }
-
-    const prUrl = stdout.trim()
-    consola.info(`Created PR: ${prUrl}`)
-    return prUrl
+    const { data } = await this.octokit.rest.pulls.create({
+      owner: repo.owner,
+      repo: repo.repo,
+      title,
+      body,
+      base: baseBranch,
+      head: headBranch,
+    })
+    consola.info(`Created PR: ${data.html_url}`)
+    return data.html_url
   }
 
   /**
    * Fetch PR review comments for a given PR URL.
-   * Uses `gh api` to get review comments from the PR.
    */
   async fetchReviewComments(prUrl: string): Promise<ReviewComment[]> {
-    // Extract owner/repo/number from PR URL
-    // e.g. https://github.com/owner/repo/pull/123
     const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/)
     if (!match) {
       throw new Error(`Cannot parse PR URL: ${prUrl}`)
     }
 
-    const [, owner, repo, number] = match
-    const token = await this.getAccessToken()
-
-    const proc = Bun.spawn(
-      [
-        'gh',
-        'api',
-        `repos/${owner}/${repo}/pulls/${number}/comments`,
-        '--jq',
-        '[.[] | {author: .user.login, body: .body, path: .path, line: .line, diffHunk: .diff_hunk}]',
-      ],
-      {
-        env: { ...process.env, GITHUB_TOKEN: token },
-        stderr: 'pipe',
-        stdout: 'pipe',
-      },
-    )
-
-    const exitCode = await proc.exited
-    const stdout = await new Response(proc.stdout as ReadableStream).text()
-    const stderr = await new Response(proc.stderr as ReadableStream).text()
-
-    if (exitCode !== 0) {
-      throw new Error(`gh api failed (exit ${exitCode}): ${stderr}`)
-    }
+    const [, owner, repo, number] = match as [string, string, string, string]
 
     try {
-      const comments = JSON.parse(stdout) as ReviewComment[]
+      const { data } = await this.octokit.rest.pulls.listReviewComments({
+        owner,
+        repo,
+        pull_number: Number(number),
+      })
+
+      const comments: ReviewComment[] = data.map((c) => ({
+        author: c.user?.login ?? 'unknown',
+        body: c.body,
+        path: c.path ?? null,
+        line: c.line ?? null,
+        diffHunk: c.diff_hunk ?? null,
+      }))
+
       consola.info(`Fetched ${comments.length} review comments from ${prUrl}`)
       return comments
-    } catch {
-      consola.warn(
-        `Failed to parse review comments from ${prUrl}: ${stdout.slice(0, 200)}`,
-      )
+    } catch (err) {
+      consola.warn(`Failed to fetch review comments from ${prUrl}:`, err)
       return []
     }
   }
