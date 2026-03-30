@@ -97,11 +97,19 @@ export function subscribe<T>(
 
   const run = async () => {
     try {
-      const subscription = sseClient.iterate({ query, variables })
+      const subscription = sseClient.iterate(
+        { query, variables },
+        {
+          // Fires once the SSE connection is established, even before any
+          // subscription data arrives.  This correctly resets the indicator
+          // after a reconnect so it doesn't stay stuck on "Reconnecting…".
+          connected() {
+            connectionStateManager.setState('connected')
+            attempt = 0
+          },
+        },
+      )
       activeIterator = subscription as AsyncIterableIterator<unknown>
-      // Stream opened — mark as connected and reset backoff
-      connectionStateManager.setState('connected')
-      attempt = 0
       for await (const result of subscription) {
         if (disposed) break
         if (result.data) onData(result.data as T)

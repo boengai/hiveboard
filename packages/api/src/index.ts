@@ -152,7 +152,7 @@ const port = Number(process.env.API_PORT ?? 8080)
 startCleanupInterval()
 
 Bun.serve({
-  fetch(req) {
+  async fetch(req) {
     const url = new URL(req.url)
     if (url.pathname === '/health') {
       return Response.json({ ok: true, uptime: process.uptime() })
@@ -164,7 +164,53 @@ Bun.serve({
       return handleImageServe(url.pathname)
     }
     if (url.pathname.startsWith('/graphql')) {
-      return yoga.fetch(req)
+      const res = await yoga.fetch(req)
+      const ct = res.headers.get('content-type') ?? ''
+      if (!ct.includes('text/event-stream') || !res.body) return res
+
+      // graphql-yoga sends SSE keepalive pings every 12 s, but clears
+      // the interval when controller.desiredSize is falsy.  In Bun,
+      // desiredSize can return 0 even while the connection is alive,
+      // silently killing pings.  Without pings Bun's idleTimeout closes
+      // the socket → ERR_INCOMPLETE_CHUNKED_ENCODING.
+      //
+      // Workaround: pipe yoga's response through a new ReadableStream
+      // using getReader() (for-await fails on yoga's polyfilled streams
+      // in Bun) and inject keepalive pings every 30 s.
+      const upstream = res.body.getReader()
+      const encoder = new TextEncoder()
+      const ping = encoder.encode(':\n\n')
+      let pingTimer: ReturnType<typeof setInterval> | null = null
+
+      const readable = new ReadableStream({
+        start(controller) {
+          pingTimer = setInterval(() => {
+            try {
+              controller.enqueue(ping)
+            } catch {
+              if (pingTimer) clearInterval(pingTimer)
+            }
+          }, 30_000)
+        },
+        async pull(controller) {
+          const { done, value } = await upstream.read()
+          if (done) {
+            if (pingTimer) clearInterval(pingTimer)
+            controller.close()
+          } else {
+            controller.enqueue(value)
+          }
+        },
+        cancel() {
+          if (pingTimer) clearInterval(pingTimer)
+          upstream.cancel()
+        },
+      })
+
+      return new Response(readable, {
+        status: res.status,
+        headers: res.headers,
+      })
     }
     if (isProduction && staticDir) {
       const filePath = path.join(
