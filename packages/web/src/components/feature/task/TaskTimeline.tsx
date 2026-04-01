@@ -127,7 +127,7 @@ function eventDescription(
     case 'agent_failed':
       return `agent failed${d.error ? `: ${d.error}` : ''}`
     case 'pr_opened':
-      return `opened PR #${d.pr_number ?? '?'}`
+      return `opened PR #${String(d.pr_url ?? '').match(/\/pull\/(\d+)/)?.[1] ?? '?'}`
     case 'archived':
       return 'archived this task'
     case 'unarchived':

@@ -167,7 +167,6 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       agentError
       retryCount
       prUrl
-      prNumber
       archived
       archivedAt
       createdAt

@@ -33,7 +33,6 @@ export type Task = {
   agentError: string | null
   retryCount: number
   prUrl: string | null
-  prNumber: number | null
   archived: boolean
   archivedAt: string | null
   tags: Tag[]

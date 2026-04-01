@@ -50,7 +50,6 @@ type TaskRow = {
   agent_error: string | null
   retry_count: number
   pr_url: string | null
-  pr_number: number | null
   archived: number
   archived_at: string | null
   created_by: string
@@ -139,7 +138,6 @@ function mapTask(row: TaskRow) {
     archived: Boolean(row.archived),
     archivedAt: row.archived_at,
     createdAt: row.created_at,
-    prNumber: row.pr_number,
     prUrl: row.pr_url,
     retryCount: row.retry_count,
     targetBranch: row.target_branch,

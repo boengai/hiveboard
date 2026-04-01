@@ -13,7 +13,6 @@ export const CREATE_TASK = /* GraphQL */ `
       agentError
       retryCount
       prUrl
-      prNumber
       archived
       archivedAt
       createdAt
@@ -56,7 +55,6 @@ export const UPDATE_TASK = /* GraphQL */ `
       agentError
       retryCount
       prUrl
-      prNumber
       archived
       archivedAt
       createdAt

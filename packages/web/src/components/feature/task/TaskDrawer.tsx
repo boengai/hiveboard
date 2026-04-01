@@ -356,7 +356,7 @@ const ViewMode = ({
               rel="noopener noreferrer"
               target="_blank"
             >
-              PR #{task.prNumber}
+              PR #{task.prUrl.match(/\/pull\/(\d+)/)?.[1] ?? '?'}
             </a>
           )}
         </div>

@@ -131,7 +131,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
         // Stream closed
       }
     }
-    readChunks()
+    await readChunks()
   }
 
   const exitCode = await proc.exited

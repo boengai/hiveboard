@@ -53,7 +53,6 @@ function addMissingColumns(db: Database): void {
   ensureColumn(db, 'tasks', 'agent_error', 'TEXT')
   ensureColumn(db, 'tasks', 'retry_count', 'INTEGER NOT NULL DEFAULT 0')
   ensureColumn(db, 'tasks', 'pr_url', 'TEXT')
-  ensureColumn(db, 'tasks', 'pr_number', 'INTEGER')
   ensureColumn(db, 'tasks', 'queue_after', 'TEXT')
 
   // task_events: actor_id → actor, payload → data

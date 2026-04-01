@@ -71,7 +71,6 @@ export const typeDefs = /* GraphQL */ `
     agentError: String
     retryCount: Int!
     prUrl: String
-    prNumber: Int
     archived: Boolean!
     archivedAt: String
     createdBy: User!

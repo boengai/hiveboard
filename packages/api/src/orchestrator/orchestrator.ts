@@ -20,7 +20,6 @@ type TaskRow = {
   target_repo: string | null
   target_branch: string | null
   pr_url: string | null
-  pr_number: number | null
   agent_status: string
   agent_output: string | null
   agent_error: string | null
@@ -61,7 +60,6 @@ function mapTask(row: TaskRow) {
     archived: Boolean(row.archived),
     archivedAt: row.archived_at,
     createdAt: row.created_at,
-    prNumber: row.pr_number,
     prUrl: row.pr_url,
     retryCount: row.retry_count,
     targetBranch: row.target_branch,
@@ -557,7 +555,6 @@ export class Orchestrator {
 
       // Parse PR URL from output if applicable
       let prUrl: string | null = null
-      let prNumber: number | null = null
       if (
         task.action === 'implement' ||
         task.action === 'revise'
@@ -567,7 +564,6 @@ export class Orchestrator {
         )
         if (prMatch) {
           prUrl = prMatch[0] ?? null
-          prNumber = prMatch[1] ? Number.parseInt(prMatch[1], 10) : null
         }
       }
 
@@ -610,8 +606,8 @@ export class Orchestrator {
         }
 
         if (prUrl) {
-          setParts.push('pr_url = ?', 'pr_number = ?')
-          setValues.push(prUrl, prNumber)
+          setParts.push('pr_url = ?')
+          setValues.push(prUrl)
         }
 
         if (targetColumnId) {

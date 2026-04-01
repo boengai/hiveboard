@@ -31,7 +31,6 @@ export const GET_BOARDS = /* GraphQL */ `
           agentError
           retryCount
           prUrl
-          prNumber
           archived
           archivedAt
           createdAt
@@ -90,7 +89,6 @@ export const GET_BOARD = /* GraphQL */ `
           agentError
           retryCount
           prUrl
-          prNumber
           archived
           archivedAt
           createdAt
@@ -135,7 +133,6 @@ export const GET_TASK = /* GraphQL */ `
       agentError
       retryCount
       prUrl
-      prNumber
       archived
       archivedAt
       createdAt
