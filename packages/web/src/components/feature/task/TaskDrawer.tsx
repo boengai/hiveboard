@@ -6,7 +6,9 @@ import {
   Avatar,
   Badge,
   Button,
+  CheckIcon,
   ComboboxInput,
+  CopyIcon,
   Drawer,
   MarkdownEditor,
   MarkdownPreview,
@@ -918,6 +920,15 @@ export const TaskDrawer = () => {
     }
   }
 
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyTaskId = () => {
+    if (!task?.id) return
+    navigator.clipboard.writeText(task.id)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   const drawerTitle =
     drawerMode === 'create'
       ? 'New Task'
@@ -946,7 +957,21 @@ export const TaskDrawer = () => {
       }}
       open={drawerMode !== 'closed'}
       size="wide"
-      title={drawerTitle}
+      title={
+        <span className="flex items-center gap-2">
+          {drawerTitle}
+          {task?.id && (
+            <button
+              className="shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
+              onClick={handleCopyTaskId}
+              title={copied ? 'Copied!' : 'Copy task ID'}
+              type="button"
+            >
+              {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+            </button>
+          )}
+        </span>
+      }
     >
       {drawerMode === 'create' && (
         <CreateMode

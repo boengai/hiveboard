@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 export type DrawerProps = {
   children: ReactNode
-  title: string
+  title: ReactNode
   description?: string
   size?: 'default' | 'narrow' | 'wide'
   open?: boolean

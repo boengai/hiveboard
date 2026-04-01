@@ -9,6 +9,7 @@ export {
   BoltIcon,
   CheckIcon,
   ChevronDownIcon,
+  CopyIcon,
   DotIcon,
   FileTextIcon,
   GitPullRequestIcon,
