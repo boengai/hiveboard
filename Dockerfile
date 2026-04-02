@@ -66,14 +66,10 @@ COPY --from=build-web /app/packages/web/dist ./packages/web/dist
 
 RUN mkdir -p tmp/workspaces tmp/database && chown -R hiveboard:hiveboard tmp
 
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
 ENV NODE_ENV=production
 ENV API_PORT=8080
 EXPOSE 8080
 
 USER hiveboard
 
-ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["bun", "run", "packages/api/dist/index.js"]
