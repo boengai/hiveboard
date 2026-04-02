@@ -12,7 +12,13 @@ COPY tsconfig.json ./
 COPY packages/web/ packages/web/
 RUN cd packages/web && bun run build
 
-# ── Stage 3: Production image ──
+# ── Stage 3: Bundle API into a single file ──
+FROM deps AS build-api
+COPY tsconfig.json ./
+COPY packages/api/ packages/api/
+RUN cd packages/api && bun run build
+
+# ── Stage 4: Production image ──
 FROM oven/bun:1 AS production
 WORKDIR /app
 
@@ -54,9 +60,7 @@ RUN apt-get update && \
 # Create non-root user (Claude CLI refuses --dangerously-skip-permissions as root)
 RUN groupadd -r hiveboard && useradd -r -g hiveboard -m -s /bin/bash hiveboard
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/api/node_modules ./packages/api/node_modules
-COPY packages/api/ packages/api/
+COPY --from=build-api /app/packages/api/dist ./packages/api/dist
 COPY --from=build-web /app/packages/web/dist ./packages/web/dist
 
 RUN mkdir -p tmp/workspaces && chown hiveboard:hiveboard tmp/workspaces
@@ -71,4 +75,4 @@ EXPOSE 8080
 USER hiveboard
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["bun", "run", "packages/api/src/index.ts"]
+CMD ["bun", "run", "packages/api/dist/index.js"]

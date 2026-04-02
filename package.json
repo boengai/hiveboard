@@ -5,7 +5,8 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "start": "bun run build:web && NODE_ENV=production bun --env-file=.env run packages/api/src/index.ts",
+    "start": "bun run build:api && bun run build:web && NODE_ENV=production bun --env-file=.env run packages/api/dist/index.js",
+    "build:api": "bun run --filter '@hiveboard/api' build",
     "dev": "bun --env-file=.env run --filter '*' dev",
     "dev:api": "bun --env-file=.env run --filter api dev",
     "dev:web": "bun --env-file=.env run --filter web dev",
