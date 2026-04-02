@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "bun build src/index.ts --target=bun --outdir=dist --minify",
-    "start": "bun run src/index.ts"
+    "build": "NODE_ENV=production bun build src/index.ts --target=bun --outdir=dist --minify",
+    "start": "NODE_ENV=production bun run src/index.ts"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.2.0",

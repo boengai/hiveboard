@@ -183,14 +183,9 @@ Bun.serve({
       let pingTimer: ReturnType<typeof setInterval> | null = null
 
       const readable = new ReadableStream({
-        start(controller) {
-          pingTimer = setInterval(() => {
-            try {
-              controller.enqueue(ping)
-            } catch {
-              if (pingTimer) clearInterval(pingTimer)
-            }
-          }, 30_000)
+        cancel() {
+          if (pingTimer) clearInterval(pingTimer)
+          upstream.cancel()
         },
         async pull(controller) {
           const { done, value } = await upstream.read()
@@ -201,15 +196,20 @@ Bun.serve({
             controller.enqueue(value)
           }
         },
-        cancel() {
-          if (pingTimer) clearInterval(pingTimer)
-          upstream.cancel()
+        start(controller) {
+          pingTimer = setInterval(() => {
+            try {
+              controller.enqueue(ping)
+            } catch {
+              if (pingTimer) clearInterval(pingTimer)
+            }
+          }, 30_000)
         },
       })
 
       return new Response(readable, {
-        status: res.status,
         headers: res.headers,
+        status: res.status,
       })
     }
     if (isProduction && staticDir) {
