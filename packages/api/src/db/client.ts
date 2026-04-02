@@ -4,7 +4,7 @@ import path from 'node:path'
 
 const dbPath =
   process.env.DATABASE_PATH ??
-  path.join(import.meta.dir, '../../../../tmp/database/hiveboard.db')
+  path.join(process.cwd(), 'tmp/database/hiveboard.db')
 
 mkdirSync(path.dirname(dbPath), { recursive: true })
 

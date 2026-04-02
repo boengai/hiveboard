@@ -28,8 +28,8 @@ function splitFrontMatter(content: string): { yaml: string; body: string } {
   return { body, yaml }
 }
 
-/** Default path: WORKFLOW.md next to packages/api/ (resolved from this file's dir). */
-const DEFAULT_WORKFLOW_PATH = resolve(import.meta.dir, '../../WORKFLOW.md')
+/** Default path: WORKFLOW.md inside packages/api/ (resolved from project root). */
+const DEFAULT_WORKFLOW_PATH = resolve(process.cwd(), 'packages/api/WORKFLOW.md')
 
 /** Load and validate a WORKFLOW.md file. */
 export async function loadWorkflow(

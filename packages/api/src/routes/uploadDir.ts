@@ -1,7 +1,6 @@
 import { join, resolve } from 'node:path'
 
-/** Project root: packages/api/src/routes/../../../.. → project root */
-const PROJECT_ROOT = resolve(import.meta.dir, '../../../..')
+const PROJECT_ROOT = process.cwd()
 
 /**
  * Resolve the upload directory root.

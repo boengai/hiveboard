@@ -12,7 +12,7 @@ import { startCleanupInterval } from './workspace/cleanup'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const staticDir = isProduction
-  ? path.join(import.meta.dir, '../../web/dist')
+  ? path.join(process.cwd(), 'packages/web/dist')
   : null
 
 // Run migrations on startup

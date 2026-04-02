@@ -61,9 +61,10 @@ RUN apt-get update && \
 RUN groupadd -r hiveboard && useradd -r -g hiveboard -m -s /bin/bash hiveboard
 
 COPY --from=build-api /app/packages/api/dist ./packages/api/dist
+COPY packages/api/WORKFLOW.md packages/api/
 COPY --from=build-web /app/packages/web/dist ./packages/web/dist
 
-RUN mkdir -p tmp/workspaces && chown hiveboard:hiveboard tmp/workspaces
+RUN mkdir -p tmp/workspaces tmp/database && chown -R hiveboard:hiveboard tmp
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
