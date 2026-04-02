@@ -97,6 +97,36 @@ GITHUB_TOKEN=ghp_your_token_here   # needs repo scope
 
 ## Docker
 
+### Pull from GHCR
+
+```bash
+docker pull ghcr.io/boengai/hiveboard:latest
+```
+
+**Available tags:** `:X.Y.Z` (exact version), `:X.Y` (latest patch), `:latest` (newest stable release)
+
+### Run with Docker Compose
+
+Minimal compose snippet to run HiveBoard from the pre-built image (no local build required):
+
+```yaml
+services:
+  hiveboard:
+    image: ghcr.io/boengai/hiveboard:0.3
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - hiveboard-data:/app/tmp
+
+volumes:
+  hiveboard-data:
+```
+
+See `.env.example` for required environment variables.
+
+### Build from source
+
 ```bash
 docker compose up --build    # build and start
 docker compose logs -f       # follow logs
