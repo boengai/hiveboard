@@ -28,6 +28,14 @@ function expandTilde(p: string): string {
 }
 
 /**
+ * Strip shell metacharacters to prevent command injection when embedding
+ * user-controlled strings into shell scripts via Mustache templates.
+ */
+export function shellEscape(text: string): string {
+  return text.replace(/[`${}!#%*()\[\]|\\;'"<>&\n\r\t]/g, '_')
+}
+
+/**
  * Slugify a task title for use in branch names.
  * Lowercase, replace non-alphanumeric with `-`, trim dashes, max 50 chars.
  */
@@ -214,8 +222,8 @@ export class WorkspaceManager {
         short_id: task.id.slice(-6),
         repo_name: repoName ?? '',
         repo_owner: repoOwner ?? '',
-        slug: slugify(task.title),
-        title: task.title,
+        slug: shellEscape(slugify(task.title)),
+        title: shellEscape(task.title),
       },
     }).trim()
 
