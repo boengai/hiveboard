@@ -87,6 +87,12 @@ export const typeDefs = /* GraphQL */ `
     color: String!
   }
 
+  enum TaskAction {
+    PLAN
+    IMPLEMENT
+    REVISE
+  }
+
   enum AgentStatus {
     IDLE
     QUEUED
@@ -135,6 +141,7 @@ export const typeDefs = /* GraphQL */ `
     columnId: ID
     title: String!
     body: String
+    action: TaskAction
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]
@@ -144,7 +151,7 @@ export const typeDefs = /* GraphQL */ `
   input UpdateTaskInput {
     title: String
     body: String
-    action: String
+    action: TaskAction
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]
