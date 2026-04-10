@@ -6,6 +6,7 @@ export const CREATE_TASK = /* GraphQL */ `
       body
       position
       action
+      agentInstruction
       targetRepo
       targetBranch
       agentStatus
@@ -48,6 +49,7 @@ export const UPDATE_TASK = /* GraphQL */ `
       body
       position
       action
+      agentInstruction
       targetRepo
       targetBranch
       agentStatus

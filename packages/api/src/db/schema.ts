@@ -33,8 +33,9 @@ export function createTables(db: Database): void {
       title          TEXT NOT NULL,
       body           TEXT NOT NULL DEFAULT '',
       position       REAL NOT NULL DEFAULT 0,
-      action         TEXT,
-      target_repo    TEXT,
+      action              TEXT,
+      agent_instruction   TEXT,
+      target_repo         TEXT,
       target_branch  TEXT DEFAULT 'main',
       agent_status   TEXT NOT NULL DEFAULT 'idle',
       queue_after    TEXT,
@@ -103,5 +104,8 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
+
+    -- Migrate legacy 'idle' action values to NULL
+    UPDATE tasks SET action = NULL WHERE action = 'idle';
   `)
 }

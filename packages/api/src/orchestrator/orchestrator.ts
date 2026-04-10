@@ -17,6 +17,7 @@ type TaskRow = {
   title: string
   body: string
   action: string | null
+  agent_instruction: string | null
   target_repo: string | null
   target_branch: string | null
   pr_url: string | null
@@ -54,7 +55,9 @@ function mapTask(row: TaskRow) {
     _columnId: row.column_id,
     _createdBy: row.created_by,
     _updatedBy: row.updated_by,
+    action: row.action ? row.action.toUpperCase() : null,
     agentError: row.agent_error,
+    agentInstruction: row.agent_instruction,
     agentOutput: row.agent_output,
     agentStatus: row.agent_status.toUpperCase(),
     archived: Boolean(row.archived),
@@ -298,7 +301,7 @@ export class Orchestrator {
 
       const queued = db
         .query(
-          `SELECT * FROM tasks WHERE agent_status = ? AND action IS NOT NULL AND action != 'idle' AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
+          `SELECT * FROM tasks WHERE agent_status = ? AND action IS NOT NULL AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
         )
         .all('queued', available) as TaskRow[]
 
@@ -504,6 +507,7 @@ export class Orchestrator {
         signal: runState.abortController.signal,
         task: {
           action: task.action,
+          agentInstruction: task.agent_instruction,
           body: task.body,
           id: task.id,
           prUrl: task.pr_url,
@@ -594,7 +598,7 @@ export class Orchestrator {
         // UPDATE tasks — clear action so the task returns to idle state
         const setParts = [
           `agent_status = 'success'`,
-          `action = 'idle'`,
+          `action = NULL`,
           `agent_output = ?`,
           `updated_at = datetime('now')`,
         ]

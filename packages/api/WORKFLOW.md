@@ -41,6 +41,11 @@ Title: {{ task.title }}
 Description:
 {{ task.body }}
 
+{{#task.agent_instruction}}
+Agent Instruction:
+{{ task.agent_instruction }}
+{{/task.agent_instruction}}
+
 {{#has_review_comments}}
 
 ## Review Comments to Address

@@ -24,6 +24,7 @@ export const GET_BOARDS = /* GraphQL */ `
           body
           position
           action
+          agentInstruction
           targetRepo
           targetBranch
           agentStatus
@@ -82,6 +83,7 @@ export const GET_BOARD = /* GraphQL */ `
           body
           position
           action
+          agentInstruction
           targetRepo
           targetBranch
           agentStatus
@@ -126,6 +128,7 @@ export const GET_TASK = /* GraphQL */ `
       body
       position
       action
+      agentInstruction
       targetRepo
       targetBranch
       agentStatus

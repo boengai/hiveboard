@@ -20,12 +20,15 @@ export type Tag = {
   color: string
 }
 
+export type BoardAction = 'PLAN' | 'IMPLEMENT' | 'REVISE'
+
 export type Task = {
   id: string
   title: string
   body: string
   position: number
-  action: string | null
+  action: BoardAction | null
+  agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null
   agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'

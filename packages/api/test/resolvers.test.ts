@@ -36,6 +36,7 @@ type TaskRow = {
   body: string
   position: number
   action: string | null
+  agent_instruction: string | null
   agent_status: string
   archived: number
   archived_at: string | null
@@ -491,10 +492,10 @@ describe('cancelAgent', () => {
 
     db.run(
       `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-      ['fix the bug', user.id, taskId],
+      ['implement', user.id, taskId],
     )
     db.run(
-      `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
       [user.id, taskId],
     )
 

@@ -1,1 +1,1 @@
-export type { Board, Column, Tag, Task } from './board'
+export type { Board, BoardAction, Column, Tag, Task } from './board'

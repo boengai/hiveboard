@@ -7,6 +7,7 @@ export type TaskForAgent = {
   title: string
   body: string
   action: string | null
+  agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null
   prUrl: string | null
