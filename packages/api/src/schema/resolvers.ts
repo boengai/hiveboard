@@ -42,6 +42,7 @@ type TaskRow = {
   body: string
   position: number
   action: string | null
+  agent_instruction: string | null
   target_repo: string | null
   target_branch: string | null
   agent_status: string
@@ -56,6 +57,18 @@ type TaskRow = {
   updated_by: string
   created_at: string
   updated_at: string
+}
+
+/** Convert a lowercase DB action value to uppercase GraphQL enum value. */
+function actionToEnum(action: string | null): string | null {
+  if (!action) return null
+  return action.toUpperCase()
+}
+
+/** Convert an uppercase GraphQL enum value to lowercase DB action value. */
+function enumToAction(enumVal: string | null): string | null {
+  if (!enumVal) return null
+  return enumVal.toLowerCase()
 }
 
 type CommentRow = {
@@ -132,7 +145,9 @@ function mapTask(row: TaskRow) {
     _columnId: row.column_id,
     _createdBy: row.created_by,
     _updatedBy: row.updated_by,
+    action: actionToEnum(row.action),
     agentError: row.agent_error,
+    agentInstruction: row.agent_instruction,
     agentOutput: row.agent_output,
     agentStatus: row.agent_status.toUpperCase(),
     archived: Boolean(row.archived),
@@ -439,7 +454,7 @@ export const resolvers = {
 
       db.transaction(() => {
         db.run(
-          `UPDATE tasks SET agent_status = 'idle', action = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+          `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
           [user.id, taskId],
         )
         db.run(
@@ -526,6 +541,8 @@ export const resolvers = {
           columnId?: string | null
           title: string
           body?: string | null
+          action?: string | null
+          agentInstruction?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
           tagIds?: string[] | null
@@ -555,10 +572,12 @@ export const resolvers = {
 
       const id = generateId()
 
+      const dbAction = enumToAction(input.action ?? null)
+
       db.transaction(() => {
         db.run(
-          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, action, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, action, agent_instruction, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             input.boardId,
@@ -568,7 +587,8 @@ export const resolvers = {
             position,
             input.targetRepo ?? null,
             input.targetBranch ?? 'main',
-            'idle',
+            dbAction,
+            input.agentInstruction ?? null,
             user.id,
             user.id,
           ],
@@ -959,6 +979,7 @@ export const resolvers = {
           title?: string | null
           body?: string | null
           action?: string | null
+          agentInstruction?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
           tagIds?: string[] | null
@@ -1003,8 +1024,16 @@ export const resolvers = {
         events.push([generateId(), 'body_changed', null])
       }
 
+      if (input.agentInstruction !== undefined) {
+        const newInstruction = input.agentInstruction ?? null
+        if (newInstruction !== existing.agent_instruction) {
+          setClauses.push('agent_instruction = ?')
+          values.push(newInstruction)
+        }
+      }
+
       if (input.action !== undefined) {
-        const newAction = input.action ?? null
+        const newAction = enumToAction(input.action ?? null)
         if (newAction !== existing.action) {
           setClauses.push('action = ?')
           values.push(newAction)
@@ -1014,10 +1043,9 @@ export const resolvers = {
             newAction ? JSON.stringify({ action: newAction }) : null,
           ])
 
-          // Auto-queue with 15s grace period when action is set (skip 'idle' action)
+          // Auto-queue with 15s grace period when action is set
           if (
             newAction &&
-            newAction !== 'idle' &&
             (existing.agent_status === 'idle' ||
               existing.agent_status === 'failed' ||
               existing.agent_status === 'success')

@@ -102,6 +102,7 @@ function makeWorkspaceStub() {
 type TaskRow = {
   id: string
   agent_status: string
+  agent_instruction: string | null
   target_branch: string | null
   retry_count: number
 }
@@ -177,7 +178,7 @@ async function cancelAgent(
 
   memDb.transaction(() => {
     memDb.run(
-      `UPDATE tasks SET agent_status = 'idle', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
       [user.id, taskId],
     )
     memDb.run(

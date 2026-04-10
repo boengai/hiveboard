@@ -114,6 +114,7 @@ type TaskRow = {
   title: string
   body: string
   action: string | null
+  agent_instruction: string | null
   target_repo: string | null
   target_branch: string | null
   agent_status: string

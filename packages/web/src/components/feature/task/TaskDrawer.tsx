@@ -60,10 +60,9 @@ const agentDot = tv({
 })
 
 const ACTION_OPTIONS = [
-  { label: 'Idle', value: 'idle' },
-  { label: 'Plan', value: 'plan' },
-  { label: 'Implement', value: 'implement' },
-  { label: 'Revise', value: 'revise' },
+  { label: 'Plan', value: 'PLAN' },
+  { label: 'Implement', value: 'IMPLEMENT' },
+  { label: 'Revise', value: 'REVISE' },
 ]
 
 function agentStatusColor(status: string): ActionColor {
@@ -135,6 +134,7 @@ const CreateMode = ({
   const form = useForm({
     defaultValues: {
       action: '',
+      agentInstruction: '',
       body: '## Description\n',
       tagIds: [] as string[],
       targetBranch: 'main',
@@ -485,12 +485,24 @@ const AgentPanel = ({
           <SelectInput
             disabled={isAgentActive || loading}
             onValueChange={onUpdateAction}
-            options={ACTION_OPTIONS.filter((o) => o.value !== '')}
+            options={ACTION_OPTIONS}
             placeholder="Select action…"
             value={task.action || undefined}
           />
         </div>
       </div>
+
+      {/* Agent instruction */}
+      {task.agentInstruction && (
+        <div className="flex flex-col gap-1">
+          <span className="font-medium text-body-xs text-text-tertiary">
+            Agent Instruction
+          </span>
+          <p className="rounded-md border border-border-default bg-surface-overlay/30 px-3 py-2 text-body-xs text-text-secondary">
+            {task.agentInstruction}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -639,6 +651,23 @@ const EditMode = ({
           </div>
         </div>
       </div>
+
+      {/* Agent Instruction */}
+      <form.Field name="agentInstruction">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel htmlFor="edit-agent-instruction">
+              Agent Instruction
+            </FieldLabel>
+            <TextInput
+              id="edit-agent-instruction"
+              onChange={field.handleChange}
+              placeholder="Optional instruction for the agent…"
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
 
       {/* Footer */}
       <div className="mt-auto flex items-center gap-3 border-border-default border-t pt-5 *:w-1/2">
@@ -819,6 +848,7 @@ export const TaskDrawer = () => {
             id: task.id,
             input: {
               action: values.action || null,
+              agentInstruction: values.agentInstruction || null,
               body: values.body,
               tagIds: values.tagIds,
               targetBranch: values.targetBranch.trim() || null,
@@ -942,6 +972,7 @@ export const TaskDrawer = () => {
   const editInitialValues: TaskFormValues | null = task
     ? {
         action: task.action ?? '',
+        agentInstruction: task.agentInstruction ?? '',
         body: task.body ?? '',
         tagIds: task.tags?.map((t) => t.id) ?? [],
         targetBranch: task.targetBranch ?? 'main',

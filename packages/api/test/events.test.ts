@@ -26,6 +26,7 @@ type TaskRow = {
   id: string
   agent_status: string
   action: string | null
+  agent_instruction: string | null
 }
 
 type EventRow = {
@@ -181,7 +182,7 @@ describe('task events', () => {
     const col = getColumn(db, board.id)
     const user = getCurrentUser(db)
     const taskId = insertTask(db, board.id, col.id)
-    const action = 'fix the failing test'
+    const action = 'plan'
 
     db.run(
       `UPDATE tasks SET action = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -336,7 +337,7 @@ describe('task events', () => {
     const col = getColumn(db, board.id)
     const user = getCurrentUser(db)
     const taskId = insertTask(db, board.id, col.id)
-    const action = 'implement feature'
+    const action = 'implement'
 
     db.run(
       `UPDATE tasks SET action = ?, agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -385,7 +386,7 @@ describe('task events', () => {
 
     // First dispatch
     db.run(
-      `UPDATE tasks SET action = 'some action', agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE tasks SET action = 'plan', agent_status = 'queued', updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
       [user.id, taskId],
     )
     db.run(

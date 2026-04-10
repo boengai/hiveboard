@@ -63,7 +63,8 @@ export const typeDefs = /* GraphQL */ `
     body: String!
     column: Column!
     position: Float!
-    action: String
+    action: BoardAction
+    agentInstruction: String
     targetRepo: String
     targetBranch: String
     agentStatus: AgentStatus!
@@ -93,6 +94,12 @@ export const typeDefs = /* GraphQL */ `
     RUNNING
     SUCCESS
     FAILED
+  }
+
+  enum BoardAction {
+    PLAN
+    IMPLEMENT
+    REVISE
   }
 
   type Comment {
@@ -135,6 +142,8 @@ export const typeDefs = /* GraphQL */ `
     columnId: ID
     title: String!
     body: String
+    action: BoardAction
+    agentInstruction: String
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]
@@ -144,7 +153,8 @@ export const typeDefs = /* GraphQL */ `
   input UpdateTaskInput {
     title: String
     body: String
-    action: String
+    action: BoardAction
+    agentInstruction: String
     targetRepo: String
     targetBranch: String
     tagIds: [ID!]

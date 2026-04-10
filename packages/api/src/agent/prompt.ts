@@ -8,6 +8,7 @@ export type TaskForPrompt = {
   title: string
   body: string
   action: string | null
+  agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null
   prUrl: string | null
@@ -19,6 +20,7 @@ export type PromptContext = {
     title: string
     body: string
     action: string
+    agent_instruction: string
     repo_owner: string
     repo_name: string
     target_branch: string
@@ -44,6 +46,7 @@ export function renderPrompt(
     review_comments: reviewComments,
     task: {
       action: task.action ?? '',
+      agent_instruction: task.agentInstruction ?? '',
       body: task.body,
       id: task.id,
       pr_url: task.prUrl ?? '',
