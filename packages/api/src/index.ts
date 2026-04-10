@@ -188,12 +188,21 @@ Bun.serve({
           upstream.cancel()
         },
         async pull(controller) {
-          const { done, value } = await upstream.read()
-          if (done) {
+          try {
+            const { done, value } = await upstream.read()
+            if (done) {
+              if (pingTimer) clearInterval(pingTimer)
+              controller.close()
+            } else {
+              controller.enqueue(value)
+            }
+          } catch {
             if (pingTimer) clearInterval(pingTimer)
-            controller.close()
-          } else {
-            controller.enqueue(value)
+            try {
+              controller.close()
+            } catch {
+              // controller may already be closed
+            }
           }
         },
         start(controller) {
