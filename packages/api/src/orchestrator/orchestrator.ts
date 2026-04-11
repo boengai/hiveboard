@@ -332,20 +332,7 @@ export class Orchestrator {
         [task.id],
       )
 
-      // 2. INSERT task_events: agent_started
-      const agentStartedEventId = generateId()
-      db.run(
-        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-        [
-          agentStartedEventId,
-          task.id,
-          'SYSTEM',
-          'agent_started',
-          JSON.stringify({ action: task.action, retry: task.retry_count }),
-        ],
-      )
-
-      // 3. INSERT agent_runs: status='running'
+      // 2. INSERT agent_runs: status='running'
       runId = generateId()
       db.run(
         `INSERT INTO agent_runs (id, task_id, action, status, started_at) VALUES (?, ?, ?, 'running', datetime('now'))`,
@@ -388,28 +375,7 @@ export class Orchestrator {
         mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
 
-      // Publish the agent_started event
-      const startedEvent = db
-        .query('SELECT * FROM task_events WHERE id = ?')
-        .get(agentStartedEventId) as {
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      }
-      if (startedEvent) {
-        pubsub.publish('TASK_EVENT', task.id, {
-          _actor: 'SYSTEM',
-          createdAt: startedEvent.created_at,
-          data: startedEvent.data,
-          id: startedEvent.id,
-          isSystem: true,
-          type: startedEvent.type,
-        } as unknown as Record<string, unknown>)
-      }
-
-      // 6. Create workspace with fresh access token and git identity
+      // 5. Create workspace with fresh access token and git identity
       const accessToken = await this.github.getAccessToken()
       const gitIdentity = await this.github.getIdentity()
       const ws = await this.workspace.createForTask(
@@ -496,6 +462,38 @@ export class Orchestrator {
           )
           // Continue without review comments rather than failing the whole run
         }
+      }
+
+      // Publish agent_started event right before spawning the agent process
+      const agentStartedEventId = generateId()
+      db.run(
+        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+        [
+          agentStartedEventId,
+          task.id,
+          'SYSTEM',
+          'agent_started',
+          JSON.stringify({ action: task.action, retry: runState.retryAttempt }),
+        ],
+      )
+      const startedEvent = db
+        .query('SELECT * FROM task_events WHERE id = ?')
+        .get(agentStartedEventId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      }
+      if (startedEvent) {
+        pubsub.publish('TASK_EVENT', task.id, {
+          _actor: 'SYSTEM',
+          createdAt: startedEvent.created_at,
+          data: startedEvent.data,
+          id: startedEvent.id,
+          isSystem: true,
+          type: startedEvent.type,
+        } as unknown as Record<string, unknown>)
       }
 
       const gitIdentity = await this.github.getIdentity()
