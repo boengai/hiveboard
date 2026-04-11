@@ -31,6 +31,7 @@ export const typeDefs = /* GraphQL */ `
     taskUpdated(boardId: ID!): Task!
     agentLogStream(taskId: ID!): AgentLogChunk!
     commentAdded(taskId: ID!): Comment!
+    commentUpdated(taskId: ID!): Comment!
     taskEventAdded(taskId: ID!): TaskEvent!
   }
 
