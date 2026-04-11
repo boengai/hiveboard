@@ -97,7 +97,6 @@ query ListBoards {
 #     title
 #     body
 #     agentStatus
-#     agentOutput
 #     prUrl
 #     column { name }
 #     tags { name color }

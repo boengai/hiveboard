@@ -10,8 +10,6 @@ export const CREATE_TASK = /* GraphQL */ `
       targetRepo
       targetBranch
       agentStatus
-      agentOutput
-      agentError
       retryCount
       prUrl
       archived
@@ -53,8 +51,6 @@ export const UPDATE_TASK = /* GraphQL */ `
       targetRepo
       targetBranch
       agentStatus
-      agentOutput
-      agentError
       retryCount
       prUrl
       archived
