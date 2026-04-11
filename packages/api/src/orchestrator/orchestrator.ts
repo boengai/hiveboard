@@ -324,6 +324,7 @@ export class Orchestrator {
   async dispatchTask(task: TaskRow): Promise<void> {
     consola.info(`Dispatching task ${task.id} (action: ${task.action})`)
 
+    let runId: string | null = null
     try {
       // 1. UPDATE tasks SET agent_status = 'running'
       db.run(
@@ -345,7 +346,7 @@ export class Orchestrator {
       )
 
       // 3. INSERT agent_runs: status='running'
-      const runId = generateId()
+      runId = generateId()
       db.run(
         `INSERT INTO agent_runs (id, task_id, action, status, started_at) VALUES (?, ?, ?, 'running', datetime('now'))`,
         [runId, task.id, task.action ?? ''],
@@ -449,6 +450,13 @@ export class Orchestrator {
     } catch (err) {
       consola.error(`Failed to dispatch task ${task.id}:`, err)
       this.running.delete(task.id)
+      // Mark the agent_runs row as failed so it doesn't remain orphaned
+      if (runId) {
+        db.run(
+          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
+          [err instanceof Error ? err.message : String(err), runId],
+        )
+      }
       // Reset to queued so it can be retried
       db.run(
         `UPDATE tasks SET agent_status = 'queued', updated_at = datetime('now') WHERE id = ?`,
