@@ -1,5 +1,5 @@
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
-import { extname, join } from 'node:path'
+import { extname, join, resolve } from 'node:path'
 import { generateId } from '../db'
 import { resolvePathSafe } from '../workspace/path-safety'
 import { getUploadDir } from './uploadDir'
@@ -19,6 +19,13 @@ const MIME_TO_EXT: Record<string, string> = {
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
+/** Reject path segments that could escape the upload root. */
+const PATH_SEGMENT_RE = /^[a-zA-Z0-9_-]+$/
+
+export function isValidPathSegment(segment: string): boolean {
+  return PATH_SEGMENT_RE.test(segment)
+}
 
 /** Handle POST /api/images/upload */
 export async function handleImageUpload(req: Request): Promise<Response> {
@@ -42,6 +49,17 @@ export async function handleImageUpload(req: Request): Promise<Response> {
         { error: 'Either taskId or sessionId is required' },
         { status: 400 },
       )
+    }
+
+    // Validate path segments to prevent traversal
+    if (!isValidPathSegment(boardId)) {
+      return Response.json({ error: 'Invalid boardId' }, { status: 400 })
+    }
+    if (taskId && !isValidPathSegment(taskId)) {
+      return Response.json({ error: 'Invalid taskId' }, { status: 400 })
+    }
+    if (sessionId && !isValidPathSegment(sessionId)) {
+      return Response.json({ error: 'Invalid sessionId' }, { status: 400 })
     }
 
     // Validate MIME type
@@ -77,11 +95,14 @@ export async function handleImageUpload(req: Request): Promise<Response> {
       urlPath = `/api/images/tmp/${sessionId}/${filename}`
     }
 
+    // Validate resolved path stays within upload root
+    const resolvedRoot = resolve(root)
+    if (!resolve(dir).startsWith(`${resolvedRoot}/`)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     await mkdir(dir, { recursive: true })
     const filePath = join(dir, filename)
-
-    // Validate path safety
-    await resolvePathSafe(filePath)
 
     const buffer = await file.arrayBuffer()
     await Bun.write(filePath, buffer)
