@@ -1,10 +1,13 @@
 import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { GraphQLError } from 'graphql'
+import { z } from 'zod/v4'
 import { db, generateId } from '../db'
 import { getOrchestrator } from '../orchestrator'
 import { pubsub } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
+import { HexColorSchema } from './validation'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
@@ -521,6 +524,18 @@ export const resolvers = {
       },
     ) {
       const color = input.color ?? '#aaaaaa' // default to a light gray
+
+      try {
+        HexColorSchema.parse(color)
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          throw new GraphQLError(
+            `Invalid color: ${err.issues[0]?.message ?? 'invalid format'}`,
+            { extensions: { code: 'BAD_USER_INPUT' } },
+          )
+        }
+        throw err
+      }
 
       const id = generateId()
       db.run(
