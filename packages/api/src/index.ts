@@ -133,9 +133,30 @@ query ListBoards {
 `
 
 const yoga = createYoga({
-  cors: {
-    credentials: true,
-    origin: '*',
+  // CORS: credentials requires a specific origin, not '*'.
+  // Dynamically reflect the request's Origin header so credentialed
+  // requests receive a valid Access-Control-Allow-Origin value.
+  // To restrict access, set CORS_ALLOWED_ORIGINS as a comma-separated
+  // list of allowed origins (e.g. "https://app.example.com,http://localhost:3000").
+  cors(req) {
+    const allowedEnv = process.env.CORS_ALLOWED_ORIGINS
+    const allowedOrigins = allowedEnv
+      ? allowedEnv.split(',').map((o) => o.trim())
+      : null
+    const requestOrigin = req.headers.get('origin')
+
+    if (allowedOrigins) {
+      // Whitelist mode: only reflect origins that are explicitly allowed
+      const origin =
+        requestOrigin && allowedOrigins.includes(requestOrigin)
+          ? requestOrigin
+          : allowedOrigins[0]
+      return { credentials: true, origin }
+    }
+
+    // Development / open mode: reflect the request origin so credentials work,
+    // or fall back to '*' for non-credentialed requests without an Origin header.
+    return { credentials: true, origin: requestOrigin ?? '*' }
   },
   graphiql: {
     defaultQuery,
