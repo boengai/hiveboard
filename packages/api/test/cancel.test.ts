@@ -88,6 +88,7 @@ function makeGitHubStub() {
     fetchReviewComments: async () => [],
     getAccessToken: async () => 'fake-token',
     getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
+    getTokenDir: () => '/tmp/hiveboard-tokens-test',
   }
 }
 

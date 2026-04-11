@@ -32,7 +32,7 @@ function expandTilde(p: string): string {
  * user-controlled strings into shell scripts via Mustache templates.
  */
 export function shellEscape(text: string): string {
-  return text.replace(/[`${}!#%*()\[\]|\\;'"<>&\n\r\t]/g, '_')
+  return text.replace(/[`${}!#%*()[\]|\\;'"<>&\n\r\t]/g, '_')
 }
 
 /**
@@ -219,9 +219,9 @@ export class WorkspaceManager {
       task: {
         action: task.action ?? '',
         id: task.id,
-        short_id: task.id.slice(-6),
         repo_name: repoName ?? '',
         repo_owner: repoOwner ?? '',
+        short_id: task.id.slice(-6),
         slug: shellEscape(slugify(task.title)),
         title: shellEscape(task.title),
       },

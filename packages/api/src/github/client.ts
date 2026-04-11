@@ -1,3 +1,6 @@
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createAppAuth } from '@octokit/auth-app'
 import { Octokit } from '@octokit/rest'
 import { consola } from 'consola'
@@ -26,6 +29,7 @@ export class GitHubClient {
   private tokenExpiresAt = 0
   private _identity: GitIdentity | null = null
   private pat: string | null = null
+  private _tokenDir: string | null = null
 
   private constructor(
     octokit: Octokit,
@@ -69,14 +73,14 @@ export class GitHubClient {
         privateKey,
       }
       const octokit = new Octokit({
-        authStrategy: createAppAuth,
         auth: authOpts,
+        authStrategy: createAppAuth,
       })
       // Separate Octokit instance for JWT-level calls (GET /app for identity).
       // Only appId + privateKey — no installationId — so createAppAuth defaults to JWT.
       const jwtOctokit = new Octokit({
-        authStrategy: createAppAuth,
         auth: { appId, privateKey },
+        authStrategy: createAppAuth,
       })
       consola.debug('GitHub client initialized with GitHub App auth')
       return new GitHubClient(octokit, true, { jwtOctokit })
@@ -89,14 +93,62 @@ export class GitHubClient {
   }
 
   /**
+   * Return (and lazily create) a directory containing token files that
+   * long-running subprocesses can read to pick up refreshed credentials.
+   *
+   * Layout:
+   *   <tokenDir>/token        – raw token string
+   *   <tokenDir>/askpass.sh   – GIT_ASKPASS helper that reads the token file
+   *   <tokenDir>/gh/hosts.yml – gh CLI config with current token
+   */
+  getTokenDir(): string {
+    if (!this._tokenDir) {
+      this._tokenDir = join(tmpdir(), `hiveboard-tokens-${process.pid}`)
+      mkdirSync(join(this._tokenDir, 'gh'), { recursive: true })
+
+      const askpass = join(this._tokenDir, 'askpass.sh')
+      writeFileSync(
+        askpass,
+        [
+          '#!/bin/sh',
+          'case "$1" in',
+          '  *Username*) echo "x-access-token" ;;',
+          '  *Password*) cat "$HIVEBOARD_TOKEN_FILE" ;;',
+          'esac',
+          '',
+        ].join('\n'),
+      )
+      chmodSync(askpass, 0o755)
+    }
+    return this._tokenDir
+  }
+
+  /** Write the current token to disk so running subprocesses can read it. */
+  private writeTokenFiles(token: string): void {
+    const dir = this.getTokenDir()
+    writeFileSync(join(dir, 'token'), token, { mode: 0o600 })
+    writeFileSync(
+      join(dir, 'gh', 'hosts.yml'),
+      `github.com:\n    oauth_token: ${token}\n    git_protocol: https\n`,
+      { mode: 0o600 },
+    )
+  }
+
+  /**
    * Get a raw access token string for subprocess env vars (gh, git).
    * - PAT: returns the static token.
    * - App: generates an installation token, caches for 45 min.
-   * Sets process.env.GITHUB_TOKEN so subprocesses pick it up.
+   * Sets process.env.GITHUB_TOKEN so subprocesses pick it up and writes
+   * the token to disk so long-running agents can read refreshed credentials.
    */
   async getAccessToken(): Promise<string> {
     if (!this.isAppAuth) {
-      return this.pat as string
+      const token = this.pat as string
+      if (!this.cachedToken) {
+        this.cachedToken = token
+        this.writeTokenFiles(token)
+      }
+      return token
     }
 
     if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
@@ -109,6 +161,7 @@ export class GitHubClient {
     this.cachedToken = auth.token
     this.tokenExpiresAt = Date.now() + TOKEN_REFRESH_MS
     process.env.GITHUB_TOKEN = auth.token
+    this.writeTokenFiles(auth.token)
     consola.debug('GitHub App token refreshed')
     return auth.token
   }
@@ -174,12 +227,12 @@ export class GitHubClient {
     headBranch: string,
   ): Promise<string> {
     const { data } = await this.octokit.rest.pulls.create({
+      base: baseBranch,
+      body,
+      head: headBranch,
       owner: repo.owner,
       repo: repo.repo,
       title,
-      body,
-      base: baseBranch,
-      head: headBranch,
     })
     consola.info(`Created PR: ${data.html_url}`)
     return data.html_url
@@ -199,16 +252,16 @@ export class GitHubClient {
     try {
       const { data } = await this.octokit.rest.pulls.listReviewComments({
         owner,
-        repo,
         pull_number: Number(number),
+        repo,
       })
 
       const comments: ReviewComment[] = data.map((c) => ({
         author: c.user?.login ?? 'unknown',
         body: c.body,
-        path: c.path ?? null,
-        line: c.line ?? null,
         diffHunk: c.diff_hunk ?? null,
+        line: c.line ?? null,
+        path: c.path ?? null,
       }))
 
       consola.info(`Fetched ${comments.length} review comments from ${prUrl}`)

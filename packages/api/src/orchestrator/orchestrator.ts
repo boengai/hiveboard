@@ -375,7 +375,10 @@ export class Orchestrator {
               task.id,
               'SYSTEM',
               'moved',
-              JSON.stringify({ from_column: fromColumnName, to_column: 'In Progress' }),
+              JSON.stringify({
+                from_column: fromColumnName,
+                to_column: 'In Progress',
+              }),
             ],
           )
         }
@@ -539,6 +542,7 @@ export class Orchestrator {
           targetRepo: task.target_repo,
           title: task.title,
         },
+        tokenDir: this.github.getTokenDir(),
         workspacePath: runState.workspacePath,
       })
 
@@ -583,10 +587,7 @@ export class Orchestrator {
 
       // Parse PR URL from output if applicable
       let prUrl: string | null = null
-      if (
-        task.action === 'implement' ||
-        task.action === 'revise'
-      ) {
+      if (task.action === 'implement' || task.action === 'revise') {
         const prMatch = result.output.match(
           /https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/,
         )
@@ -606,10 +607,7 @@ export class Orchestrator {
       let targetColumnName: string | null = null
       if (task.action === 'plan') {
         targetColumnName = 'Todo'
-      } else if (
-        task.action === 'implement' ||
-        task.action === 'revise'
-      ) {
+      } else if (task.action === 'implement' || task.action === 'revise') {
         targetColumnName = 'Review'
       }
       // plan stays in current column
@@ -685,7 +683,10 @@ export class Orchestrator {
               task.id,
               'SYSTEM',
               'moved',
-              JSON.stringify({ from_column: fromColumnName, to_column: targetColumnName }),
+              JSON.stringify({
+                from_column: fromColumnName,
+                to_column: targetColumnName,
+              }),
             ],
           )
         }
