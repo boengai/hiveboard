@@ -14,6 +14,7 @@
 
 import { Database } from 'bun:sqlite'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { calculateRetryDelay } from '../src/orchestrator/orchestrator'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -649,5 +650,60 @@ describe('Orchestrator – PR URL target repo verification', () => {
     const task = getTask(taskId)
     expect(task?.agent_status).toBe('success')
     expect(task?.pr_url).toBeNull()
+  })
+})
+
+describe('calculateRetryDelay – jitter', () => {
+  const baseDelay = 10_000
+  const maxBackoff = 300_000
+
+  it('applies jitter multiplier from the random function', () => {
+    // random() = 0 → multiplier = 0.5
+    const low = calculateRetryDelay(0, maxBackoff, baseDelay, () => 0)
+    expect(low).toBe(baseDelay * 0.5)
+
+    // random() = 0.5 → multiplier = 1.0 (same as no-jitter base)
+    const mid = calculateRetryDelay(0, maxBackoff, baseDelay, () => 0.5)
+    expect(mid).toBe(baseDelay * 1.0)
+
+    // random() ≈ 1 → multiplier ≈ 1.5
+    const high = calculateRetryDelay(0, maxBackoff, baseDelay, () => 0.999)
+    expect(high).toBeCloseTo(baseDelay * 1.499, 0)
+  })
+
+  it('scales exponentially with retryCount', () => {
+    const fixed = () => 0.5 // multiplier = 1.0 for predictable assertions
+    expect(calculateRetryDelay(0, maxBackoff, baseDelay, fixed)).toBe(10_000)
+    expect(calculateRetryDelay(1, maxBackoff, baseDelay, fixed)).toBe(20_000)
+    expect(calculateRetryDelay(2, maxBackoff, baseDelay, fixed)).toBe(40_000)
+    expect(calculateRetryDelay(3, maxBackoff, baseDelay, fixed)).toBe(80_000)
+  })
+
+  it('caps at maxBackoffMs', () => {
+    // retryCount=20 would produce a huge number without the cap
+    const delay = calculateRetryDelay(20, maxBackoff, baseDelay, () => 0.5)
+    expect(delay).toBe(maxBackoff)
+  })
+
+  it('produces varying delays with real Math.random', () => {
+    // Run 100 trials and verify we get at least some variance
+    const delays = new Set<number>()
+    for (let i = 0; i < 100; i++) {
+      delays.add(calculateRetryDelay(0, maxBackoff, baseDelay))
+    }
+    // With real randomness, 100 trials should produce many distinct values
+    expect(delays.size).toBeGreaterThan(50)
+  })
+
+  it('all delays fall within [0.5*base, min(1.5*base, max)] range', () => {
+    for (let retry = 0; retry < 10; retry++) {
+      for (let i = 0; i < 50; i++) {
+        const delay = calculateRetryDelay(retry, maxBackoff, baseDelay)
+        const rawBase = baseDelay * 2 ** retry
+        const lowerBound = Math.min(rawBase * 0.5, maxBackoff)
+        expect(delay).toBeGreaterThanOrEqual(lowerBound)
+        expect(delay).toBeLessThanOrEqual(maxBackoff)
+      }
+    }
   })
 })
