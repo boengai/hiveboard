@@ -8,6 +8,9 @@ export const typeDefs = /* GraphQL */ `
     comments(taskId: ID!): [Comment!]!
     tags(boardId: ID!): [Tag!]!
     me: User!
+    users: [User!]!
+    invitations: [Invitation!]!
+    authConfig: AuthConfig!
   }
 
   type Mutation {
@@ -25,6 +28,9 @@ export const typeDefs = /* GraphQL */ `
     deleteTag(id: ID!, boardId: ID!): Boolean!
     setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
     cancelAgent(taskId: ID!): Task!
+
+    generateInvitation(githubUsername: String!): Invitation!
+    revokeUser(userId: ID!): User!
   }
 
   type Subscription {
@@ -40,6 +46,25 @@ export const typeDefs = /* GraphQL */ `
     username: String!
     displayName: String!
     role: String!
+    githubId: String
+    githubUsername: String
+    revokedAt: String
+    createdAt: String!
+  }
+
+  type Invitation {
+    id: ID!
+    token: String!
+    githubUsername: String!
+    createdBy: User!
+    createdAt: String!
+    expiresAt: String!
+    usedAt: String
+  }
+
+  type AuthConfig {
+    githubOAuthClientId: String
+    isLocal: Boolean!
   }
 
   type Board {

@@ -205,10 +205,7 @@ export function calculateRetryDelay(
   baseDelay = 10_000,
   random = Math.random,
 ): number {
-  return Math.min(
-    baseDelay * 2 ** retryCount * (0.5 + random()),
-    maxBackoffMs,
-  )
+  return Math.min(baseDelay * 2 ** retryCount * (0.5 + random()), maxBackoffMs)
 }
 
 // ---------------------------------------------------------------------------

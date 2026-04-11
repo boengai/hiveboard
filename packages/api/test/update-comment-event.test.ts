@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { db, generateId } from '../src/db'
+import { migrate } from '../src/db/migrate'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { pubsub } from '../src/pubsub'
@@ -65,6 +66,7 @@ describe('updateComment pubsub event', () => {
     // Ensure tables and seed data exist in the singleton db
     createTables(db)
     seed(db)
+    migrate(db)
 
     const spy = spyOn(pubsub, 'publish')
 
@@ -73,15 +75,30 @@ describe('updateComment pubsub event', () => {
     const taskId = insertTask(board.id, col.id)
     const commentId = insertComment(taskId, 'Original body')
 
-    resolvers.Mutation.updateComment({}, { id: commentId, body: 'Edited body' })
+    // Create a mock auth context with the queen-bee user
+    const user = getCurrentUser()
+    const ctx = {
+      user: {
+        displayName: 'Queen Bee',
+        githubId: null,
+        githubUsername: null,
+        id: user.id,
+        role: 'super-admin',
+        username: 'queen-bee',
+      },
+    }
+
+    resolvers.Mutation.updateComment(
+      {},
+      { body: 'Edited body', id: commentId },
+      ctx as never,
+    )
 
     const calls = spy.mock.calls
     const updateCalls = calls.filter(
       (c: unknown[]) => c[0] === 'COMMENT_UPDATED',
     )
-    const addedCalls = calls.filter(
-      (c: unknown[]) => c[0] === 'COMMENT_ADDED',
-    )
+    const addedCalls = calls.filter((c: unknown[]) => c[0] === 'COMMENT_ADDED')
 
     expect(updateCalls).toHaveLength(1)
     expect(updateCalls[0]?.[1]).toBe(taskId)

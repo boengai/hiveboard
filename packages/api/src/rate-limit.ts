@@ -27,19 +27,21 @@ export class RateLimiter {
   readonly windowMs: number
   readonly max: number
 
-  constructor(
-    opts: { windowMs?: number; max?: number } = {},
-  ) {
+  constructor(opts: { windowMs?: number; max?: number } = {}) {
     this.windowMs = opts.windowMs ?? WINDOW_MS
     this.max = opts.max ?? MAX_MUTATIONS_PER_WINDOW
   }
 
   /** Check and record a request. Returns whether it's allowed. */
-  check(key: string): { allowed: boolean; remaining: number; retryAfterMs: number } {
+  check(key: string): {
+    allowed: boolean
+    remaining: number
+    retryAfterMs: number
+  } {
     const now = Date.now()
     const cutoff = now - this.windowMs
     const timestamps = this.windows.get(key) ?? []
-    const valid = timestamps.filter(t => t > cutoff)
+    const valid = timestamps.filter((t) => t > cutoff)
 
     if (valid.length >= this.max) {
       this.windows.set(key, valid)
@@ -50,14 +52,18 @@ export class RateLimiter {
 
     valid.push(now)
     this.windows.set(key, valid)
-    return { allowed: true, remaining: this.max - valid.length, retryAfterMs: 0 }
+    return {
+      allowed: true,
+      remaining: this.max - valid.length,
+      retryAfterMs: 0,
+    }
   }
 
   /** Remove expired entries to prevent unbounded memory growth. */
   cleanup(): void {
     const cutoff = Date.now() - this.windowMs
     for (const [key, timestamps] of this.windows) {
-      const valid = timestamps.filter(t => t > cutoff)
+      const valid = timestamps.filter((t) => t > cutoff)
       if (valid.length === 0) this.windows.delete(key)
       else this.windows.set(key, valid)
     }
@@ -68,7 +74,11 @@ export class RateLimiter {
     if (this.cleanupTimer) return
     this.cleanupTimer = setInterval(() => this.cleanup(), this.windowMs)
     // Allow the process to exit even if the timer is still running
-    if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+    if (
+      this.cleanupTimer &&
+      typeof this.cleanupTimer === 'object' &&
+      'unref' in this.cleanupTimer
+    ) {
       this.cleanupTimer.unref()
     }
   }
@@ -106,7 +116,9 @@ export const mutationRateLimiter = new RateLimiter()
  * graphql-yoga plugin that rate-limits mutation operations per client IP.
  * Queries and subscriptions pass through unrestricted.
  */
-export function useMutationRateLimit(limiter: RateLimiter = mutationRateLimiter): Plugin {
+export function useMutationRateLimit(
+  limiter: RateLimiter = mutationRateLimiter,
+): Plugin {
   limiter.startCleanup()
 
   return {
@@ -118,7 +130,8 @@ export function useMutationRateLimit(limiter: RateLimiter = mutationRateLimiter)
         !operation ||
         operation.kind !== Kind.OPERATION_DEFINITION ||
         operation.operation !== 'mutation'
-      ) return
+      )
+        return
 
       const request = (args.contextValue as { request?: Request }).request
       const ip = request ? getClientIp(request) : 'unknown'

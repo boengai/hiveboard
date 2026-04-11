@@ -195,3 +195,24 @@ export const SET_TASK_TAGS = /* GraphQL */ `
     }
   }
 `
+
+export const GENERATE_INVITATION = /* GraphQL */ `
+  mutation GenerateInvitation($githubUsername: String!) {
+    generateInvitation(githubUsername: $githubUsername) {
+      id
+      token
+      githubUsername
+      expiresAt
+    }
+  }
+`
+
+export const REVOKE_USER = /* GraphQL */ `
+  mutation RevokeUser($userId: ID!) {
+    revokeUser(userId: $userId) {
+      id
+      username
+      revokedAt
+    }
+  }
+`

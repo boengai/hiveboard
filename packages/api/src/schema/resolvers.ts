@@ -2,6 +2,15 @@ import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GraphQLError } from 'graphql'
 import { z } from 'zod/v4'
+import type { AuthContext } from '../auth'
+import {
+  createInvitation,
+  listInvitations,
+  requireAuth,
+  requireSuperAdmin,
+  revokeSessionsForUser,
+} from '../auth'
+import { isLocalRequest } from '../auth/local'
 import { db, generateId } from '../db'
 import { getOrchestrator } from '../orchestrator'
 import { pubsub } from '../pubsub'
@@ -18,6 +27,9 @@ type UserRow = {
   username: string
   display_name: string
   role: string
+  github_id: string | null
+  github_username: string | null
+  revoked_at: string | null
   created_at: string
 }
 
@@ -116,18 +128,16 @@ type TagRow = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getCurrentUser(): UserRow {
-  const user = db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow | null
-  if (!user) throw new Error('Queen-bee user not found. Run migrations first.')
-  return user
-}
+type ResolverContext = AuthContext & { request?: Request }
 
 function mapUser(row: UserRow) {
   return {
+    createdAt: row.created_at,
     displayName: row.display_name,
+    githubId: row.github_id,
+    githubUsername: row.github_username,
     id: row.id,
+    revokedAt: row.revoked_at,
     role: row.role,
     username: row.username,
   }
@@ -313,6 +323,12 @@ export const resolvers = {
     },
   },
 
+  Invitation: {
+    createdBy(invitation: { _createdBy: string }) {
+      return getUserById(invitation._createdBy)
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Mutations
   // -------------------------------------------------------------------------
@@ -325,8 +341,10 @@ export const resolvers = {
         body,
         parentId,
       }: { taskId: string; body: string; parentId?: string | null },
+      ctx: ResolverContext,
     ) {
-      const user = getCurrentUser()
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       if (parentId) {
         const parent = db
@@ -394,8 +412,9 @@ export const resolvers = {
       return comment
     },
 
-    archiveTask(_: unknown, { id }: { id: string }) {
-      const user = getCurrentUser()
+    archiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       db.transaction(() => {
         db.run(
@@ -438,8 +457,13 @@ export const resolvers = {
       return task
     },
 
-    async cancelAgent(_: unknown, { taskId }: { taskId: string }) {
-      const user = getCurrentUser()
+    async cancelAgent(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       // Abort the running agent process if any
       const orchestrator = getOrchestrator()
@@ -502,8 +526,9 @@ export const resolvers = {
 
       return task
     },
-    createBoard(_: unknown, { name }: { name: string }) {
-      const user = getCurrentUser()
+    createBoard(_: unknown, { name }: { name: string }, ctx: ResolverContext) {
+      const authUser = requireSuperAdmin(ctx)
+      const user = { id: authUser.id }
       const id = generateId()
       db.run('INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)', [
         id,
@@ -523,7 +548,9 @@ export const resolvers = {
       }: {
         input: { boardId: string; name: string; color?: string | null }
       },
+      ctx: ResolverContext,
     ) {
+      requireAuth(ctx)
       const color = input.color ?? '#aaaaaa' // default to a light gray
 
       try {
@@ -565,8 +592,10 @@ export const resolvers = {
           sessionId?: string | null
         }
       },
+      ctx: ResolverContext,
     ) {
-      const user = getCurrentUser()
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       // Resolve columnId — default to first column of board if not provided
       let columnId = input.columnId
@@ -709,8 +738,9 @@ export const resolvers = {
       return task
     },
 
-    deleteComment(_: unknown, { id }: { id: string }) {
-      const user = getCurrentUser()
+    deleteComment(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       // Fetch comment before deletion for task_id
       const existing = db
@@ -761,7 +791,9 @@ export const resolvers = {
     deleteTag(
       _: unknown,
       { id, boardId }: { id: string; boardId: string },
+      ctx: ResolverContext,
     ) {
+      requireAuth(ctx)
       const existing = db
         .query('SELECT * FROM tags WHERE id = ?')
         .get(id) as TagRow | null
@@ -780,6 +812,35 @@ export const resolvers = {
       return true
     },
 
+    generateInvitation(
+      _: unknown,
+      { githubUsername }: { githubUsername: string },
+      ctx: ResolverContext,
+    ) {
+      const admin = requireSuperAdmin(ctx)
+      const result = createInvitation(githubUsername, admin.id)
+      const row = db
+        .query('SELECT * FROM invitations WHERE token = ?')
+        .get(result.token) as {
+        id: string
+        token: string
+        github_username: string
+        created_by: string
+        created_at: string
+        expires_at: string
+        used_at: string | null
+      }
+      return {
+        _createdBy: row.created_by,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+        githubUsername: row.github_username,
+        id: row.id,
+        token: row.token,
+        usedAt: row.used_at,
+      }
+    },
+
     moveTask(
       _: unknown,
       {
@@ -787,8 +848,10 @@ export const resolvers = {
         columnId,
         position,
       }: { id: string; columnId: string; position: number },
+      ctx: ResolverContext,
     ) {
-      const user = getCurrentUser()
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       // Look up the old column name before the update
       const oldColumnRow = db
@@ -881,11 +944,40 @@ export const resolvers = {
       return task
     },
 
+    revokeUser(
+      _: unknown,
+      { userId }: { userId: string },
+      ctx: ResolverContext,
+    ) {
+      requireSuperAdmin(ctx)
+
+      const targetUser = db
+        .query('SELECT * FROM users WHERE id = ?')
+        .get(userId) as UserRow | null
+      if (!targetUser) throw new Error(`User ${userId} not found`)
+      if (targetUser.username === 'queen-bee') {
+        throw new Error('Cannot revoke the queen-bee super-admin')
+      }
+
+      db.run("UPDATE users SET revoked_at = datetime('now') WHERE id = ?", [
+        userId,
+      ])
+      // Invalidate all sessions for this user
+      revokeSessionsForUser(userId)
+
+      const updated = db
+        .query('SELECT * FROM users WHERE id = ?')
+        .get(userId) as UserRow
+      return mapUser(updated)
+    },
+
     setTaskTags(
       _: unknown,
       { taskId, tagIds }: { taskId: string; tagIds: string[] },
+      ctx: ResolverContext,
     ) {
-      const user = getCurrentUser()
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
       const existing = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(taskId) as TaskRow | null
@@ -938,8 +1030,9 @@ export const resolvers = {
       return task
     },
 
-    unarchiveTask(_: unknown, { id }: { id: string }) {
-      const user = getCurrentUser()
+    unarchiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
 
       db.transaction(() => {
         db.run(
@@ -982,7 +1075,12 @@ export const resolvers = {
       return task
     },
 
-    updateComment(_: unknown, { id, body }: { id: string; body: string }) {
+    updateComment(
+      _: unknown,
+      { id, body }: { id: string; body: string },
+      ctx: ResolverContext,
+    ) {
+      requireAuth(ctx)
       db.run(
         `UPDATE task_comments SET body = ?, updated_at = datetime('now') WHERE id = ?`,
         [body, id],
@@ -1018,8 +1116,10 @@ export const resolvers = {
           tagIds?: string[] | null
         }
       },
+      ctx: ResolverContext,
     ) {
-      const user = getCurrentUser()
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
       const existing = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(id) as TaskRow | null
@@ -1208,6 +1308,14 @@ export const resolvers = {
       }))
     },
 
+    authConfig(_: unknown, __: unknown, ctx: ResolverContext) {
+      const request = ctx.request
+      return {
+        githubOAuthClientId: process.env.GITHUB_OAUTH_CLIENT_ID ?? null,
+        isLocal: request ? isLocalRequest(request) : false,
+      }
+    },
+
     board(_: unknown, { id }: { id: string }) {
       const row = db
         .query('SELECT * FROM boards WHERE id = ?')
@@ -1226,8 +1334,31 @@ export const resolvers = {
       return getTopLevelCommentsForTask(taskId)
     },
 
-    me() {
-      return mapUser(getCurrentUser())
+    invitations(_: unknown, __: unknown, ctx: ResolverContext) {
+      requireSuperAdmin(ctx)
+      const rows = listInvitations()
+      return rows.map((row) => ({
+        _createdBy: row.created_by,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+        githubUsername: row.github_username,
+        id: row.id,
+        token: row.token,
+        usedAt: row.used_at,
+      }))
+    },
+
+    me(_: unknown, __: unknown, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      return {
+        createdAt: '',
+        displayName: authUser.displayName,
+        githubId: authUser.githubId,
+        githubUsername: authUser.githubUsername,
+        id: authUser.id,
+        role: authUser.role,
+        username: authUser.username,
+      }
     },
 
     tags(_: unknown, { boardId }: { boardId: string }) {
@@ -1252,6 +1383,14 @@ export const resolvers = {
         isSystem: row.actor === 'SYSTEM',
         type: row.type,
       }))
+    },
+
+    users(_: unknown, __: unknown, ctx: ResolverContext) {
+      requireSuperAdmin(ctx)
+      const rows = db
+        .query('SELECT * FROM users ORDER BY created_at ASC')
+        .all() as UserRow[]
+      return rows.map(mapUser)
     },
   },
 

@@ -522,10 +522,12 @@ describe('deleteTag', () => {
   test('deletes an existing tag successfully', () => {
     const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
     const tagId = generateId()
-    db.run(
-      'INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)',
-      [tagId, board.id, 'bug', '#ff0000'],
-    )
+    db.run('INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)', [
+      tagId,
+      board.id,
+      'bug',
+      '#ff0000',
+    ])
 
     // Verify tag exists
     const before = db
@@ -562,17 +564,20 @@ describe('deleteTag', () => {
     // Create a second board
     const user = getCurrentUser(db)
     const board2Id = generateId()
-    db.run(
-      'INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)',
-      [board2Id, 'Other Board', user.id],
-    )
+    db.run('INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)', [
+      board2Id,
+      'Other Board',
+      user.id,
+    ])
 
     // Create a tag on board2
     const tagId = generateId()
-    db.run(
-      'INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)',
-      [tagId, board2Id, 'feature', '#00ff00'],
-    )
+    db.run('INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)', [
+      tagId,
+      board2Id,
+      'feature',
+      '#00ff00',
+    ])
 
     // Get the original board
     const board1 = db

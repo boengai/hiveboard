@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
 import { createSchema, createYoga } from 'graphql-yoga'
-import { RateLimiter, getClientIp, useMutationRateLimit } from '../src/rate-limit'
+import {
+  getClientIp,
+  RateLimiter,
+  useMutationRateLimit,
+} from '../src/rate-limit'
 
 // ---------------------------------------------------------------------------
 // RateLimiter unit tests
@@ -10,7 +14,7 @@ describe('RateLimiter', () => {
   let limiter: RateLimiter
 
   beforeEach(() => {
-    limiter = new RateLimiter({ windowMs: 1000, max: 3 })
+    limiter = new RateLimiter({ max: 3, windowMs: 1000 })
   })
 
   test('allows requests under the limit', () => {
@@ -44,22 +48,22 @@ describe('RateLimiter', () => {
   })
 
   test('cleanup removes expired entries', async () => {
-    const shortLimiter = new RateLimiter({ windowMs: 50, max: 3 })
+    const shortLimiter = new RateLimiter({ max: 3, windowMs: 50 })
     shortLimiter.check('ip1')
     expect(shortLimiter.size).toBe(1)
 
-    await new Promise(resolve => setTimeout(resolve, 60))
+    await new Promise((resolve) => setTimeout(resolve, 60))
     shortLimiter.cleanup()
     expect(shortLimiter.size).toBe(0)
   })
 
   test('requests are allowed again after window expires', async () => {
-    const shortLimiter = new RateLimiter({ windowMs: 50, max: 2 })
+    const shortLimiter = new RateLimiter({ max: 2, windowMs: 50 })
     shortLimiter.check('ip1')
     shortLimiter.check('ip1')
     expect(shortLimiter.check('ip1').allowed).toBe(false)
 
-    await new Promise(resolve => setTimeout(resolve, 60))
+    await new Promise((resolve) => setTimeout(resolve, 60))
     expect(shortLimiter.check('ip1').allowed).toBe(true)
   })
 
@@ -118,18 +122,18 @@ const typeDefs = /* GraphQL */ `
 `
 
 const resolvers = {
-  Query: {
-    hello: () => 'world',
-  },
   Mutation: {
     doSomething: (_: unknown, args: { input: string }) => args.input,
+  },
+  Query: {
+    hello: () => 'world',
   },
 }
 
 function createTestYoga(limiter: RateLimiter) {
   return createYoga({
-    schema: createSchema({ typeDefs, resolvers }),
     plugins: [useMutationRateLimit(limiter)],
+    schema: createSchema({ resolvers, typeDefs }),
   })
 }
 
@@ -139,26 +143,35 @@ async function executeQuery(
   ip = '127.0.0.1',
 ) {
   const response = await yoga.fetch('http://localhost/graphql', {
-    method: 'POST',
+    body: JSON.stringify({ query }),
     headers: {
       'content-type': 'application/json',
       'x-forwarded-for': ip,
     },
-    body: JSON.stringify({ query }),
+    method: 'POST',
   })
-  return response.json() as Promise<{ data?: unknown; errors?: Array<{ message: string; extensions?: { code?: string; retryAfter?: number } }> }>
+  return response.json() as Promise<{
+    data?: unknown
+    errors?: Array<{
+      message: string
+      extensions?: { code?: string; retryAfter?: number }
+    }>
+  }>
 }
 
 describe('useMutationRateLimit plugin', () => {
   let limiter: RateLimiter
 
   beforeEach(() => {
-    limiter = new RateLimiter({ windowMs: 60_000, max: 3 })
+    limiter = new RateLimiter({ max: 3, windowMs: 60_000 })
   })
 
   test('allows mutations under the limit', async () => {
     const yoga = createTestYoga(limiter)
-    const result = await executeQuery(yoga, 'mutation { doSomething(input: "a") }')
+    const result = await executeQuery(
+      yoga,
+      'mutation { doSomething(input: "a") }',
+    )
     expect(result.errors).toBeUndefined()
     expect(result.data).toEqual({ doSomething: 'a' })
   })
@@ -201,7 +214,9 @@ describe('useMutationRateLimit plugin', () => {
     await executeQuery(yoga, mutation, '10.0.0.1')
     await executeQuery(yoga, mutation, '10.0.0.1')
     await executeQuery(yoga, mutation, '10.0.0.1')
-    expect((await executeQuery(yoga, mutation, '10.0.0.1')).errors).toHaveLength(1)
+    expect(
+      (await executeQuery(yoga, mutation, '10.0.0.1')).errors,
+    ).toHaveLength(1)
 
     // IP 2 should still work
     const result = await executeQuery(yoga, mutation, '10.0.0.2')

@@ -62,6 +62,16 @@ function addMissingColumns(db: Database): void {
 
   // task_comments: author_id → created_by
   renameColumn(db, 'task_comments', 'author_id', 'created_by')
+
+  // users: add github fields and revoked_at for auth
+  ensureColumn(db, 'users', 'github_id', 'TEXT UNIQUE')
+  ensureColumn(db, 'users', 'github_username', 'TEXT')
+  ensureColumn(db, 'users', 'revoked_at', 'TEXT')
+
+  // Upgrade queen-bee role from 'admin' to 'super-admin'
+  db.run(
+    "UPDATE users SET role = 'super-admin' WHERE username = 'queen-bee' AND role = 'admin'",
+  )
 }
 
 export function migrate(db: Database): void {
