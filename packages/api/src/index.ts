@@ -14,6 +14,7 @@ import { loadWorkflow } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
 import { Orchestrator, setOrchestrator } from './orchestrator'
+import { useMutationRateLimit } from './rate-limit'
 import { handleImageServe, handleImageUpload } from './routes/images'
 import { resolvers } from './schema/resolvers'
 import { typeDefs } from './schema/typeDefs'
@@ -170,44 +171,47 @@ const yoga = createYoga({
   graphiql: isProduction ? false : { defaultQuery, title: 'HiveBoard GraphQL' },
   graphqlEndpoint: '/graphql',
   maskedErrors: false,
-  plugins: isProduction
-    ? [
-        {
-          onValidate({
-            params,
-            setResult,
-          }: {
-            params: {
-              schema: GraphQLSchema
-              documentAST: DocumentNode
-              rules?: readonly ValidationRule[]
-            }
-            setResult: (errors: readonly GraphQLError[]) => void
-          }) {
-            const noIntrospection: ValidationRule = (ctx) => ({
-              Field(node) {
-                const type: GraphQLNamedType | undefined = getNamedType(
-                  ctx.getType(),
-                )
-                if (type && isIntrospectionType(type)) {
-                  ctx.reportError(
-                    new GraphQLError(
-                      `GraphQL introspection has been disabled, but the requested query contained the field "${node.name.value}".`,
-                      { nodes: node },
-                    ),
+  plugins: [
+    ...(isProduction
+      ? [
+          {
+            onValidate({
+              params,
+              setResult,
+            }: {
+              params: {
+                schema: GraphQLSchema
+                documentAST: DocumentNode
+                rules?: readonly ValidationRule[]
+              }
+              setResult: (errors: readonly GraphQLError[]) => void
+            }) {
+              const noIntrospection: ValidationRule = (ctx) => ({
+                Field(node) {
+                  const type: GraphQLNamedType | undefined = getNamedType(
+                    ctx.getType(),
                   )
-                }
-              },
-            })
-            const rules = [...(params.rules ?? []), noIntrospection]
-            const errors = validate(params.schema, params.documentAST, rules)
-            if (errors.length > 0) {
-              setResult(errors)
-            }
+                  if (type && isIntrospectionType(type)) {
+                    ctx.reportError(
+                      new GraphQLError(
+                        `GraphQL introspection has been disabled, but the requested query contained the field "${node.name.value}".`,
+                        { nodes: node },
+                      ),
+                    )
+                  }
+                },
+              })
+              const rules = [...(params.rules ?? []), noIntrospection]
+              const errors = validate(params.schema, params.documentAST, rules)
+              if (errors.length > 0) {
+                setResult(errors)
+              }
+            },
           },
-        },
-      ]
-    : [],
+        ]
+      : []),
+    useMutationRateLimit(),
+  ],
   schema: createSchema({ resolvers, typeDefs }),
 })
 
