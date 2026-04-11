@@ -757,11 +757,19 @@ export const resolvers = {
       return true
     },
 
-    deleteTag(_: unknown, { id }: { id: string }) {
+    deleteTag(
+      _: unknown,
+      { id, boardId }: { id: string; boardId: string },
+    ) {
       const existing = db
         .query('SELECT * FROM tags WHERE id = ?')
         .get(id) as TagRow | null
       if (!existing) {
+        throw new GraphQLError(`Tag ${id} not found`, {
+          extensions: { code: 'NOT_FOUND' },
+        })
+      }
+      if (existing.board_id !== boardId) {
         throw new GraphQLError(`Tag ${id} not found`, {
           extensions: { code: 'NOT_FOUND' },
         })

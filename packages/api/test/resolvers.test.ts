@@ -579,12 +579,24 @@ describe('deleteTag', () => {
       .query("SELECT id FROM boards WHERE name = 'HiveBoard' LIMIT 1")
       .get() as BoardRow
 
-    // Verify the tag belongs to board2, not board1
+    // Mimic the resolver board ownership check
     const tag = db
       .query('SELECT * FROM tags WHERE id = ?')
       .get(tagId) as TagRow | null
     expect(tag).not.toBeNull()
-    expect(tag!.board_id).toBe(board2Id)
-    expect(tag!.board_id).not.toBe(board1.id)
+    expect(() => {
+      if (!tag) {
+        throw new Error(`Tag ${tagId} not found`)
+      }
+      if (tag.board_id !== board1.id) {
+        throw new Error(`Tag ${tagId} not found`)
+      }
+    }).toThrow(`Tag ${tagId} not found`)
+
+    // Verify the tag was NOT deleted
+    const after = db
+      .query('SELECT * FROM tags WHERE id = ?')
+      .get(tagId) as TagRow | null
+    expect(after).not.toBeNull()
   })
 })

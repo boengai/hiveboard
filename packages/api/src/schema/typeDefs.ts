@@ -22,7 +22,7 @@ export const typeDefs = /* GraphQL */ `
     updateComment(id: ID!, body: String!): Comment!
     deleteComment(id: ID!): Boolean!
     createTag(input: CreateTagInput!): Tag!
-    deleteTag(id: ID!): Boolean!
+    deleteTag(id: ID!, boardId: ID!): Boolean!
     setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
     cancelAgent(taskId: ID!): Task!
   }
