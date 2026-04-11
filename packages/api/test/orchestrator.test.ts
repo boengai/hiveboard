@@ -248,7 +248,7 @@ describe('Orchestrator – dispatch flow', () => {
     expect(run?.error).toContain('something broke')
   })
 
-  it('records an agent_started event on dispatch', async () => {
+  it('records an agent_started event when agent runs', async () => {
     const taskId = insertQueuedTask({ action: 'plan' })
     await orchestrator.poll()
     await flushMicrotasks(100)
