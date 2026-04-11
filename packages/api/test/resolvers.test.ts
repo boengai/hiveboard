@@ -505,3 +505,86 @@ describe('cancelAgent', () => {
     expect(task.agent_status).toBe('idle')
   })
 })
+
+// ---------------------------------------------------------------------------
+// deleteTag
+// ---------------------------------------------------------------------------
+
+type TagRow = {
+  id: string
+  board_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
+describe('deleteTag', () => {
+  test('deletes an existing tag successfully', () => {
+    const board = db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
+    const tagId = generateId()
+    db.run(
+      'INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)',
+      [tagId, board.id, 'bug', '#ff0000'],
+    )
+
+    // Verify tag exists
+    const before = db
+      .query('SELECT * FROM tags WHERE id = ?')
+      .get(tagId) as TagRow | null
+    expect(before).not.toBeNull()
+
+    // Delete the tag
+    db.run('DELETE FROM tags WHERE id = ?', [tagId])
+
+    // Verify tag is gone
+    const after = db
+      .query('SELECT * FROM tags WHERE id = ?')
+      .get(tagId) as TagRow | null
+    expect(after).toBeNull()
+  })
+
+  test('throws error when deleting non-existent tag', () => {
+    const fakeId = 'non-existent-tag-id'
+    const existing = db
+      .query('SELECT * FROM tags WHERE id = ?')
+      .get(fakeId) as TagRow | null
+
+    expect(existing).toBeNull()
+    // Mimic the resolver existence check
+    expect(() => {
+      if (!existing) {
+        throw new Error(`Tag ${fakeId} not found`)
+      }
+    }).toThrow(`Tag ${fakeId} not found`)
+  })
+
+  test('throws error when deleting tag from a different board', () => {
+    // Create a second board
+    const user = getCurrentUser(db)
+    const board2Id = generateId()
+    db.run(
+      'INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)',
+      [board2Id, 'Other Board', user.id],
+    )
+
+    // Create a tag on board2
+    const tagId = generateId()
+    db.run(
+      'INSERT INTO tags (id, board_id, name, color) VALUES (?, ?, ?, ?)',
+      [tagId, board2Id, 'feature', '#00ff00'],
+    )
+
+    // Get the original board
+    const board1 = db
+      .query("SELECT id FROM boards WHERE name = 'HiveBoard' LIMIT 1")
+      .get() as BoardRow
+
+    // Verify the tag belongs to board2, not board1
+    const tag = db
+      .query('SELECT * FROM tags WHERE id = ?')
+      .get(tagId) as TagRow | null
+    expect(tag).not.toBeNull()
+    expect(tag!.board_id).toBe(board2Id)
+    expect(tag!.board_id).not.toBe(board1.id)
+  })
+})

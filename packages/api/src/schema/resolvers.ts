@@ -758,6 +758,15 @@ export const resolvers = {
     },
 
     deleteTag(_: unknown, { id }: { id: string }) {
+      const existing = db
+        .query('SELECT * FROM tags WHERE id = ?')
+        .get(id) as TagRow | null
+      if (!existing) {
+        throw new GraphQLError(`Tag ${id} not found`, {
+          extensions: { code: 'NOT_FOUND' },
+        })
+      }
+
       db.run('DELETE FROM tags WHERE id = ?', [id])
       return true
     },
