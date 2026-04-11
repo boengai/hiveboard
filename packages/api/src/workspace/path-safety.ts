@@ -1,9 +1,9 @@
-import { readlink, stat } from 'node:fs/promises'
+import { readlink, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, resolve } from 'node:path'
 
 /**
  * Resolve symlinks segment-by-segment to detect escapes.
- * Returns the canonical path if safe, throws on escape or error.
+ * Returns the fully canonicalized path if safe, throws on escape or error.
  */
 export async function resolvePathSafe(filePath: string): Promise<string> {
   if (!isAbsolute(filePath)) {
@@ -38,15 +38,24 @@ export async function resolvePathSafe(filePath: string): Promise<string> {
       const resolved = isAbsolute(target)
         ? target
         : resolve(dirname(current), target)
-      // Re-resolve with remaining segments
+      // Re-resolve with remaining segments (always recurse to follow chains)
       const remaining = segments.slice(i + 1)
-      if (remaining.length > 0) {
-        return resolvePathSafe(resolve(resolved, ...remaining))
-      }
-      return resolved
+      return resolvePathSafe(
+        remaining.length > 0 ? resolve(resolved, ...remaining) : resolved,
+      )
     } catch {
       // Not a symlink — continue
     }
+  }
+
+  // Final canonicalization: resolve any symlinks the segment walk may have missed
+  try {
+    current = await realpath(current)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw err
+    }
+    // Path doesn't exist — return as-is (already built from resolved segments)
   }
 
   return current
