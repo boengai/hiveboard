@@ -44,7 +44,7 @@ function createPingStream(upstream: ReadableStream<Uint8Array>) {
     },
   })
 
-  return { readable, getPingTimer: () => pingTimer }
+  return { getPingTimer: () => pingTimer, readable }
 }
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,8 @@ export type RunAgentOptions = {
   signal?: AbortSignal
   onLog?: (chunk: string) => void
   gitIdentity?: { name: string; email: string }
+  /** Directory containing token files for dynamic credential refresh. */
+  tokenDir?: string
 }
 
 /** Build Claude CLI arguments from config. */
@@ -73,6 +75,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     signal,
     onLog,
     gitIdentity,
+    tokenDir,
   } = options
 
   const prompt = renderPrompt(
@@ -90,7 +93,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   const proc = Bun.spawn(args, {
     cwd: workspacePath,
-    env: buildAgentEnv(task, workspacePath, gitIdentity),
+    env: buildAgentEnv(task, workspacePath, gitIdentity, tokenDir),
     stderr: 'pipe',
     stdout: 'pipe',
   })

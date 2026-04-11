@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import type { TaskForAgent } from './runner'
 
 /**
@@ -45,6 +46,7 @@ export function buildAgentEnv(
   task: TaskForAgent,
   workspacePath: string,
   gitIdentity?: { name: string; email: string },
+  tokenDir?: string,
 ): Record<string, string> {
   const env: Record<string, string> = {}
 
@@ -72,6 +74,14 @@ export function buildAgentEnv(
     env.GIT_AUTHOR_NAME = gitIdentity.name
     env.GIT_COMMITTER_EMAIL = gitIdentity.email
     env.GIT_COMMITTER_NAME = gitIdentity.name
+  }
+
+  // When a tokenDir is provided, point git & gh at on-disk token files that
+  // the orchestrator keeps up-to-date across refreshes.
+  if (tokenDir) {
+    env.GH_CONFIG_DIR = join(tokenDir, 'gh')
+    env.GIT_ASKPASS = join(tokenDir, 'askpass.sh')
+    env.HIVEBOARD_TOKEN_FILE = join(tokenDir, 'token')
   }
 
   return env
