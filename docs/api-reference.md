@@ -248,8 +248,6 @@ type Task {
   targetRepo: String
   targetBranch: String
   agentStatus: AgentStatus!
-  agentOutput: String
-  agentError: String
   retryCount: Int!
   prUrl: String
   prNumber: Int

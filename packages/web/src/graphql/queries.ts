@@ -28,8 +28,6 @@ export const GET_BOARDS = /* GraphQL */ `
           targetRepo
           targetBranch
           agentStatus
-          agentOutput
-          agentError
           retryCount
           prUrl
           archived
@@ -87,8 +85,6 @@ export const GET_BOARD = /* GraphQL */ `
           targetRepo
           targetBranch
           agentStatus
-          agentOutput
-          agentError
           retryCount
           prUrl
           archived
@@ -132,8 +128,6 @@ export const GET_TASK = /* GraphQL */ `
       targetRepo
       targetBranch
       agentStatus
-      agentOutput
-      agentError
       retryCount
       prUrl
       archived

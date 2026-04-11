@@ -163,8 +163,6 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       targetRepo
       targetBranch
       agentStatus
-      agentOutput
-      agentError
       retryCount
       prUrl
       archived

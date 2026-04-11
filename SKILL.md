@@ -39,8 +39,6 @@ query GetTask($id: ID!) {
     title
     body
     agentStatus
-    agentOutput
-    agentError
     prUrl
     action
     targetRepo
@@ -215,7 +213,7 @@ HiveBoard exposes GraphQL subscriptions via Server-Sent Events at the same `/gra
 - `SUCCESS` — agent completed successfully
 - `FAILED` — agent encountered an error
 
-**Task** — core work item; lives in a Column; has optional agent fields (`action`, `agentStatus`, `agentOutput`, `agentError`, `prUrl`)
+**Task** — core work item; lives in a Column; has optional agent fields (`action`, `agentStatus`, `prUrl`)
 
 **Board** — top-level container with Columns and Tags
 

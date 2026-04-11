@@ -472,13 +472,6 @@ const AgentPanel = ({
         </span>
       )}
 
-      {/* Error */}
-      {task.agentError && (
-        <p className="rounded-md border border-error-400/20 bg-error-400/10 px-3 py-2 font-mono text-body-xs text-error-400 leading-relaxed">
-          {task.agentError}
-        </p>
-      )}
-
       {/* Action select + Dispatch + Cancel */}
       <div className="flex items-center gap-2 pt-1">
         <div className="flex-1">
