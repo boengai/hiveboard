@@ -60,7 +60,7 @@ export class WorkspaceManager {
 
   /** Build workspace path for a task, scoped by repo to avoid collisions. */
   pathForTask(task: TaskForWorkspace): string {
-    const repo = task.targetRepo?.split('/').pop() ?? 'unknown'
+    const repo = task.targetRepo?.replace(/\//g, '-') ?? 'unknown'
     return resolve(this.root, repo, `task-${task.id}`)
   }
 
