@@ -274,6 +274,46 @@ describe('Orchestrator – dispatch flow', () => {
     expect(event).not.toBeNull()
   })
 
+  it('marks agent_runs row as failed when dispatch fails after insert', async () => {
+    // Use a workspace stub that throws to simulate dispatch failure
+    const failingWorkspaceStub = {
+      createForTask: async () => {
+        throw new Error('workspace creation failed')
+      },
+      sweepExpired: async () => {},
+      ttlMs: 0,
+    }
+    const failOrchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeGitHubStub() as never,
+      failingWorkspaceStub as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({ action: 'plan' })
+    await failOrchestrator.poll()
+    await flushMicrotasks(100)
+
+    // Task should be reset to queued
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('queued')
+
+    // agent_runs row should exist and be marked as failed (not orphaned)
+    const run = memDb
+      .query('SELECT * FROM agent_runs WHERE task_id = ?')
+      .get(taskId) as {
+      status: string
+      error: string
+      finished_at: string | null
+    } | null
+    expect(run).not.toBeNull()
+    expect(run?.status).toBe('failed')
+    expect(run?.error).toContain('workspace creation failed')
+    expect(run?.finished_at).not.toBeNull()
+
+    await failOrchestrator.shutdown()
+  })
+
   it('records an agent_failed event on failure', async () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
