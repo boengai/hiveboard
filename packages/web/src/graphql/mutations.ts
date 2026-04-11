@@ -178,8 +178,8 @@ export const CREATE_TAG = /* GraphQL */ `
 `
 
 export const DELETE_TAG = /* GraphQL */ `
-  mutation DeleteTag($id: ID!) {
-    deleteTag(id: $id)
+  mutation DeleteTag($id: ID!, $boardId: ID!) {
+    deleteTag(id: $id, boardId: $boardId)
   }
 `
 
