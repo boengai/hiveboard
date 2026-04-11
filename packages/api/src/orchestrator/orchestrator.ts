@@ -564,10 +564,17 @@ export class Orchestrator {
         task.action === 'revise'
       ) {
         const prMatch = result.output.match(
-          /https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/,
+          /https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/,
         )
         if (prMatch) {
-          prUrl = prMatch[0] ?? null
+          const prRepo = prMatch[1] // "owner/repo" from the URL
+          if (task.target_repo && prRepo !== task.target_repo) {
+            consola.warn(
+              `PR URL ${prMatch[0]} does not belong to target repo ${task.target_repo} — ignoring`,
+            )
+          } else {
+            prUrl = prMatch[0] ?? null
+          }
         }
       }
 
