@@ -1,5 +1,6 @@
 import { consola } from 'consola'
 import type { Config } from '../config/schema'
+import { buildAgentEnv } from './env'
 import { renderPrompt } from './prompt'
 
 export type TaskForAgent = {
@@ -89,18 +90,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   const proc = Bun.spawn(args, {
     cwd: workspacePath,
-    env: {
-      ...process.env,
-      HIVEBOARD_TASK_ID: task.id,
-      HIVEBOARD_TASK_TITLE: task.title,
-      HIVEBOARD_WORKSPACE: workspacePath,
-      ...(gitIdentity && {
-        GIT_AUTHOR_EMAIL: gitIdentity.email,
-        GIT_AUTHOR_NAME: gitIdentity.name,
-        GIT_COMMITTER_EMAIL: gitIdentity.email,
-        GIT_COMMITTER_NAME: gitIdentity.name,
-      }),
-    },
+    env: buildAgentEnv(task, workspacePath, gitIdentity),
     stderr: 'pipe',
     stdout: 'pipe',
   })
