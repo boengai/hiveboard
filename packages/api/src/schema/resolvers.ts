@@ -978,7 +978,7 @@ export const resolvers = {
       const comment = mapComment(row)
 
       pubsub.publish(
-        'COMMENT_ADDED',
+        'COMMENT_UPDATED',
         row.task_id,
         comment as unknown as Record<string, unknown>,
       )
@@ -1260,6 +1260,15 @@ export const resolvers = {
       },
       subscribe(_: unknown, { taskId }: { taskId: string }) {
         return pubsub.subscribe('COMMENT_ADDED', taskId)
+      },
+    },
+
+    commentUpdated: {
+      resolve(payload: Record<string, unknown>) {
+        return payload
+      },
+      subscribe(_: unknown, { taskId }: { taskId: string }) {
+        return pubsub.subscribe('COMMENT_UPDATED', taskId)
       },
     },
 
