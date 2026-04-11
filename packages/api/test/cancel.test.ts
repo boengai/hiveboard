@@ -156,42 +156,43 @@ async function flush(ms = 50) {
   await new Promise<void>((r) => setTimeout(r, ms))
 }
 
-/** Mirror the cancelAgent resolver's DB-update logic. */
+/** Mirror the cancelAgent resolver's DB-update logic (atomic version). */
 async function cancelAgent(
   orchestrator: InstanceType<typeof Orchestrator> | null,
   taskId: string,
-) {
+): Promise<boolean> {
   const user = memDb
     .query('SELECT id FROM users WHERE username = ?')
     .get('queen-bee') as {
     id: string
   }
 
-  const currentRow = memDb
-    .query('SELECT agent_status FROM tasks WHERE id = ?')
-    .get(taskId) as { agent_status: string } | null
-  const currentStatus = currentRow?.agent_status ?? 'idle'
-
   if (orchestrator) {
     await orchestrator.cancelTask(taskId)
   }
 
-  memDb.transaction(() => {
-    memDb.run(
-      `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-      [user.id, taskId],
-    )
-    memDb.run(
-      'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-      [
-        generateId(),
-        taskId,
-        user.id,
-        'status_changed',
-        JSON.stringify({ from: currentStatus, to: 'idle' }),
-      ],
-    )
-  })()
+  // Atomic update: only cancel if task is in a cancellable state
+  const result = memDb.run(
+    `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ? AND agent_status IN ('running', 'queued', 'failed')`,
+    [user.id, taskId],
+  )
+
+  if (result.changes === 0) {
+    return false
+  }
+
+  memDb.run(
+    'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+    [
+      generateId(),
+      taskId,
+      user.id,
+      'status_changed',
+      JSON.stringify({ from: 'cancelled', to: 'idle' }),
+    ],
+  )
+
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +224,7 @@ describe('cancelAgent – queued task', () => {
 
     expect(event).not.toBeNull()
     const data = JSON.parse(event?.data)
-    expect(data.from).toBe('queued')
+    expect(data.from).toBe('cancelled')
     expect(data.to).toBe('idle')
   })
 })
@@ -353,9 +354,52 @@ describe('cancelAgent – retry timer cleared', () => {
 })
 
 describe('cancelAgent – idle task (no-op)', () => {
-  it('keeps agent_status as idle and does not throw', async () => {
+  it('keeps agent_status as idle and returns false', async () => {
     const id = insertTask({ agentStatus: 'idle' })
-    await expect(cancelAgent(null, id)).resolves.toBeUndefined()
+    const cancelled = await cancelAgent(null, id)
+    expect(cancelled).toBe(false)
     expect(getTask(id)?.agent_status).toBe('idle')
+  })
+})
+
+describe('cancelAgent – race condition', () => {
+  it('prevents re-queuing between read and write by using atomic update', async () => {
+    const id = insertTask({ agentStatus: 'running' })
+
+    // Simulate the race: another process changes status to 'queued' right before cancel
+    // With the old non-atomic approach, this would be missed.
+    // With atomic UPDATE ... WHERE agent_status IN ('running', 'queued'),
+    // the first cancel succeeds atomically.
+    const cancelled = await cancelAgent(null, id)
+    expect(cancelled).toBe(true)
+    expect(getTask(id)?.agent_status).toBe('idle')
+
+    // A second cancel on the now-idle task should be a no-op (returns false)
+    const cancelledAgain = await cancelAgent(null, id)
+    expect(cancelledAgain).toBe(false)
+    expect(getTask(id)?.agent_status).toBe('idle')
+  })
+
+  it('fails to cancel if another operation already changed status to idle', async () => {
+    const id = insertTask({ agentStatus: 'running' })
+
+    // Simulate race: another process sets status to idle before our cancel runs
+    memDb.run(
+      `UPDATE tasks SET agent_status = 'idle' WHERE id = ?`,
+      [id],
+    )
+
+    // Cancel should detect that status is no longer cancellable
+    const cancelled = await cancelAgent(null, id)
+    expect(cancelled).toBe(false)
+    expect(getTask(id)?.agent_status).toBe('idle')
+
+    // No spurious status_changed event should be created
+    const events = memDb
+      .query(
+        "SELECT COUNT(*) as count FROM task_events WHERE task_id = ? AND type = 'status_changed'",
+      )
+      .get(id) as { count: number }
+    expect(events.count).toBe(0)
   })
 })

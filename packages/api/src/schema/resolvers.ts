@@ -443,34 +443,37 @@ export const resolvers = {
     async cancelAgent(_: unknown, { taskId }: { taskId: string }) {
       const user = getCurrentUser()
 
-      // Read the current agent_status before updating
-      const currentTaskRow = db
-        .query('SELECT agent_status FROM tasks WHERE id = ?')
-        .get(taskId) as { agent_status: string } | null
-      const currentStatus = currentTaskRow?.agent_status ?? 'idle'
-
       // Abort the running agent process if any
       const orchestrator = getOrchestrator()
       if (orchestrator) {
         await orchestrator.cancelTask(taskId)
       }
 
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
-          [user.id, taskId],
-        )
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            taskId,
-            user.id,
-            'status_changed',
-            JSON.stringify({ from: currentStatus, to: 'idle' }),
-          ],
-        )
-      })()
+      // Atomic update: only cancel if the task is currently in a cancellable state.
+      // This prevents a race where a poll re-queues the agent between a read and write.
+      const result = db.run(
+        `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ? AND agent_status IN ('running', 'queued', 'failed')`,
+        [user.id, taskId],
+      )
+
+      if (result.changes === 0) {
+        // Task was not in a cancellable state (already idle/failed/etc.) — return current state
+        const task = getTaskById(taskId)
+        if (!task) throw new Error(`Task ${taskId} not found`)
+        return task
+      }
+
+      // Record the status_changed event — we know the previous status was 'running' or 'queued'
+      db.run(
+        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+        [
+          generateId(),
+          taskId,
+          user.id,
+          'status_changed',
+          JSON.stringify({ from: 'cancelled', to: 'idle' }),
+        ],
+      )
 
       const task = getTaskById(taskId)
       if (!task) throw new Error(`Task ${taskId} not found`)
