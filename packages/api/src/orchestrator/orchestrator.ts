@@ -93,21 +93,39 @@ function findColumnName(columnId: string): string | null {
 }
 
 /**
+ * Escape Mustache/template delimiters in untrusted text so that user-provided
+ * content (e.g. PR review comments from GitHub) is never interpreted as
+ * Mustache tags or JS template-literal expressions when embedded in a prompt.
+ *
+ * - `{{` → `{ {`  (break the opening Mustache delimiter)
+ * - `}}` → `} }`  (break the closing Mustache delimiter)
+ * - `${` → `$ {`  (break JS template-literal expressions)
+ */
+export function escapeMustacheSyntax(text: string): string {
+  return text
+    .replace(/\{(?=\{)/g, '{ ')
+    .replace(/\}(?=\})/g, '} ')
+    .replace(/\$(?=\{)/g, '$ ')
+}
+
+/**
  * Format an array of PR review comments into a readable string for the agent prompt.
+ * All user-provided fields are escaped to prevent Mustache/template injection.
  */
 function formatReviewComments(comments: ReviewComment[]): string {
   const lines: string[] = ['## PR Review Comments', '']
   for (const comment of comments) {
-    lines.push(`### Comment by @${comment.author}`)
+    lines.push(`### Comment by @${escapeMustacheSyntax(comment.author)}`)
     if (comment.path) {
+      const escapedPath = escapeMustacheSyntax(comment.path)
       const location =
-        comment.line != null ? `${comment.path}:${comment.line}` : comment.path
+        comment.line != null ? `${escapedPath}:${comment.line}` : escapedPath
       lines.push(`File: \`${location}\``)
     }
     if (comment.diffHunk) {
-      lines.push('```diff', comment.diffHunk, '```')
+      lines.push('```diff', escapeMustacheSyntax(comment.diffHunk), '```')
     }
-    lines.push(comment.body, '')
+    lines.push(escapeMustacheSyntax(comment.body), '')
   }
   return lines.join('\n').trim()
 }
