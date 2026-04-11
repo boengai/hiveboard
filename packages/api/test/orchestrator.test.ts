@@ -117,6 +117,7 @@ type TaskRow = {
   agent_instruction: string | null
   target_repo: string | null
   target_branch: string | null
+  pr_url: string | null
   agent_status: string
   retry_count: number
   created_at: string
@@ -516,5 +517,136 @@ describe('Orchestrator – retry scheduling', () => {
     expect(longBackoffOrchestrator.getStatus().pendingRetries).toBe(0)
 
     await longBackoffOrchestrator.shutdown()
+  })
+})
+
+describe('Orchestrator – PR URL target repo verification', () => {
+  let orchestrator: InstanceType<typeof Orchestrator>
+
+  afterEach(async () => {
+    await orchestrator.shutdown()
+    memDb.run("DELETE FROM tasks WHERE title = 'Test Task'")
+    memDb.run('DELETE FROM agent_runs')
+    memDb.run("DELETE FROM task_events WHERE type NOT IN ('created')")
+  })
+
+  it('stores PR URL when it matches the target repo', async () => {
+    mockRunAgentImpl = async (opts: unknown) => {
+      const { task } = opts as { task: { id: string } }
+      return {
+        output:
+          'Created PR: https://github.com/acme/webapp/pull/42\nDone.',
+        success: true,
+        taskId: task.id,
+      }
+    }
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeGitHubStub() as never,
+      makeWorkspaceStub() as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({
+      action: 'implement',
+      targetRepo: 'acme/webapp',
+    })
+
+    await orchestrator.poll()
+    await flushMicrotasks(100)
+
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('success')
+    expect(task?.pr_url).toBe('https://github.com/acme/webapp/pull/42')
+  })
+
+  it('rejects PR URL when it does not match the target repo', async () => {
+    mockRunAgentImpl = async (opts: unknown) => {
+      const { task } = opts as { task: { id: string } }
+      return {
+        output:
+          'Created PR: https://github.com/evil/other-repo/pull/99\nDone.',
+        success: true,
+        taskId: task.id,
+      }
+    }
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeGitHubStub() as never,
+      makeWorkspaceStub() as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({
+      action: 'implement',
+      targetRepo: 'acme/webapp',
+    })
+
+    await orchestrator.poll()
+    await flushMicrotasks(100)
+
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('success')
+    expect(task?.pr_url).toBeNull()
+  })
+
+  it('stores PR URL when target_repo is null (no restriction)', async () => {
+    mockRunAgentImpl = async (opts: unknown) => {
+      const { task } = opts as { task: { id: string } }
+      return {
+        output:
+          'Created PR: https://github.com/any/repo/pull/1\nDone.',
+        success: true,
+        taskId: task.id,
+      }
+    }
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeGitHubStub() as never,
+      makeWorkspaceStub() as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({
+      action: 'implement',
+      targetRepo: null,
+    })
+
+    await orchestrator.poll()
+    await flushMicrotasks(100)
+
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('success')
+    expect(task?.pr_url).toBe('https://github.com/any/repo/pull/1')
+  })
+
+  it('does not extract PR URL for plan actions', async () => {
+    mockRunAgentImpl = async (opts: unknown) => {
+      const { task } = opts as { task: { id: string } }
+      return {
+        output:
+          'See https://github.com/acme/webapp/pull/10 for context.',
+        success: true,
+        taskId: task.id,
+      }
+    }
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      makeGitHubStub() as never,
+      makeWorkspaceStub() as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({
+      action: 'plan',
+      targetRepo: 'acme/webapp',
+    })
+
+    await orchestrator.poll()
+    await flushMicrotasks(100)
+
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('success')
+    expect(task?.pr_url).toBeNull()
   })
 })
