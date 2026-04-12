@@ -11,6 +11,7 @@ import {
 } from 'graphql'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { getAuthContext, handleInvitationOAuth, handleLoginOAuth } from './auth'
+import { cleanExpiredSessions } from './auth/session'
 import { loadWorkflow } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
@@ -29,6 +30,10 @@ const staticDir = isProduction
 
 // Run migrations on startup
 migrate(db)
+
+// Clean expired sessions on startup and periodically (every hour)
+cleanExpiredSessions()
+setInterval(cleanExpiredSessions, 60 * 60 * 1000)
 
 // Boot orchestrator (best-effort — API runs even without WORKFLOW.md)
 async function startOrchestrator() {
