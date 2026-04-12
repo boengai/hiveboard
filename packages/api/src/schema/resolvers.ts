@@ -818,6 +818,17 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const admin = requireSuperAdmin(ctx)
+
+      // Validate GitHub username format (1-39 chars, alphanumeric or hyphens, no leading/trailing hyphens, no consecutive hyphens)
+      const GITHUB_USERNAME_RE =
+        /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/
+      if (!GITHUB_USERNAME_RE.test(githubUsername)) {
+        throw new GraphQLError(
+          `Invalid GitHub username "${githubUsername}". GitHub usernames may only contain alphanumeric characters or hyphens, cannot begin or end with a hyphen, and must be 1-39 characters long.`,
+          { extensions: { code: 'BAD_USER_INPUT' } },
+        )
+      }
+
       const result = createInvitation(githubUsername, admin.id)
       const row = db
         .query('SELECT * FROM invitations WHERE token = ?')
