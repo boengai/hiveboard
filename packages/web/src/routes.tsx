@@ -14,7 +14,22 @@ const homeRoute = createRoute({
   path: '/',
 })
 
+const authCallbackRoute = createRoute({
+  component: lazyRouteComponent(
+    () => import('@/pages/auth/callback'),
+    'AuthCallbackPage',
+  ),
+  getParentRoute: () => rootRoute,
+  path: '/auth/callback',
+})
+
+const usersRoute = createRoute({
+  component: lazyRouteComponent(() => import('@/pages/users'), 'UsersPage'),
+  getParentRoute: () => rootRoute,
+  path: '/users',
+})
+
 export const router = createRouter({
   defaultPreload: 'intent',
-  routeTree: rootRoute.addChildren([homeRoute]),
+  routeTree: rootRoute.addChildren([homeRoute, authCallbackRoute, usersRoute]),
 })

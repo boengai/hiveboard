@@ -248,6 +248,50 @@ export const GET_ME = /* GraphQL */ `
       username
       displayName
       role
+      githubId
+      githubUsername
+    }
+  }
+`
+
+export const GET_AUTH_CONFIG = /* GraphQL */ `
+  query GetAuthConfig {
+    authConfig {
+      githubOAuthClientId
+      isLocal
+    }
+  }
+`
+
+export const GET_USERS = /* GraphQL */ `
+  query GetUsers {
+    users {
+      id
+      username
+      displayName
+      role
+      githubId
+      githubUsername
+      revokedAt
+      createdAt
+    }
+  }
+`
+
+export const GET_INVITATIONS = /* GraphQL */ `
+  query GetInvitations {
+    invitations {
+      id
+      token
+      githubUsername
+      createdAt
+      expiresAt
+      usedAt
+      createdBy {
+        id
+        username
+        displayName
+      }
     }
   }
 `

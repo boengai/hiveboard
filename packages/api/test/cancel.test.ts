@@ -385,10 +385,7 @@ describe('cancelAgent – race condition', () => {
     const id = insertTask({ agentStatus: 'running' })
 
     // Simulate race: another process sets status to idle before our cancel runs
-    memDb.run(
-      `UPDATE tasks SET agent_status = 'idle' WHERE id = ?`,
-      [id],
-    )
+    memDb.run(`UPDATE tasks SET agent_status = 'idle' WHERE id = ?`, [id])
 
     // Cancel should detect that status is no longer cancellable
     const cancelled = await cancelAgent(null, id)

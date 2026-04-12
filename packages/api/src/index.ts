@@ -10,6 +10,8 @@ import {
   validate,
 } from 'graphql'
 import { createSchema, createYoga } from 'graphql-yoga'
+import { getAuthContext, handleInvitationOAuth, handleLoginOAuth } from './auth'
+import { cleanExpiredSessions } from './auth/session'
 import { loadWorkflow } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
@@ -28,6 +30,10 @@ const staticDir = isProduction
 
 // Run migrations on startup
 migrate(db)
+
+// Clean expired sessions on startup and periodically (every hour)
+cleanExpiredSessions()
+setInterval(cleanExpiredSessions, 60 * 60 * 1000)
 
 // Boot orchestrator (best-effort — API runs even without WORKFLOW.md)
 async function startOrchestrator() {
@@ -143,6 +149,9 @@ query ListBoards {
 `
 
 const yoga = createYoga({
+  context({ request }: { request: Request }) {
+    return { ...getAuthContext(request), request }
+  },
   // CORS: credentials requires a specific origin, not '*'.
   // Dynamically reflect the request's Origin header so credentialed
   // requests receive a valid Access-Control-Allow-Origin value.
@@ -217,6 +226,27 @@ const yoga = createYoga({
 
 const port = Number(process.env.API_PORT ?? 8080)
 
+async function handleOAuthCallback(req: Request): Promise<Response> {
+  try {
+    const body = (await req.json()) as {
+      code?: string
+      invitationToken?: string
+    }
+    if (!body.code) {
+      return Response.json({ error: 'Missing code parameter' }, { status: 400 })
+    }
+
+    const result = body.invitationToken
+      ? await handleInvitationOAuth(body.code, body.invitationToken)
+      : await handleLoginOAuth(body.code)
+
+    return Response.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'OAuth callback failed'
+    return Response.json({ error: message }, { status: 400 })
+  }
+}
+
 // Start periodic cleanup of orphaned temp uploads
 startCleanupInterval()
 
@@ -231,6 +261,9 @@ Bun.serve({
     }
     if (url.pathname.startsWith('/api/images/') && req.method === 'GET') {
       return handleImageServe(url.pathname)
+    }
+    if (url.pathname === '/api/auth/github/callback' && req.method === 'POST') {
+      return handleOAuthCallback(req)
     }
     if (url.pathname.startsWith('/graphql')) {
       const res = await yoga.fetch(req)

@@ -3,11 +3,33 @@ import type { Database } from 'bun:sqlite'
 export function createTables(db: Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id           TEXT PRIMARY KEY,
-      username     TEXT NOT NULL UNIQUE,
-      display_name TEXT NOT NULL,
-      role         TEXT NOT NULL DEFAULT 'member',
-      created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+      id              TEXT PRIMARY KEY,
+      username        TEXT NOT NULL UNIQUE,
+      display_name    TEXT NOT NULL,
+      role            TEXT NOT NULL DEFAULT 'member',
+      github_id       TEXT UNIQUE,
+      github_username TEXT,
+      revoked_at      TEXT,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS invitations (
+      id               TEXT PRIMARY KEY,
+      token            TEXT NOT NULL UNIQUE,
+      github_username  TEXT NOT NULL,
+      created_by       TEXT NOT NULL REFERENCES users(id),
+      created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at       TEXT NOT NULL,
+      used_at          TEXT,
+      used_by_github_id TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id         TEXT PRIMARY KEY,
+      token      TEXT NOT NULL UNIQUE,
+      user_id    TEXT NOT NULL REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS boards (
@@ -104,6 +126,9 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
     -- Migrate legacy 'idle' action values to NULL
     UPDATE tasks SET action = NULL WHERE action = 'idle';

@@ -14,7 +14,7 @@ export function seed(db: Database): void {
   try {
     db.run(
       'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)',
-      [userId, 'queen-bee', 'Queen Bee', 'admin'],
+      [userId, 'queen-bee', 'Queen Bee', 'super-admin'],
     )
 
     db.run('INSERT INTO boards (id, name, created_by) VALUES (?, ?, ?)', [

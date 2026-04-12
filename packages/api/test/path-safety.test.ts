@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { mkdtemp, mkdir, symlink, writeFile, rm } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { resolvePathSafe, validateWorkspacePath } from '../src/workspace/path-safety'
+import { join } from 'node:path'
+import {
+  resolvePathSafe,
+  validateWorkspacePath,
+} from '../src/workspace/path-safety'
 
 let root: string
 let outside: string
@@ -37,8 +40,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await rm(root, { recursive: true, force: true })
-  await rm(outside, { recursive: true, force: true })
+  await rm(root, { force: true, recursive: true })
+  await rm(outside, { force: true, recursive: true })
 })
 
 describe('resolvePathSafe', () => {
@@ -53,7 +56,9 @@ describe('resolvePathSafe', () => {
   })
 
   test('resolves a symlink pointing outside root', async () => {
-    const result = await resolvePathSafe(join(root, 'workspaces', 'escape-link'))
+    const result = await resolvePathSafe(
+      join(root, 'workspaces', 'escape-link'),
+    )
     expect(result).toBe(outside)
   })
 
@@ -72,7 +77,9 @@ describe('resolvePathSafe', () => {
   })
 
   test('throws on relative paths', async () => {
-    expect(resolvePathSafe('relative/path')).rejects.toThrow('Path must be absolute')
+    expect(resolvePathSafe('relative/path')).rejects.toThrow(
+      'Path must be absolute',
+    )
   })
 })
 
@@ -97,17 +104,14 @@ describe('validateWorkspacePath', () => {
 
   test('rejects nested symlinks that escape root', async () => {
     await expect(
-      validateWorkspacePath(
-        join(root, 'workspaces', 'nested', 'link-a'),
-        root,
-      ),
+      validateWorkspacePath(join(root, 'workspaces', 'nested', 'link-a'), root),
     ).rejects.toThrow('Workspace path escapes root')
   })
 
   test('rejects path equal to root', async () => {
-    await expect(
-      validateWorkspacePath(root, root),
-    ).rejects.toThrow('Workspace path cannot be the root')
+    await expect(validateWorkspacePath(root, root)).rejects.toThrow(
+      'Workspace path cannot be the root',
+    )
   })
 
   test('accepts ENOENT paths under root', async () => {

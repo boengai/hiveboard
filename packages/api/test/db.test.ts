@@ -38,7 +38,7 @@ describe('migration', () => {
 })
 
 describe('seed', () => {
-  test('creates exactly 1 user: queen-bee with role admin', () => {
+  test('creates exactly 1 user: queen-bee with role super-admin', () => {
     const users = db.query('SELECT * FROM users').all() as Array<{
       username: string
       role: string
@@ -46,7 +46,7 @@ describe('seed', () => {
     }>
     expect(users).toHaveLength(1)
     expect(users[0]?.username).toBe('queen-bee')
-    expect(users[0]?.role).toBe('admin')
+    expect(users[0]?.role).toBe('super-admin')
     expect(users[0]?.display_name).toBe('Queen Bee')
   })
 

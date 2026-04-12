@@ -14,10 +14,10 @@
 
 import { Database } from 'bun:sqlite'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { calculateRetryDelay } from '../src/orchestrator/orchestrator'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import { calculateRetryDelay } from '../src/orchestrator/orchestrator'
 
 // ---------------------------------------------------------------------------
 // In-memory database shared across module mocks
@@ -536,8 +536,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        output:
-          'Created PR: https://github.com/acme/webapp/pull/42\nDone.',
+        output: 'Created PR: https://github.com/acme/webapp/pull/42\nDone.',
         success: true,
         taskId: task.id,
       }
@@ -566,8 +565,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        output:
-          'Created PR: https://github.com/evil/other-repo/pull/99\nDone.',
+        output: 'Created PR: https://github.com/evil/other-repo/pull/99\nDone.',
         success: true,
         taskId: task.id,
       }
@@ -596,8 +594,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        output:
-          'Created PR: https://github.com/any/repo/pull/1\nDone.',
+        output: 'Created PR: https://github.com/any/repo/pull/1\nDone.',
         success: true,
         taskId: task.id,
       }
@@ -626,8 +623,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
     mockRunAgentImpl = async (opts: unknown) => {
       const { task } = opts as { task: { id: string } }
       return {
-        output:
-          'See https://github.com/acme/webapp/pull/10 for context.',
+        output: 'See https://github.com/acme/webapp/pull/10 for context.',
         success: true,
         taskId: task.id,
       }
