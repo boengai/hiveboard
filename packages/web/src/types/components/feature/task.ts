@@ -35,14 +35,14 @@ export type ViewModeProps = {
   onEdit: () => void
   onArchive: () => void
   onInterruptAgent: () => void
-  onUpdateAction: (action: string) => void
+  onUpdateAction: (action: string, instruction?: string) => void
   loading: boolean
 }
 
 export type AgentPanelProps = {
   task: Task
   onInterruptAgent: () => void
-  onUpdateAction: (action: string) => void
+  onUpdateAction: (action: string, instruction?: string) => void
   loading: boolean
 }
 

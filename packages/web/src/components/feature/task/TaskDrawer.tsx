@@ -15,6 +15,7 @@ import {
   PencilIcon,
   RefreshIcon,
   SelectInput,
+  TextAreaInput,
   TextInput,
 } from '@/components/common'
 import { GitHubIcon } from '@/components/common/icon'
@@ -349,7 +350,7 @@ const ViewMode = ({
                 rel="noopener"
                 target="_blank"
               >
-                <GitHubIcon size={14} />
+                <GitHubIcon />
                 <span>{task.targetRepo}</span>
               </a>
             </div>
@@ -435,6 +436,11 @@ const AgentPanel = ({
 }: AgentPanelProps) => {
   const isAgentActive =
     task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
+  const [instruction, setInstruction] = useState(task.agentInstruction ?? '')
+
+  useEffect(() => {
+    setInstruction(task.agentInstruction ?? '')
+  }, [task.agentInstruction])
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-overlay/40 p-4">
@@ -477,30 +483,34 @@ const AgentPanel = ({
         </span>
       )}
 
-      {/* Action select + Dispatch + Cancel */}
-      <div className="flex items-center gap-2 pt-1">
+      {/* Agent instruction */}
+      <div className="flex flex-col gap-1">
+        <span className="font-medium text-body-xs text-text-tertiary">
+          Instruction
+        </span>
+        <TextAreaInput
+          disabled={isAgentActive || loading}
+          onChange={setInstruction}
+          placeholder="Optional instruction for the agent…"
+          rows={2}
+          value={instruction}
+        />
+      </div>
+
+      {/* Action select */}
+      <div className="flex items-center gap-2">
         <div className="flex-1">
           <SelectInput
             disabled={isAgentActive || loading}
-            onValueChange={onUpdateAction}
+            onValueChange={(action) =>
+              onUpdateAction(action, instruction || undefined)
+            }
             options={ACTION_OPTIONS}
             placeholder="Select action…"
             value={task.action || undefined}
           />
         </div>
       </div>
-
-      {/* Agent instruction */}
-      {task.agentInstruction && (
-        <div className="flex flex-col gap-1">
-          <span className="font-medium text-body-xs text-text-tertiary">
-            Agent Instruction
-          </span>
-          <p className="rounded-md border border-border-default bg-surface-overlay/30 px-3 py-2 text-body-xs text-text-secondary">
-            {task.agentInstruction}
-          </p>
-        </div>
-      )}
     </div>
   )
 }
@@ -883,7 +893,7 @@ export const TaskDrawer = () => {
     })
   }
 
-  const handleUpdateAction = (action: string) => {
+  const handleUpdateAction = (action: string, instruction?: string) => {
     if (!task) return
     startTransition(async () => {
       try {
@@ -891,6 +901,7 @@ export const TaskDrawer = () => {
           RUN_AGENT,
           {
             action,
+            instruction: instruction || null,
             taskId: task.id,
           },
         )

@@ -527,98 +527,6 @@ export const resolvers = {
       return task
     },
 
-    async runAgent(
-      _: unknown,
-      {
-        taskId,
-        action,
-        instruction,
-      }: {
-        taskId: string
-        action: string
-        instruction?: string | null
-      },
-      ctx: ResolverContext,
-    ) {
-      const authUser = requireAuth(ctx)
-      const user = { id: authUser.id }
-
-      const existing = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(taskId) as TaskRow | null
-      if (!existing) throw new Error(`Task ${taskId} not found`)
-
-      if (
-        existing.agent_status === 'running' ||
-        existing.agent_status === 'queued'
-      ) {
-        throw new Error(
-          `Cannot run agent: task is already ${existing.agent_status}`,
-        )
-      }
-
-      const dbAction = enumToAction(action)
-      const events: Array<[string, string, string | null]> = []
-
-      const setClauses: string[] = [
-        'action = ?',
-        "agent_status = 'queued'",
-        "queue_after = datetime('now', '+15 seconds')",
-        'updated_by = ?',
-        "updated_at = datetime('now')",
-      ]
-      const values: (string | number | null)[] = [dbAction, user.id]
-
-      events.push([
-        generateId(),
-        'action_set',
-        JSON.stringify({ action: dbAction }),
-      ])
-      events.push([
-        generateId(),
-        'status_changed',
-        JSON.stringify({ from: existing.agent_status, to: 'queued' }),
-      ])
-
-      if (instruction !== undefined && instruction !== null) {
-        setClauses.push('agent_instruction = ?')
-        values.push(instruction)
-      }
-
-      values.push(taskId)
-
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = ?`,
-          values,
-        )
-        for (const [eventId, type, data] of events) {
-          db.run(
-            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-            [eventId, taskId, user.id, type, data],
-          )
-        }
-      })()
-
-      const task = getTaskById(taskId)
-      if (!task) throw new Error(`Task ${taskId} not found`)
-      publishTaskUpdated(task)
-
-      // Publish task events
-      for (const [eventId, type, data] of events) {
-        pubsub.publish('TASK_EVENT', taskId, {
-          _actor: user.id,
-          createdAt: new Date().toISOString(),
-          data,
-          id: eventId,
-          isSystem: false,
-          type,
-        } as unknown as Record<string, unknown>)
-      }
-
-      return task
-    },
-
     createBoard(_: unknown, { name }: { name: string }, ctx: ResolverContext) {
       const authUser = requireSuperAdmin(ctx)
       const user = { id: authUser.id }
@@ -677,7 +585,6 @@ export const resolvers = {
           columnId?: string | null
           title: string
           body?: string | null
-          action?: string | null
           agentInstruction?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
@@ -710,12 +617,10 @@ export const resolvers = {
 
       const id = generateId()
 
-      const dbAction = enumToAction(input.action ?? null)
-
       db.transaction(() => {
         db.run(
-          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, action, agent_instruction, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, board_id, column_id, title, body, position, target_repo, target_branch, agent_instruction, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             input.boardId,
@@ -725,7 +630,6 @@ export const resolvers = {
             position,
             input.targetRepo ?? null,
             input.targetBranch ?? 'main',
-            dbAction,
             input.agentInstruction ?? null,
             user.id,
             user.id,
@@ -1073,6 +977,95 @@ export const resolvers = {
         .query('SELECT * FROM users WHERE id = ?')
         .get(userId) as UserRow
       return mapUser(updated)
+    },
+
+    async runAgent(
+      _: unknown,
+      {
+        taskId,
+        action,
+        instruction,
+      }: {
+        taskId: string
+        action: string
+        instruction?: string | null
+      },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
+
+      const existing = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!existing) throw new Error(`Task ${taskId} not found`)
+
+      if (
+        existing.agent_status === 'running' ||
+        existing.agent_status === 'queued'
+      ) {
+        throw new Error(
+          `Cannot run agent: task is already ${existing.agent_status}`,
+        )
+      }
+
+      const dbAction = enumToAction(action)
+      const events: Array<[string, string, string | null]> = []
+
+      const setClauses: string[] = [
+        'action = ?',
+        "agent_status = 'queued'",
+        "queue_after = datetime('now', '+15 seconds')",
+        'updated_by = ?',
+        "updated_at = datetime('now')",
+      ]
+      const values: (string | number | null)[] = [dbAction, user.id]
+
+      events.push([
+        generateId(),
+        'action_set',
+        JSON.stringify({ action: dbAction }),
+      ])
+      events.push([
+        generateId(),
+        'status_changed',
+        JSON.stringify({ from: existing.agent_status, to: 'queued' }),
+      ])
+
+      if (instruction !== undefined && instruction !== null) {
+        setClauses.push('agent_instruction = ?')
+        values.push(instruction)
+      }
+
+      values.push(taskId)
+
+      db.transaction(() => {
+        db.run(`UPDATE tasks SET ${setClauses.join(', ')} WHERE id = ?`, values)
+        for (const [eventId, type, data] of events) {
+          db.run(
+            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+            [eventId, taskId, user.id, type, data],
+          )
+        }
+      })()
+
+      const task = getTaskById(taskId)
+      if (!task) throw new Error(`Task ${taskId} not found`)
+      publishTaskUpdated(task)
+
+      // Publish task events
+      for (const [eventId, type, data] of events) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          _actor: user.id,
+          createdAt: new Date().toISOString(),
+          data,
+          id: eventId,
+          isSystem: false,
+          type,
+        } as unknown as Record<string, unknown>)
+      }
+
+      return task
     },
 
     setTaskTags(

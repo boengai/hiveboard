@@ -156,10 +156,11 @@ export function TaskCard({ task, column }: TaskCardProps) {
             <a
               className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary"
               href={`https://github.com/${task.targetRepo}`}
+              onClick={(e) => e.stopPropagation()}
               rel="noopener"
               target="_blank"
             >
-              <GitHubIcon size={14} />
+              <GitHubIcon />
               <span>{task.targetRepo}</span>
             </a>
           </div>

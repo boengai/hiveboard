@@ -12,6 +12,24 @@ const getGitHubOAuthUrl = (
   return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(GITHUB_OAUTH_SCOPES)}&state=${encodeURIComponent(state)}`
 }
 
+const LoginButton = () => {
+  const { oauthClientId } = useAuthStore()
+
+  if (!oauthClientId) {
+    return null
+  }
+
+  return (
+    <a
+      className="flex items-center gap-2 rounded-lg bg-gray-800 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700"
+      href={getGitHubOAuthUrl(oauthClientId)}
+    >
+      <GitHubIcon />
+      Sign in with GitHub
+    </a>
+  )
+}
+
 export function LoginPage() {
   const { isLocal, isLoading, oauthClientId } = useAuthStore()
 
@@ -47,20 +65,16 @@ export function LoginPage() {
             HiveBoard
           </span>
           <p className="text-body-sm text-text-secondary">
-            {invitationToken
-              ? 'Accept your invitation to get started'
-              : 'Sign in to continue'}
+            {invitationToken ? (
+              'Accept your invitation to get started'
+            ) : (
+              <LoginButton />
+            )}
           </p>
         </div>
 
         {oauthClientId ? (
-          <a
-            className="flex items-center gap-2 rounded-lg bg-gray-800 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700"
-            href={getGitHubOAuthUrl(oauthClientId, invitationToken)}
-          >
-            <GitHubIcon />
-            Sign in with GitHub
-          </a>
+          <LoginButton />
         ) : (
           <p className="text-body-sm text-text-danger">
             GitHub OAuth is not configured. Contact the administrator.

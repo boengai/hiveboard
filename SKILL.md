@@ -115,7 +115,6 @@ Variables:
     "columnId": "<column-id>",
     "title": "Task title",
     "body": "Optional description",
-    "action": "IMPLEMENT",
     "agentInstruction": "Optional custom instruction for the agent",
     "targetRepo": "owner/repo",
     "targetBranch": "main",

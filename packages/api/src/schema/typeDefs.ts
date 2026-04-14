@@ -167,7 +167,6 @@ export const typeDefs = /* GraphQL */ `
     columnId: ID
     title: String!
     body: String
-    action: BoardAction
     agentInstruction: String
     targetRepo: String
     targetBranch: String
