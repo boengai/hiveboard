@@ -28,6 +28,7 @@ export const typeDefs = /* GraphQL */ `
     deleteTag(id: ID!, boardId: ID!): Boolean!
     setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
     cancelAgent(taskId: ID!): Task!
+    runAgent(taskId: ID!, action: BoardAction!, instruction: String): Task!
 
     generateInvitation(githubUsername: String!): Invitation!
     revokeUser(userId: ID!): User!
@@ -177,7 +178,6 @@ export const typeDefs = /* GraphQL */ `
   input UpdateTaskInput {
     title: String
     body: String
-    action: BoardAction
     agentInstruction: String
     targetRepo: String
     targetBranch: String
