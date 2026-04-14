@@ -134,7 +134,6 @@ mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
     id
     title
     body
-    action
     agentInstruction
     targetRepo
     targetBranch
@@ -149,13 +148,12 @@ Variables:
   "input": {
     "title": "Updated title",
     "body": "Updated description",
-    "action": "IMPLEMENT",
     "agentInstruction": "Custom agent instruction"
   }
 }
 ```
 
-**Note:** Setting or changing the `action` field auto-queues the agent with a 15-second grace period.
+`action` is not part of `UpdateTaskInput` — use `runAgent` to set the action and trigger the agent.
 
 ## Move a Task Between Columns
 
@@ -255,6 +253,21 @@ mutation SetTaskTags($taskId: ID!, $tagIds: [ID!]!) {
   }
 }
 ```
+
+## Run an Agent
+
+```graphql
+mutation RunAgent($taskId: ID!, $action: BoardAction!, $instruction: String) {
+  runAgent(taskId: $taskId, action: $action, instruction: $instruction) {
+    id
+    action
+    agentInstruction
+    agentStatus
+  }
+}
+```
+
+Sets the task's `action`, optionally updates `agentInstruction`, and queues the agent with a 15-second grace period. Fails if the agent is already `RUNNING` or `QUEUED`.
 
 ## Cancel a Running Agent
 
