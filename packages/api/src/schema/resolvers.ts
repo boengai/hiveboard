@@ -526,6 +526,99 @@ export const resolvers = {
 
       return task
     },
+
+    async runAgent(
+      _: unknown,
+      {
+        taskId,
+        action,
+        instruction,
+      }: {
+        taskId: string
+        action: string
+        instruction?: string | null
+      },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      const user = { id: authUser.id }
+
+      const existing = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!existing) throw new Error(`Task ${taskId} not found`)
+
+      if (
+        existing.agent_status === 'running' ||
+        existing.agent_status === 'queued'
+      ) {
+        throw new Error(
+          `Cannot run agent: task is already ${existing.agent_status}`,
+        )
+      }
+
+      const dbAction = enumToAction(action)
+      const events: Array<[string, string, string | null]> = []
+
+      const setClauses: string[] = [
+        'action = ?',
+        "agent_status = 'queued'",
+        "queue_after = datetime('now', '+15 seconds')",
+        'updated_by = ?',
+        "updated_at = datetime('now')",
+      ]
+      const values: (string | number | null)[] = [dbAction, user.id]
+
+      events.push([
+        generateId(),
+        'action_set',
+        JSON.stringify({ action: dbAction }),
+      ])
+      events.push([
+        generateId(),
+        'status_changed',
+        JSON.stringify({ from: existing.agent_status, to: 'queued' }),
+      ])
+
+      if (instruction !== undefined && instruction !== null) {
+        setClauses.push('agent_instruction = ?')
+        values.push(instruction)
+      }
+
+      values.push(taskId)
+
+      db.transaction(() => {
+        db.run(
+          `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = ?`,
+          values,
+        )
+        for (const [eventId, type, data] of events) {
+          db.run(
+            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+            [eventId, taskId, user.id, type, data],
+          )
+        }
+      })()
+
+      const task = getTaskById(taskId)
+      if (!task) throw new Error(`Task ${taskId} not found`)
+      publishTaskUpdated(task)
+
+      // Publish task events
+      for (const [eventId, type, data] of events) {
+        pubsub.publish('TASK_EVENT', taskId, {
+          _actor: user.id,
+          createdAt: new Date().toISOString(),
+          data,
+          id: eventId,
+          isSystem: false,
+          type,
+        } as unknown as Record<string, unknown>)
+      }
+
+      return task
+    },
+
     createBoard(_: unknown, { name }: { name: string }, ctx: ResolverContext) {
       const authUser = requireSuperAdmin(ctx)
       const user = { id: authUser.id }
@@ -1120,7 +1213,6 @@ export const resolvers = {
         input: {
           title?: string | null
           body?: string | null
-          action?: string | null
           agentInstruction?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
@@ -1173,38 +1265,6 @@ export const resolvers = {
         if (newInstruction !== existing.agent_instruction) {
           setClauses.push('agent_instruction = ?')
           values.push(newInstruction)
-        }
-      }
-
-      if (input.action !== undefined) {
-        const newAction = enumToAction(input.action ?? null)
-        if (newAction !== existing.action) {
-          setClauses.push('action = ?')
-          values.push(newAction)
-          events.push([
-            generateId(),
-            newAction ? 'action_set' : 'action_cleared',
-            newAction ? JSON.stringify({ action: newAction }) : null,
-          ])
-
-          // Auto-queue with 15s grace period when action is set
-          if (
-            newAction &&
-            (existing.agent_status === 'idle' ||
-              existing.agent_status === 'failed' ||
-              existing.agent_status === 'success')
-          ) {
-            setClauses.push("agent_status = 'queued'")
-            setClauses.push("queue_after = datetime('now', '+15 seconds')")
-            events.push([
-              generateId(),
-              'status_changed',
-              JSON.stringify({
-                from: existing.agent_status,
-                to: 'queued',
-              }),
-            ])
-          }
         }
       }
 
