@@ -64,7 +64,10 @@ function addMissingColumns(db: Database): void {
   renameColumn(db, 'task_comments', 'author_id', 'created_by')
 
   // users: add github fields and revoked_at for auth
-  ensureColumn(db, 'users', 'github_id', 'TEXT UNIQUE')
+  ensureColumn(db, 'users', 'github_id', 'TEXT')
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)',
+  )
   ensureColumn(db, 'users', 'github_username', 'TEXT')
   ensureColumn(db, 'users', 'revoked_at', 'TEXT')
 
