@@ -8,6 +8,14 @@ All requests use standard GraphQL over HTTP POST with a JSON body: `{ "query": "
 
 ---
 
+## Current User
+
+```graphql
+query {
+  me { id username displayName role }
+}
+```
+
 ## List Boards and Their Columns/Tasks
 
 ```graphql
@@ -15,6 +23,8 @@ query {
   boards {
     id
     name
+    createdBy { displayName }
+    createdAt
     columns {
       id
       name
@@ -30,6 +40,32 @@ query {
 }
 ```
 
+## Get a Specific Board
+
+```graphql
+query GetBoard($id: ID!) {
+  board(id: $id) {
+    id
+    name
+    columns { id name position }
+    tags { id name color }
+    createdBy { displayName }
+    createdAt
+  }
+}
+```
+
+## Create a Board
+
+```graphql
+mutation CreateBoard($name: String!) {
+  createBoard(name: $name) {
+    id
+    name
+  }
+}
+```
+
 ## Get a Specific Task
 
 ```graphql
@@ -38,14 +74,21 @@ query GetTask($id: ID!) {
     id
     title
     body
-    agentStatus
-    prUrl
+    position
     action
+    agentInstruction
+    agentStatus
+    retryCount
+    prUrl
     targetRepo
     targetBranch
     archived
+    archivedAt
     column { id name }
     tags { id name color }
+    comments { id body createdBy { displayName } createdAt }
+    createdBy { displayName }
+    updatedBy { displayName }
     createdAt
     updatedAt
   }
@@ -72,6 +115,8 @@ Variables:
     "columnId": "<column-id>",
     "title": "Task title",
     "body": "Optional description",
+    "action": "IMPLEMENT",
+    "agentInstruction": "Optional custom instruction for the agent",
     "targetRepo": "owner/repo",
     "targetBranch": "main",
     "tagIds": []
@@ -90,6 +135,7 @@ mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
     title
     body
     action
+    agentInstruction
     targetRepo
     targetBranch
   }
@@ -103,10 +149,13 @@ Variables:
   "input": {
     "title": "Updated title",
     "body": "Updated description",
-    "action": "Implement feature X"
+    "action": "IMPLEMENT",
+    "agentInstruction": "Custom agent instruction"
   }
 }
 ```
+
+**Note:** Setting or changing the `action` field auto-queues the agent with a 15-second grace period.
 
 ## Move a Task Between Columns
 
@@ -122,20 +171,46 @@ mutation MoveTask($id: ID!, $columnId: ID!, $position: Float!) {
 
 `position` is a float used for ordering within the column. Use `1.0` to place at top, or a value between existing tasks to insert between them.
 
-## Add a Comment to a Task
+## Comments
 
 ```graphql
-mutation AddComment($taskId: ID!, $body: String!) {
-  addComment(taskId: $taskId, body: $body) {
+# List comments for a task
+query Comments($taskId: ID!) {
+  comments(taskId: $taskId) {
+    id
+    body
+    parentId
+    replies { id body createdBy { displayName } createdAt }
+    createdBy { displayName }
+    createdAt
+    updatedAt
+  }
+}
+
+# Add a comment (use parentId for threaded replies, 1 level deep)
+mutation AddComment($taskId: ID!, $body: String!, $parentId: ID) {
+  addComment(taskId: $taskId, body: $body, parentId: $parentId) {
     id
     body
     createdAt
     createdBy { displayName }
   }
 }
-```
 
-To reply to an existing comment, include `parentId: "<comment-id>"` in the mutation arguments.
+# Update a comment
+mutation UpdateComment($id: ID!, $body: String!) {
+  updateComment(id: $id, body: $body) {
+    id
+    body
+    updatedAt
+  }
+}
+
+# Delete a comment
+mutation DeleteComment($id: ID!) {
+  deleteComment(id: $id)
+}
+```
 
 ## Archive / Unarchive a Task
 
@@ -149,10 +224,15 @@ mutation UnarchiveTask($id: ID!) {
 }
 ```
 
-## Create and Assign Tags
+## Tags
 
 ```graphql
-# Create a tag on a board
+# List existing tags on a board
+query Tags($boardId: ID!) {
+  tags(boardId: $boardId) { id name color }
+}
+
+# Create a tag on a board (color defaults to #aaaaaa if omitted)
 mutation CreateTag($input: CreateTagInput!) {
   createTag(input: $input) {
     id
@@ -162,9 +242,9 @@ mutation CreateTag($input: CreateTagInput!) {
 }
 # Variables: { "input": { "boardId": "<board-id>", "name": "bug", "color": "#e53e3e" } }
 
-# List existing tags on a board
-query Tags($boardId: ID!) {
-  tags(boardId: $boardId) { id name color }
+# Delete a tag from a board
+mutation DeleteTag($id: ID!, $boardId: ID!) {
+  deleteTag(id: $id, boardId: $boardId)
 }
 
 # Assign tags to a task (replaces all existing tags)
@@ -189,17 +269,49 @@ mutation CancelAgent($taskId: ID!) {
 
 Only meaningful when `agentStatus` is `RUNNING` or `QUEUED`.
 
+## Agent Runs (History)
+
+```graphql
+query AgentRuns($taskId: ID!) {
+  agentRuns(taskId: $taskId) {
+    id
+    action
+    status
+    output
+    error
+    startedAt
+    finishedAt
+  }
+}
+```
+
+## Task Timeline
+
+```graphql
+query TaskTimeline($taskId: ID!) {
+  taskTimeline(taskId: $taskId) {
+    id
+    type
+    actor { displayName }
+    isSystem
+    data
+    createdAt
+  }
+}
+```
+
 ---
 
 ## Real-Time Subscriptions (SSE)
 
-HiveBoard exposes GraphQL subscriptions via Server-Sent Events at the same `/graphql` endpoint. Key subscriptions:
+HiveBoard exposes GraphQL subscriptions via Server-Sent Events at the same `/graphql` endpoint.
 
 | Subscription | Trigger |
 |---|---|
 | `taskUpdated(boardId: ID!)` | Any task change on a board |
 | `agentLogStream(taskId: ID!)` | Live log chunks from a running agent |
 | `commentAdded(taskId: ID!)` | New comment on a task |
+| `commentUpdated(taskId: ID!)` | Comment edited on a task |
 | `taskEventAdded(taskId: ID!)` | Timeline event added to a task |
 
 ---
@@ -213,14 +325,25 @@ HiveBoard exposes GraphQL subscriptions via Server-Sent Events at the same `/gra
 - `SUCCESS` — agent completed successfully
 - `FAILED` — agent encountered an error
 
-**Task** — core work item; lives in a Column; has optional agent fields (`action`, `agentStatus`, `prUrl`)
+**BoardAction enum**
+- `PLAN` — agent plans the work
+- `IMPLEMENT` — agent implements the task
+- `REVISE` — agent revises based on feedback
 
-**Board** — top-level container with Columns and Tags
+**User** — authenticated user with `id`, `username`, `displayName`, `role`
+
+**Board** — top-level container with Columns, Tags, and `createdBy` user
 
 **Column** — ordered list of Tasks within a Board
 
+**Task** — core work item; lives in a Column; has agent fields (`action`, `agentInstruction`, `agentStatus`, `retryCount`, `prUrl`); tracks `createdBy`/`updatedBy`
+
 **Tag** — board-scoped label with a name and hex color; assigned to tasks via `setTaskTags`
 
-**Comment** — threaded note on a Task; supports `parentId` for replies
+**Comment** — threaded note on a Task; supports `parentId` for replies (1 level deep)
 
-**AgentRun** — historical record of a single agent execution on a task; query via `agentRuns(taskId: ID!)`
+**TaskEvent** — audit trail entry for a task; `type` describes the event, `data` holds JSON details, `isSystem` distinguishes system vs user events
+
+**AgentRun** — historical record of a single agent execution on a task
+
+**AgentLogChunk** — streaming log output from a running agent with `taskId`, `chunk`, `timestamp`
