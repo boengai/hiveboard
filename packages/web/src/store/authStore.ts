@@ -1,27 +1,5 @@
+import type { AuthState, AuthUser } from '@/types'
 import { create } from 'zustand'
-
-type AuthUser = {
-  id: string
-  username: string
-  displayName: string
-  role: string
-  githubId?: string | null
-  githubUsername?: string | null
-}
-
-type AuthState = {
-  user: AuthUser | null
-  token: string | null
-  isLocal: boolean
-  isLoading: boolean
-  isAuthenticated: boolean
-
-  setUser: (user: AuthUser) => void
-  setToken: (token: string) => void
-  setIsLocal: (isLocal: boolean) => void
-  setLoading: (loading: boolean) => void
-  logout: () => void
-}
 
 const STORAGE_KEY = 'hiveboard_access_token'
 
@@ -46,10 +24,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ isAuthenticated: false, token: null, user: null })
   },
+  oauthClientId: null,
 
   setIsLocal: (isLocal: boolean) => set({ isLocal }),
 
   setLoading: (isLoading: boolean) => set({ isLoading }),
+
+  setOAuthClientId: (oauthClientId: string) => set({ oauthClientId }),
 
   setToken: (token: string) => {
     try {

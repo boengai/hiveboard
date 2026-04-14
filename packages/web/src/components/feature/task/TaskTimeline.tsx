@@ -7,7 +7,7 @@ import {
 } from 'react'
 import {
   ArchiveIcon,
-  ArrowRightIcon,
+  ArrowIcon,
   Avatar,
   Badge,
   BoltIcon,
@@ -74,7 +74,7 @@ function eventIcon(eventType: string): ReactNode {
     case 'created':
       return <PlusIcon size={s} />
     case 'moved':
-      return <ArrowRightIcon size={s} />
+      return <ArrowIcon size={s} />
     case 'status_changed':
       return <RefreshIcon size={s} />
     case 'agent_started':

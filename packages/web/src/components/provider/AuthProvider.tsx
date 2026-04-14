@@ -1,12 +1,8 @@
-import { type ReactNode, useEffect } from 'react'
+import { useEffect } from 'react'
 import { graphqlClient } from '@/graphql/client'
 import { GET_AUTH_CONFIG, GET_ME } from '@/graphql/queries'
 import { useAuthStore } from '@/store/authStore'
-
-type AuthProviderProps = {
-  children: ReactNode
-  loginPage: ReactNode
-}
+import type { AuthProviderProps } from '@/types'
 
 export function AuthProvider({ children, loginPage }: AuthProviderProps) {
   const {
@@ -15,6 +11,7 @@ export function AuthProvider({ children, loginPage }: AuthProviderProps) {
     setUser,
     setIsLocal,
     setLoading,
+    setOAuthClientId,
     logout,
   } = useAuthStore()
 
@@ -35,12 +32,8 @@ export function AuthProvider({ children, loginPage }: AuthProviderProps) {
 
         setIsLocal(configData.authConfig.isLocal)
 
-        // Store OAuth client ID for the login page
         if (configData.authConfig.githubOAuthClientId) {
-          ;(
-            window as unknown as { __HIVEBOARD_OAUTH_CLIENT_ID__?: string }
-          ).__HIVEBOARD_OAUTH_CLIENT_ID__ =
-            configData.authConfig.githubOAuthClientId
+          setOAuthClientId(configData.authConfig.githubOAuthClientId)
         }
 
         // Try to fetch current user (will work for local access or valid token)
@@ -70,7 +63,7 @@ export function AuthProvider({ children, loginPage }: AuthProviderProps) {
     return () => {
       cancelled = true
     }
-  }, [setUser, setIsLocal, setLoading, logout])
+  }, [setUser, setIsLocal, setLoading, setOAuthClientId, logout])
 
   if (isLoading) {
     return (

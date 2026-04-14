@@ -1,5 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from '@/components'
+import { ArrowIcon, Button } from '@/components'
 import { graphqlClient } from '@/graphql/client'
 import { GENERATE_INVITATION, REVOKE_USER } from '@/graphql/mutations'
 import { GET_INVITATIONS, GET_USERS } from '@/graphql/queries'
@@ -103,13 +104,13 @@ export function UsersPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1">
+        <Link className="text-body-sm text-honey-400 hover:underline" to="/">
+          <ArrowIcon direction="left" />
+        </Link>
         <h1 className="font-semibold text-lg text-text-primary">
           User Management
         </h1>
-        <a className="text-body-sm text-honey-400 hover:underline" href="/">
-          Back to board
-        </a>
       </div>
 
       {error && (

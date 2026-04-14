@@ -1,5 +1,11 @@
-import { Outlet, useRouter } from '@tanstack/react-router'
-import { AuthProvider, Avatar, ConnectionIndicator } from '@/components'
+import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
+import {
+  AuthProvider,
+  Avatar,
+  ConnectionIndicator,
+  RightFromBracketIcon,
+  UsersIcon,
+} from '@/components'
 import { LoginPage } from '@/pages/login'
 import { useAuthStore } from '@/store/authStore'
 
@@ -16,20 +22,20 @@ function HeaderUserMenu() {
       <ConnectionIndicator />
       {user.role === 'super-admin' && (
         <button
-          className="rounded px-2 py-1 text-body-xs text-text-secondary hover:bg-surface-hover"
+          className="rounded px-2 py-1 text-text-secondary hover:bg-surface-hover"
           onClick={() => router.navigate({ to: '/users' })}
           type="button"
         >
-          Manage Users
+          <UsersIcon />
         </button>
       )}
       {!isLocal && (
         <button
-          className="rounded px-2 py-1 text-body-xs text-text-secondary hover:bg-surface-hover"
+          className="rounded px-2 py-1 text-text-secondary hover:bg-surface-hover"
           onClick={logout}
           type="button"
         >
-          Sign out
+          <RightFromBracketIcon />
         </button>
       )}
       <Avatar name={user.username} />
@@ -59,7 +65,7 @@ function AppLayout() {
 
 export const App = () => {
   // Don't wrap auth callback route with AuthProvider
-  const pathname = window.location.pathname
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
   if (pathname === '/auth/callback') {
     return <AppLayout />
   }

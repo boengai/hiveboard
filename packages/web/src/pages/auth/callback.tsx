@@ -1,15 +1,13 @@
+import { useSearch } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 
 export function AuthCallbackPage() {
   const [error, setError] = useState<string | null>(null)
   const setToken = useAuthStore((s) => s.setToken)
+  const { code, state } = useSearch({ from: '/auth/callback' })
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    const state = params.get('state') // invitation token if present
-
     if (!code) {
       setError('No authorization code received from GitHub')
       return
@@ -42,7 +40,7 @@ export function AuthCallbackPage() {
       .catch((err) => {
         setError(err instanceof Error ? err.message : 'Authentication failed')
       })
-  }, [setToken])
+  }, [code, state, setToken])
 
   if (error) {
     return (

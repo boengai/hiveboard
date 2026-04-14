@@ -153,10 +153,15 @@ export function TaskCard({ task, column }: TaskCardProps) {
         {/* Target repo */}
         {task.targetRepo && (
           <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary">
+            <a
+              className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary"
+              href={`https://github.com/${task.targetRepo}`}
+              rel="noopener"
+              target="_blank"
+            >
               <GitHubIcon size={14} />
               <span>{task.targetRepo}</span>
-            </div>
+            </a>
           </div>
         )}
 

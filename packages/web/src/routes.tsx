@@ -21,6 +21,10 @@ const authCallbackRoute = createRoute({
   ),
   getParentRoute: () => rootRoute,
   path: '/auth/callback',
+  validateSearch: (search: Record<string, unknown>) => ({
+    code: (search.code as string) ?? '',
+    state: (search.state as string) ?? '',
+  }),
 })
 
 const usersRoute = createRoute({
