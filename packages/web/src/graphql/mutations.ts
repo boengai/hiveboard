@@ -167,6 +167,18 @@ export const CANCEL_AGENT = /* GraphQL */ `
   }
 `
 
+export const RUN_AGENT = /* GraphQL */ `
+  mutation RunAgent($taskId: ID!, $action: BoardAction!, $instruction: String) {
+    runAgent(taskId: $taskId, action: $action, instruction: $instruction) {
+      id
+      action
+      agentInstruction
+      agentStatus
+      retryCount
+    }
+  }
+`
+
 export const CREATE_TAG = /* GraphQL */ `
   mutation CreateTag($input: CreateTagInput!) {
     createTag(input: $input) {
