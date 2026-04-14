@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 export const taskFormSchema = z.object({
-  action: z.string(),
   agentInstruction: z.string(),
   body: z.string(),
   tagIds: z.array(z.string()),

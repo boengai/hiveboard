@@ -26,6 +26,7 @@ import {
   GET_BOARD,
   GET_TASK,
   graphqlClient,
+  RUN_AGENT,
   UNARCHIVE_TASK,
   UPDATE_TASK,
 } from '@/graphql'
@@ -133,7 +134,6 @@ const CreateMode = ({
 
   const form = useForm({
     defaultValues: {
-      action: '',
       agentInstruction: '',
       body: '## Description\n',
       tagIds: [] as string[],
@@ -840,7 +840,6 @@ export const TaskDrawer = () => {
           {
             id: task.id,
             input: {
-              action: values.action || null,
               agentInstruction: values.agentInstruction || null,
               body: values.body,
               tagIds: values.tagIds,
@@ -883,14 +882,14 @@ export const TaskDrawer = () => {
     if (!task) return
     startTransition(async () => {
       try {
-        const updated = await graphqlClient.request<{ updateTask: Task }>(
-          UPDATE_TASK,
+        const data = await graphqlClient.request<{ runAgent: Task }>(
+          RUN_AGENT,
           {
-            id: task.id,
-            input: { action: action || null },
+            taskId: task.id,
+            action,
           },
         )
-        setTask(updated.updateTask)
+        setTask({ ...task, ...data.runAgent })
         await refetchBoard()
       } catch (e) {
         console.error(e)
@@ -964,7 +963,6 @@ export const TaskDrawer = () => {
   // Build edit initial values from current task
   const editInitialValues: TaskFormValues | null = task
     ? {
-        action: task.action ?? '',
         agentInstruction: task.agentInstruction ?? '',
         body: task.body ?? '',
         tagIds: task.tags?.map((t) => t.id) ?? [],
