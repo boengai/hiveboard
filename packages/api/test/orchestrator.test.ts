@@ -94,6 +94,7 @@ function makeConfig(
 function makeGitHubStub() {
   return {
     fetchReviewComments: async () => [],
+    findPrByHead: async () => null,
     getAccessToken: async () => 'fake-token',
     getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
     getTokenDir: () => '/tmp/hiveboard-tokens-test',
@@ -617,6 +618,38 @@ describe('Orchestrator – PR URL target repo verification', () => {
     const task = getTask(taskId)
     expect(task?.agent_status).toBe('success')
     expect(task?.pr_url).toBe('https://github.com/any/repo/pull/1')
+  })
+
+  it('falls back to GitHub API when PR URL not in output', async () => {
+    mockRunAgentImpl = async (opts: unknown) => {
+      const { task } = opts as { task: { id: string } }
+      return {
+        output: 'Done! Created the pull request.',
+        success: true,
+        taskId: task.id,
+      }
+    }
+    const githubStub = makeGitHubStub()
+    githubStub.findPrByHead = async () =>
+      'https://github.com/acme/webapp/pull/77'
+    orchestrator = new Orchestrator(
+      makeConfig() as never,
+      githubStub as never,
+      makeWorkspaceStub() as never,
+      'prompt template',
+    )
+
+    const taskId = insertQueuedTask({
+      action: 'implement',
+      targetRepo: 'acme/webapp',
+    })
+
+    await orchestrator.poll()
+    await flushMicrotasks(100)
+
+    const task = getTask(taskId)
+    expect(task?.agent_status).toBe('success')
+    expect(task?.pr_url).toBe('https://github.com/acme/webapp/pull/77')
   })
 
   it('does not extract PR URL for plan actions', async () => {

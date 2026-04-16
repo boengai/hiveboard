@@ -4,6 +4,7 @@ import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
 import type { GitHubClient, ReviewComment } from '../github/client'
 import { publishAgentLog, pubsub } from '../pubsub'
+import { slugify } from '../workspace/manager'
 import type { WorkspaceManager } from '../workspace/manager'
 
 // ---------------------------------------------------------------------------
@@ -619,6 +620,24 @@ export class Orchestrator {
             )
           } else {
             prUrl = prMatch[0] ?? null
+          }
+        }
+      }
+
+      // Fallback: query GitHub API for PR by branch name
+      if (
+        !prUrl &&
+        task.target_repo &&
+        (task.action === 'implement' || task.action === 'revise')
+      ) {
+        const [owner, repo] = task.target_repo.split('/')
+        if (owner && repo) {
+          const branch = `task-${task.id.slice(-6)}/${slugify(task.title)}`
+          prUrl = await this.github.findPrByHead(owner, repo, branch)
+          if (prUrl) {
+            consola.info(
+              `Found PR URL via GitHub API fallback: ${prUrl}`,
+            )
           }
         }
       }

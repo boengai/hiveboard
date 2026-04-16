@@ -239,6 +239,35 @@ export class GitHubClient {
   }
 
   /**
+   * Find an open PR by head branch name.
+   * Returns the PR URL if found, null otherwise.
+   */
+  async findPrByHead(
+    owner: string,
+    repo: string,
+    head: string,
+  ): Promise<string | null> {
+    try {
+      const { data } = await this.octokit.rest.pulls.list({
+        direction: 'desc',
+        head: `${owner}:${head}`,
+        owner,
+        per_page: 1,
+        repo,
+        sort: 'created',
+        state: 'all',
+      })
+      if (data.length > 0 && data[0]) {
+        return data[0].html_url
+      }
+      return null
+    } catch (err) {
+      consola.warn(`Failed to find PR for branch ${head}:`, err)
+      return null
+    }
+  }
+
+  /**
    * Fetch PR review comments for a given PR URL.
    */
   async fetchReviewComments(prUrl: string): Promise<ReviewComment[]> {
