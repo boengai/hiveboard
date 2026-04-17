@@ -66,11 +66,13 @@ Instructions:
 ### Action: plan
 If the action is "plan", do NOT write any code. Instead:
 - Research the codebase using all available methods:
-   a. Search the codebase (grep for relevant patterns, read key files, trace call paths).
-   b. Review git history for related changes (`git log`, `git blame`).
-   c. Check existing documentation, comments, and tests.
-   d. Identify the project's build system, linter, test runner, and verification commands (e.g. check `package.json` scripts, `Makefile`, `Cargo.toml`, CI config, etc.).
-   e. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
+   a. Read project convention and rule files first — look for `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.editorconfig`, and linter/formatter configs at the repo root. These define coding standards, patterns, and constraints that the plan must follow.
+   b. Read the `docs/` directory (if it exists) for architecture decisions, API references, and design rationale that inform how changes should be structured.
+   c. Search the codebase (grep for relevant patterns, read key files, trace call paths).
+   d. Review git history for related changes (`git log`, `git blame`).
+   e. Check existing documentation, comments, and tests.
+   f. Identify the project's build system, linter, test runner, and verification commands (e.g. check `package.json` scripts, `Makefile`, `Cargo.toml`, CI config, etc.).
+   g. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
 - Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
 - The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
 - Output the plan as plain text in your final message — this is how the orchestrator captures it for the task body. Do NOT use the Write tool or any skill to save the plan to a file. Do NOT commit, push, or create a PR.
