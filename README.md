@@ -33,14 +33,16 @@ Inspired by [OpenAI Symphony](https://github.com/openai/symphony) and [Stripe Mi
 
 ```
 hiveboard/
-├── package.json          # root — workspaces: ["packages/*"]
+├── package.json              # root — workspaces: ["packages/*"]
 ├── packages/
-│   ├── api/              # GraphQL Yoga API server + orchestrator + SQLite
-│   └── web/              # React + Vite frontend
+│   ├── api/                  # GraphQL Yoga API server + orchestrator + SQLite
+│   │   └── WORKFLOW.md       # Agent prompt template + runtime config
+│   └── web/                  # React 19 + Vite + TanStack Router frontend
 ├── tmp/
-│   ├── database/         # SQLite database (git-ignored)
-│   └── workspaces/       # Per-task agent workspaces (git-ignored)
-└── WORKFLOW.md           # Agent prompt template + runtime config
+│   ├── database/             # SQLite database (git-ignored)
+│   └── workspaces/           # Per-task agent workspaces (git-ignored)
+└── docs/
+    └── architecture.md       # Architecture decisions and design rationale
 ```
 
 ## Quick Start
@@ -68,17 +70,25 @@ Open [http://localhost:5173](http://localhost:5173) to see the board.
 Copy `.env.example` to `.env` and set your values:
 
 ```bash
-# Option A: Personal access token
-GITHUB_TOKEN=ghp_your_token_here   # needs repo scope
+# ── GitHub Auth (required — choose one) ───────────────
+# Option A: Personal access token (ghp_ or github_pat_ prefix)
+GITHUB_TOKEN=ghp_your_token_here
 
 # Option B: GitHub App (set these INSTEAD of GITHUB_TOKEN)
 # GITHUB_APP_ID=123456
 # GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 # GITHUB_APP_INSTALLATION_ID=12345678
 
-# Optional — defaults shown
+# NOTE: Bare installation tokens (ghs_) are not supported.
+
+# ── GitHub OAuth (required for remote/internet access) ─
+# GITHUB_OAUTH_CLIENT_ID=your_oauth_app_client_id
+# GITHUB_OAUTH_CLIENT_SECRET=your_oauth_app_client_secret
+
+# ── Optional ──────────────────────────────────────────
 # API_PORT=8080
 # WEB_PORT=5173
+# CLAUDE_CODE_VERSION=latest   # Pin Claude Code version in Docker builds
 ```
 
 ## Available Commands
@@ -88,6 +98,8 @@ GITHUB_TOKEN=ghp_your_token_here   # needs repo scope
 | `bun run dev` | Start both API and web in watch mode |
 | `bun run dev:api` | Start API server only |
 | `bun run dev:web` | Start Vite dev server only |
+| `bun run start` | Build and start production server |
+| `bun run build:api` | Build API server for production |
 | `bun run build:web` | Build frontend for production |
 | `bun run tsc` | Type-check all packages |
 | `bun run test` | Run tests |
@@ -112,7 +124,7 @@ Minimal compose snippet to run HiveBoard from the pre-built image (no local buil
 ```yaml
 services:
   hiveboard:
-    image: ghcr.io/boengai/hiveboard:0.3
+    image: ghcr.io/boengai/hiveboard:latest
     ports:
       - "8080:8080"
     env_file: .env
@@ -133,43 +145,73 @@ docker compose logs -f       # follow logs
 docker compose down          # stop
 ```
 
-The compose file mounts `tmp/database` and `tmp/workspaces` as volumes so data persists across container restarts. Set `ANTHROPIC_API_KEY` in `.env` or mount your host Claude config:
-
-```bash
-# add to docker-compose.yml volumes if needed
-- ~/.claude:/home/hiveboard/.claude
-```
+The compose file mounts `tmp/database`, `tmp/workspaces`, and agent Claude config as volumes so data persists across container restarts. You can pin the Claude Code version via `CLAUDE_CODE_VERSION` in `.env`.
 
 ## How Agents Work
 
-1. Create a task on the board and set the target repository
-2. Select an action (`plan`, `implement`, or `revise`) and dispatch the agent
-3. HiveBoard clones the repo into an isolated workspace under `tmp/workspaces/`
-4. Claude CLI (Opus) runs against the task with the prompt from `WORKFLOW.md`
-5. On success: task body is updated (plan) or PR is opened (implement/revise)
-6. On failure: task is retried with exponential backoff
+1. Create a task on the board — set the target repository and branch
+2. Select an action (`PLAN`, `IMPLEMENT`, or `REVISE`) and dispatch via the `runAgent` mutation
+3. The orchestrator polls every 30 seconds for queued tasks (respecting `max_concurrent_agents`)
+4. HiveBoard clones the repo into an isolated workspace under `tmp/workspaces/`
+5. Claude CLI runs against the task with the prompt template from `packages/api/WORKFLOW.md`
+6. Agent output streams in real time via GraphQL subscriptions (SSE) to the board UI
+7. On success: task body is updated (plan) or a PR is opened (implement/revise)
+8. On failure: task is retried with exponential backoff + jitter (max 5 min)
 
-Task state updates stream in real time via GraphQL subscriptions (SSE).
+Each agent run is recorded in the `agent_runs` table, and all state transitions are logged as task events for auditability.
 
 ### Actions
 
 | Action | What it does | Creates PR? |
 |--------|-------------|-------------|
-| `plan` | Researches the codebase and outputs an implementation plan into the task body | No |
-| `implement` | Implements the task, including e2e tests if the project has a test setup | Yes |
-| `revise` | Addresses PR review comments with targeted changes | Yes |
+| `PLAN` | Researches the codebase and outputs an implementation plan into the task body | No |
+| `IMPLEMENT` | Implements the task, including e2e tests if the project has a test setup | Yes |
+| `REVISE` | Addresses PR review comments with targeted changes | Yes (pushes to existing PR) |
+
+### Task State Machine
+
+```
+IDLE → QUEUED → RUNNING → SUCCESS
+                       ↘ FAILED (→ retry with backoff → QUEUED)
+```
+
+### Human Gates
+
+Not everything is automated — certain transitions require a human to act:
+
+| Step | Who acts | What happens |
+|------|----------|-------------|
+| Create task & set target repo | Human | Task starts in `IDLE` on the board |
+| Dispatch agent | Human | Calls `runAgent` mutation with an action — task moves to `QUEUED` |
+| Review the plan | Human | After `PLAN` succeeds, the task body is updated — human reviews before dispatching `IMPLEMENT` |
+| Review the PR | Human | After `IMPLEMENT` succeeds, task moves to the "Review" column — human reviews the PR on GitHub |
+| Dispatch revise | Human | After leaving PR review comments, human dispatches `REVISE` to address them |
+| Merge the PR | Human | HiveBoard does not auto-merge — the human merges on GitHub |
+
+## Authentication
+
+HiveBoard supports two access modes:
+
+- **Local mode** — when accessing via `localhost`, automatically authenticates as the admin user (no login required)
+- **Remote mode** — requires GitHub OAuth; users must be invited by an admin before they can log in
+
+### Invitations
+
+Admins can generate invitation tokens for specific GitHub usernames. Invited users authenticate via GitHub OAuth at `/login` and gain access to the board.
 
 ## WORKFLOW.md
 
-`WORKFLOW.md` contains the agent prompt template and runtime config in YAML front matter. Key fields:
+`packages/api/WORKFLOW.md` contains the agent prompt template and runtime config in YAML front matter. Key fields:
 
 | Field | Default | Description |
 |-------|---------|-------------|
+| `polling.interval_ms` | `30000` | Orchestrator polling interval |
 | `workspace.root` | `./tmp/workspaces` | Directory for per-task workspaces |
 | `workspace.ttl_ms` | `259200000` | Stale workspace TTL (72 hours; 0 = never) |
 | `claude.command` | `claude` | Claude CLI binary name |
 | `claude.model` | `opus` | Claude model to use |
 | `claude.max_turns` | `200` | Max agent turns per run |
+| `claude.permission_mode` | `bypassPermissions` | Claude CLI permission mode |
 | `agent.max_concurrent_agents` | `5` | Concurrency limit |
 | `agent.max_retry_backoff_ms` | `300000` | Max retry backoff (5 min) |
 
