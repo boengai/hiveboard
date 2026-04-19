@@ -27,6 +27,7 @@ WORKDIR /app
 # Dev headers (-dev packages) are omitted to save ~200MB; agents can install
 # them per-workspace if a native addon needs compiling.
 ARG TARGETARCH=amd64
+ARG CLAUDE_CODE_VERSION=latest
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       # Core
@@ -50,7 +51,7 @@ RUN apt-get update && \
     apt-get update && apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/* && \
     # Claude CLI — HiveBoard shells out to `claude` to run agents
-    npm install -g @anthropic-ai/claude-code tsx typescript && \
+    npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} tsx typescript && \
     npm cache clean --force && \
     # cloudflared — webhook tunnel (quick trycloudflare or named tunnels)
     curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH}" \
