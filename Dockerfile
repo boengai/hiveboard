@@ -27,7 +27,6 @@ WORKDIR /app
 # Dev headers (-dev packages) are omitted to save ~200MB; agents can install
 # them per-workspace if a native addon needs compiling.
 ARG TARGETARCH=amd64
-ARG CLAUDE_CODE_VERSION=latest
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       # Core
@@ -50,8 +49,8 @@ RUN apt-get update && \
       > /etc/apt/sources.list.d/github-cli.list && \
     apt-get update && apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/* && \
-    # Claude CLI — HiveBoard shells out to `claude` to run agents
-    npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} tsx typescript && \
+    # tsx/typescript baked in; Claude CLI installed at startup for freshness
+    npm install -g tsx typescript && \
     npm cache clean --force && \
     # cloudflared — webhook tunnel (quick trycloudflare or named tunnels)
     curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH}" \
@@ -64,6 +63,7 @@ RUN groupadd -r hiveboard && useradd -r -g hiveboard -m -s /bin/bash hiveboard
 COPY --from=build-api /app/packages/api/dist ./packages/api/dist
 COPY packages/api/WORKFLOW.md packages/api/
 COPY --from=build-web /app/packages/web/dist ./packages/web/dist
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN mkdir -p tmp/workspaces tmp/database && chown -R hiveboard:hiveboard tmp
 
@@ -73,4 +73,5 @@ EXPOSE 8080
 
 USER hiveboard
 
+ENTRYPOINT ["entrypoint.sh"]
 CMD ["bun", "run", "packages/api/dist/index.js"]
