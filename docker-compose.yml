@@ -1,9 +1,6 @@
 services:
   hiveboard:
-    build:
-      context: .
-      args:
-        - CLAUDE_CODE_VERSION=${CLAUDE_CODE_VERSION:-latest}
+    build: .
     ports:
       - "${API_PORT:-8080}:8080"
     env_file: .env
