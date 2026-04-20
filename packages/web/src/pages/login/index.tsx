@@ -1,32 +1,59 @@
+import { useState } from 'react'
 import { GitHubIcon } from '@/components/common/icon'
 import { useAuthStore } from '@/store/authStore'
 
 const GITHUB_OAUTH_SCOPES = 'read:user user:email'
 
-const getGitHubOAuthUrl = (
-  clientId: string,
-  invitationToken?: string,
-): string => {
+const buildOAuthUrl = (clientId: string, state: string): string => {
   const redirectUri = `${window.location.origin}/auth/callback`
-  const state = invitationToken ?? ''
   return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(GITHUB_OAUTH_SCOPES)}&state=${encodeURIComponent(state)}`
 }
 
-const LoginButton = () => {
+const LoginButton = ({ invitationToken }: { invitationToken?: string }) => {
   const { oauthClientId } = useAuthStore()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!oauthClientId) {
     return null
   }
 
+  const start = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const qs = invitationToken
+        ? `?invitation=${encodeURIComponent(invitationToken)}`
+        : ''
+      const res = await fetch(`/api/auth/github/start${qs}`, {
+        credentials: 'include',
+      })
+      const data = (await res.json()) as { state?: string; error?: string }
+      if (!res.ok || !data.state) {
+        setError(data.error ?? 'Failed to start OAuth flow')
+        setBusy(false)
+        return
+      }
+      window.location.href = buildOAuthUrl(oauthClientId, data.state)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start OAuth')
+      setBusy(false)
+    }
+  }
+
   return (
-    <a
-      className="flex items-center gap-2 rounded-lg bg-gray-800 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700"
-      href={getGitHubOAuthUrl(oauthClientId)}
-    >
-      <GitHubIcon />
-      Sign in with GitHub
-    </a>
+    <>
+      <button
+        className="flex items-center gap-2 rounded-lg bg-gray-800 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60"
+        disabled={busy}
+        onClick={start}
+        type="button"
+      >
+        <GitHubIcon />
+        {busy ? 'Redirecting...' : 'Sign in with GitHub'}
+      </button>
+      {error && <p className="text-body-sm text-text-danger">{error}</p>}
+    </>
   )
 }
 
@@ -65,16 +92,14 @@ export function LoginPage() {
             HiveBoard
           </span>
           <p className="text-body-sm text-text-secondary">
-            {invitationToken ? (
-              'Accept your invitation to get started'
-            ) : (
-              <LoginButton />
-            )}
+            {invitationToken
+              ? 'Accept your invitation to get started'
+              : 'Sign in to continue'}
           </p>
         </div>
 
         {oauthClientId ? (
-          <LoginButton />
+          <LoginButton invitationToken={invitationToken} />
         ) : (
           <p className="text-body-sm text-text-danger">
             GitHub OAuth is not configured. Contact the administrator.

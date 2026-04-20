@@ -11,7 +11,14 @@ import {
 } from 'graphql'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { getAuthContext, handleInvitationOAuth, handleLoginOAuth } from './auth'
+import { setPeerIP } from './auth/peer-ip'
 import { cleanExpiredSessions } from './auth/session'
+import {
+  buildOAuthStateCookie,
+  clearOAuthStateCookieHeader,
+  generateOAuthState,
+  readOAuthStateCookie,
+} from './auth/oauth-state'
 import { loadWorkflow } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
@@ -27,6 +34,24 @@ const isProduction = process.env.NODE_ENV === 'production'
 const staticDir = isProduction
   ? path.join(process.cwd(), 'packages/web/dist')
   : null
+
+const webPort = Number(process.env.WEB_PORT ?? 5173)
+const apiPort = Number(process.env.API_PORT ?? 8080)
+const allowedOrigins = (() => {
+  const env = process.env.CORS_ALLOWED_ORIGINS
+  if (env) {
+    return env
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+  }
+  if (isProduction) {
+    throw new Error(
+      'CORS_ALLOWED_ORIGINS must be set in production (comma-separated list of allowed origins).',
+    )
+  }
+  return [`http://localhost:${webPort}`, `http://localhost:${apiPort}`]
+})()
 
 // Run migrations on startup
 migrate(db)
@@ -152,30 +177,19 @@ const yoga = createYoga({
   context({ request }: { request: Request }) {
     return { ...getAuthContext(request), request }
   },
-  // CORS: credentials requires a specific origin, not '*'.
-  // Dynamically reflect the request's Origin header so credentialed
-  // requests receive a valid Access-Control-Allow-Origin value.
-  // To restrict access, set CORS_ALLOWED_ORIGINS as a comma-separated
-  // list of allowed origins (e.g. "https://app.example.com,http://localhost:3000").
+  // CORS: credentials require a specific origin, never a reflected one.
+  // Allowed origins come from CORS_ALLOWED_ORIGINS (comma-separated).
+  // If unset:
+  //   - in production, startup fails fast below
+  //   - in development, we fall back to a strict localhost-only default
+  // so a malicious site cannot get credentialed responses by setting Origin.
   cors(req) {
-    const allowedEnv = process.env.CORS_ALLOWED_ORIGINS
-    const allowedOrigins = allowedEnv
-      ? allowedEnv.split(',').map((o) => o.trim())
-      : null
     const requestOrigin = req.headers.get('origin')
-
-    if (allowedOrigins) {
-      // Whitelist mode: only reflect origins that are explicitly allowed
-      const origin =
-        requestOrigin && allowedOrigins.includes(requestOrigin)
-          ? requestOrigin
-          : allowedOrigins[0]
-      return { credentials: true, origin }
-    }
-
-    // Development / open mode: reflect the request origin so credentials work,
-    // or fall back to '*' for non-credentialed requests without an Origin header.
-    return { credentials: true, origin: requestOrigin ?? '*' }
+    const origin =
+      requestOrigin && allowedOrigins.includes(requestOrigin)
+        ? requestOrigin
+        : allowedOrigins[0]
+    return { credentials: true, origin }
   },
   graphiql: isProduction ? false : { defaultQuery, title: 'HiveBoard GraphQL' },
   graphqlEndpoint: '/graphql',
@@ -224,26 +238,58 @@ const yoga = createYoga({
   schema: createSchema({ resolvers, typeDefs }),
 })
 
-const port = Number(process.env.API_PORT ?? 8080)
+async function handleOAuthStart(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const invitationToken = url.searchParams.get('invitation') ?? undefined
+  const { state, cookieValue } = await generateOAuthState(invitationToken)
+  return Response.json(
+    { state },
+    { headers: { 'Set-Cookie': buildOAuthStateCookie(cookieValue) } },
+  )
+}
 
 async function handleOAuthCallback(req: Request): Promise<Response> {
   try {
     const body = (await req.json()) as {
       code?: string
-      invitationToken?: string
+      state?: string
     }
     if (!body.code) {
       return Response.json({ error: 'Missing code parameter' }, { status: 400 })
     }
+    if (!body.state) {
+      return Response.json(
+        { error: 'Missing state parameter' },
+        { status: 400 },
+      )
+    }
 
-    const result = body.invitationToken
-      ? await handleInvitationOAuth(body.code, body.invitationToken)
+    const cookieHeader = req.headers.get('cookie')
+    const storedState = await readOAuthStateCookie(cookieHeader)
+    if (!storedState || storedState.state !== body.state) {
+      return Response.json(
+        { error: 'Invalid or expired OAuth state' },
+        { status: 400 },
+      )
+    }
+
+    const invitationToken = storedState.invitationToken
+    const result = invitationToken
+      ? await handleInvitationOAuth(body.code, invitationToken)
       : await handleLoginOAuth(body.code)
 
-    return Response.json(result)
+    return Response.json(result, {
+      headers: { 'Set-Cookie': clearOAuthStateCookieHeader() },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'OAuth callback failed'
-    return Response.json({ error: message }, { status: 400 })
+    return Response.json(
+      { error: message },
+      {
+        headers: { 'Set-Cookie': clearOAuthStateCookieHeader() },
+        status: 400,
+      },
+    )
   }
 }
 
@@ -251,7 +297,11 @@ async function handleOAuthCallback(req: Request): Promise<Response> {
 startCleanupInterval()
 
 Bun.serve({
-  async fetch(req) {
+  async fetch(req, server) {
+    const peer = server.requestIP(req)
+    if (peer?.address) {
+      setPeerIP(req, peer.address)
+    }
     const url = new URL(req.url)
     if (url.pathname === '/health') {
       return Response.json({ ok: true, uptime: process.uptime() })
@@ -261,6 +311,9 @@ Bun.serve({
     }
     if (url.pathname.startsWith('/api/images/') && req.method === 'GET') {
       return handleImageServe(url.pathname)
+    }
+    if (url.pathname === '/api/auth/github/start' && req.method === 'GET') {
+      return handleOAuthStart(req)
     }
     if (url.pathname === '/api/auth/github/callback' && req.method === 'POST') {
       return handleOAuthCallback(req)
@@ -340,10 +393,10 @@ Bun.serve({
   // the client to enter an endless reconnect loop.  255 s is the maximum value
   // Bun allows; the graphql-sse client will reconnect if the connection drops.
   idleTimeout: 255,
-  port,
+  port: apiPort,
 })
 
-console.log(`API server running on http://localhost:${port}/graphql`)
+console.log(`API server running on http://localhost:${apiPort}/graphql`)
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

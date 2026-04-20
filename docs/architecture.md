@@ -309,24 +309,96 @@ while task `position` is `REAL` to support fractional inserts.
 
 ## 6. Auth Model
 
-**MVP: single-user, no authentication.**
+HiveBoard has two access modes. Which one applies is decided per-request by
+`getAuthContext` (`packages/api/src/auth/context.ts`).
 
-A seed user called **`queen-bee`** (role: `admin`) is created automatically
-during database migration. Every GraphQL mutation resolves the current user by
-looking up `queen-bee`:
+### 6.1 Local mode (auto-admin)
 
-```
-const user = db.query("SELECT * FROM users WHERE username = ?")
-              .get('queen-bee')
-```
+When the API is reached from localhost or a Docker-internal network, the caller
+is auto-authenticated as the seed user **`queen-bee`** (role `super-admin`).
+This is what makes `bun run dev` Just Work — no login flow for the single-user
+case.
 
-There is no login, no session, no token verification. The `users` table exists
-to support a future multi-user model, but for now every action is attributed to
-the queen-bee user.
+Trust is decided **exclusively from the socket peer address** returned by
+`server.requestIP(request)` in the top-level `Bun.serve` fetch handler. That IP
+is propagated into auth via a `WeakMap` in `packages/api/src/auth/peer-ip.ts`.
+Client-supplied headers (`X-Forwarded-For`, `X-Real-IP`, `Host`) are **never**
+consulted — trusting them would let any remote attacker spoof localhost and
+take over the queen-bee account.
 
-> **Security note:** HiveBoard is designed for trusted local environments only.
-> Do not expose the API server to the public internet without adding
-> authentication.
+Networks considered local:
+
+- `127.0.0.0/8`, `::1`, `::ffff:127.0.0.1`
+- `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` (Docker-internal)
+
+If you put HiveBoard behind a reverse proxy that terminates TLS and forwards to
+HiveBoard over loopback, the proxy's peer IP *is* localhost — auto-admin will
+trigger. Don't expose the API behind such a proxy unless you also gate access
+at the proxy.
+
+### 6.2 Remote mode (GitHub OAuth + invitations)
+
+When the peer is not local, callers must authenticate.
+
+- **Invitations.** A super-admin (e.g. queen-bee via local mode) issues a
+  one-time invitation bound to a specific `github_username`
+  (`generateInvitation` mutation). The token expires after 7 days.
+- **OAuth sign-in.** The browser hits `GET /api/auth/github/start`, which
+  returns a random `state` nonce and sets an HMAC-signed, HttpOnly,
+  `SameSite=Lax` cookie holding `{ state, invitationToken, issuedAt }`. The
+  browser then redirects to GitHub with that `state`.
+- **Callback.** GitHub redirects to `/auth/callback?code=…&state=…`; the web
+  client POSTs `{ code, state }` (with `credentials: 'include'`) to
+  `/api/auth/github/callback`. The server verifies the cookie signature,
+  timing-safe-compares the `state`, exchanges the code, and — for invitations —
+  checks that the GitHub login matches the invited username before creating
+  the user and a session.
+- **Sessions.** 32-byte random tokens (`packages/api/src/auth/session.ts`),
+  24-hour TTL, sent by the client as `Authorization: Bearer <token>` on every
+  GraphQL request. Revoking a user deletes their sessions (`revokeUser` calls
+  `revokeSessionsForUser`).
+
+`SESSION_SECRET` must be set whenever OAuth is enabled — it signs the OAuth
+state cookie. `CORS_ALLOWED_ORIGINS` must be set in production or the API
+refuses to start; it is an explicit allowlist (no origin reflection).
+
+### 6.3 Authorization (ownership)
+
+Beyond authentication, every board-scoped operation checks ownership. The
+helpers live at the top of `packages/api/src/schema/resolvers.ts`:
+
+| Helper | Used by |
+|--------|---------|
+| `requireBoardAccess(boardId, user)` | `createTag`, `createTask`, queries `board` / `tags`, subscription `taskUpdated` |
+| `requireTaskAccess(taskId, user)` | `updateTask`, `archiveTask`, `unarchiveTask`, `moveTask`, `runAgent`, `cancelAgent`, `setTaskTags`, `addComment`, queries `task` / `comments` / `taskTimeline` / `agentRuns`, subscriptions `agentLogStream` / `commentAdded` / `commentUpdated` / `taskEventAdded` |
+| `requireCommentAccess(commentId, user)` | `updateComment`, `deleteComment` |
+| `requireTagAccess(tagId, user)` | `deleteTag` |
+
+The ownership field is `boards.created_by`. Super-admins bypass every check
+(keeps the single-user queen-bee workflow intact); non-super-admin users can
+only read or mutate resources on boards they own. Missing and
+unauthorized-but-exists cases both raise the same `NOT_FOUND` error so callers
+can't probe for IDs they don't own. `moveTask` additionally verifies the
+target column belongs to the same board; `setTaskTags` verifies every tag
+belongs to the task's board.
+
+### 6.4 Threat-model limits
+
+HiveBoard still spawns `claude` with `--permission-mode bypassPermissions` and
+passes the orchestrator's GitHub token into hook scripts. Any authenticated
+user who *owns* a board can therefore cause the server to run agents on any
+repo their `targetRepo` field points at, using the server's own credentials.
+Invite only people you'd let `ssh` into the box.
+
+Additional notes:
+
+- Boards are created only by super-admins (`createBoard` uses
+  `requireSuperAdmin`). There is no `board_members` table yet — multi-user
+  collaboration on a single shared board is not supported; each invited user
+  effectively gets their own workspace unless promoted to super-admin.
+- Production deployments must set `SESSION_SECRET` and `CORS_ALLOWED_ORIGINS`.
+  Do not put the API behind a reverse proxy that terminates on loopback
+  without additional access controls (see §6.1).
 
 ---
 

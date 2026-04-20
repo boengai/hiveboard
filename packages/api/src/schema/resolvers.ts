@@ -16,7 +16,11 @@ import { getOrchestrator } from '../orchestrator'
 import { pubsub } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
-import { HexColorSchema } from './validation'
+import {
+  HexColorSchema,
+  validateTargetBranch,
+  validateTargetRepo,
+} from './validation'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
@@ -274,6 +278,87 @@ function getTaskById(id: string) {
   return mapTask(row)
 }
 
+/**
+ * Authorization helpers.
+ *
+ * HiveBoard's ownership model: a board belongs to the user in `boards.created_by`.
+ * Super-admins (role = 'super-admin') have god access — this keeps the local
+ * queen-bee working as intended.
+ *
+ * Every board-scoped read or mutation must go through one of these helpers so a
+ * caller cannot act on another user's board by guessing IDs. Missing rows throw
+ * a NOT_FOUND error indistinguishable from the "board exists but you don't own
+ * it" case, so an attacker cannot learn which IDs exist via timing/error shape.
+ */
+
+function notFound(kind: string, id: string): GraphQLError {
+  return new GraphQLError(`${kind} ${id} not found`, {
+    extensions: { code: 'NOT_FOUND' },
+  })
+}
+
+function requireBoardAccess(
+  boardId: string,
+  user: { id: string; role: string },
+): void {
+  const row = db
+    .query('SELECT created_by FROM boards WHERE id = ?')
+    .get(boardId) as { created_by: string } | null
+  if (!row) throw notFound('Board', boardId)
+  if (user.role === 'super-admin') return
+  if (row.created_by !== user.id) throw notFound('Board', boardId)
+}
+
+function requireTaskAccess(
+  taskId: string,
+  user: { id: string; role: string },
+): { boardId: string } {
+  const row = db
+    .query(
+      'SELECT t.board_id as board_id, b.created_by as owner FROM tasks t INNER JOIN boards b ON b.id = t.board_id WHERE t.id = ?',
+    )
+    .get(taskId) as { board_id: string; owner: string } | null
+  if (!row) throw notFound('Task', taskId)
+  if (user.role !== 'super-admin' && row.owner !== user.id) {
+    throw notFound('Task', taskId)
+  }
+  return { boardId: row.board_id }
+}
+
+function requireCommentAccess(
+  commentId: string,
+  user: { id: string; role: string },
+): { taskId: string; authorId: string } {
+  const row = db
+    .query(
+      'SELECT c.task_id as task_id, c.created_by as author, b.created_by as owner FROM task_comments c INNER JOIN tasks t ON t.id = c.task_id INNER JOIN boards b ON b.id = t.board_id WHERE c.id = ?',
+    )
+    .get(commentId) as
+    | { task_id: string; author: string; owner: string }
+    | null
+  if (!row) throw notFound('Comment', commentId)
+  if (user.role !== 'super-admin' && row.owner !== user.id) {
+    throw notFound('Comment', commentId)
+  }
+  return { authorId: row.author, taskId: row.task_id }
+}
+
+function requireTagAccess(
+  tagId: string,
+  user: { id: string; role: string },
+): { boardId: string } {
+  const row = db
+    .query(
+      'SELECT t.board_id as board_id, b.created_by as owner FROM tags t INNER JOIN boards b ON b.id = t.board_id WHERE t.id = ?',
+    )
+    .get(tagId) as { board_id: string; owner: string } | null
+  if (!row) throw notFound('Tag', tagId)
+  if (user.role !== 'super-admin' && row.owner !== user.id) {
+    throw notFound('Tag', tagId)
+  }
+  return { boardId: row.board_id }
+}
+
 function publishTaskUpdated(task: ReturnType<typeof mapTask>) {
   const boardRow = db
     .query('SELECT board_id FROM tasks WHERE id = ?')
@@ -344,6 +429,7 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       const user = { id: authUser.id }
 
       if (parentId) {
@@ -414,6 +500,7 @@ export const resolvers = {
 
     archiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(id, authUser)
       const user = { id: authUser.id }
 
       db.transaction(() => {
@@ -463,6 +550,7 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       const user = { id: authUser.id }
 
       // Abort the running agent process if any
@@ -551,7 +639,8 @@ export const resolvers = {
       },
       ctx: ResolverContext,
     ) {
-      requireAuth(ctx)
+      const authUser = requireAuth(ctx)
+      requireBoardAccess(input.boardId, authUser)
       const color = input.color ?? '#aaaaaa' // default to a light gray
 
       try {
@@ -595,6 +684,9 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      requireBoardAccess(input.boardId, authUser)
+      validateTargetRepo(input.targetRepo)
+      validateTargetBranch(input.targetBranch)
       const user = { id: authUser.id }
 
       // Resolve columnId — default to first column of board if not provided
@@ -737,6 +829,7 @@ export const resolvers = {
 
     deleteComment(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
+      requireCommentAccess(id, authUser)
       const user = { id: authUser.id }
 
       // Fetch comment before deletion for task_id
@@ -790,20 +883,9 @@ export const resolvers = {
       { id, boardId }: { id: string; boardId: string },
       ctx: ResolverContext,
     ) {
-      requireAuth(ctx)
-      const existing = db
-        .query('SELECT * FROM tags WHERE id = ?')
-        .get(id) as TagRow | null
-      if (!existing) {
-        throw new GraphQLError(`Tag ${id} not found`, {
-          extensions: { code: 'NOT_FOUND' },
-        })
-      }
-      if (existing.board_id !== boardId) {
-        throw new GraphQLError(`Tag ${id} not found`, {
-          extensions: { code: 'NOT_FOUND' },
-        })
-      }
+      const authUser = requireAuth(ctx)
+      const { boardId: tagBoardId } = requireTagAccess(id, authUser)
+      if (tagBoardId !== boardId) throw notFound('Tag', id)
 
       db.run('DELETE FROM tags WHERE id = ?', [id])
       return true
@@ -859,6 +941,14 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      const { boardId } = requireTaskAccess(id, authUser)
+      // Target column must belong to the same board to prevent cross-board moves
+      const targetColumn = db
+        .query('SELECT board_id FROM columns WHERE id = ?')
+        .get(columnId) as { board_id: string } | null
+      if (!targetColumn || targetColumn.board_id !== boardId) {
+        throw notFound('Column', columnId)
+      }
       const user = { id: authUser.id }
 
       // Look up the old column name before the update
@@ -993,6 +1083,7 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       const user = { id: authUser.id }
 
       const existing = db
@@ -1074,11 +1165,27 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      const { boardId } = requireTaskAccess(taskId, authUser)
       const user = { id: authUser.id }
       const existing = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(taskId) as TaskRow | null
       if (!existing) throw new Error(`Task ${taskId} not found`)
+
+      // Every tag must belong to the task's board — prevent cross-board tagging
+      if (tagIds.length > 0) {
+        const placeholders = tagIds.map(() => '?').join(',')
+        const rows = db
+          .query(
+            `SELECT id FROM tags WHERE board_id = ? AND id IN (${placeholders})`,
+          )
+          .all(boardId, ...tagIds) as Array<{ id: string }>
+        if (rows.length !== tagIds.length) {
+          throw new GraphQLError('One or more tags do not exist on this board', {
+            extensions: { code: 'NOT_FOUND' },
+          })
+        }
+      }
 
       const eventId = generateId()
 
@@ -1129,6 +1236,7 @@ export const resolvers = {
 
     unarchiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(id, authUser)
       const user = { id: authUser.id }
 
       db.transaction(() => {
@@ -1177,7 +1285,12 @@ export const resolvers = {
       { id, body }: { id: string; body: string },
       ctx: ResolverContext,
     ) {
-      requireAuth(ctx)
+      const authUser = requireAuth(ctx)
+      const { authorId } = requireCommentAccess(id, authUser)
+      // Only the author or a super-admin may edit an existing comment
+      if (authUser.role !== 'super-admin' && authorId !== authUser.id) {
+        throw notFound('Comment', id)
+      }
       db.run(
         `UPDATE task_comments SET body = ?, updated_at = datetime('now') WHERE id = ?`,
         [body, id],
@@ -1215,6 +1328,9 @@ export const resolvers = {
       ctx: ResolverContext,
     ) {
       const authUser = requireAuth(ctx)
+      requireTaskAccess(id, authUser)
+      validateTargetRepo(input.targetRepo)
+      validateTargetBranch(input.targetBranch)
       const user = { id: authUser.id }
       const existing = db
         .query('SELECT * FROM tasks WHERE id = ?')
@@ -1355,7 +1471,13 @@ export const resolvers = {
     },
   },
   Query: {
-    agentRuns(_: unknown, { taskId }: { taskId: string }) {
+    agentRuns(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       const rows = db
         .query(
           'SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC',
@@ -1380,21 +1502,39 @@ export const resolvers = {
       }
     },
 
-    board(_: unknown, { id }: { id: string }) {
+    board(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
       const row = db
         .query('SELECT * FROM boards WHERE id = ?')
         .get(id) as BoardRow | null
       if (!row) return null
+      if (authUser.role !== 'super-admin' && row.created_by !== authUser.id) {
+        return null
+      }
       return mapBoard(row)
     },
-    boards() {
-      const rows = db
-        .query('SELECT * FROM boards ORDER BY created_at ASC')
-        .all() as BoardRow[]
+    boards(_: unknown, __: unknown, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      const rows =
+        authUser.role === 'super-admin'
+          ? (db
+              .query('SELECT * FROM boards ORDER BY created_at ASC')
+              .all() as BoardRow[])
+          : (db
+              .query(
+                'SELECT * FROM boards WHERE created_by = ? ORDER BY created_at ASC',
+              )
+              .all(authUser.id) as BoardRow[])
       return rows.map(mapBoard)
     },
 
-    comments(_: unknown, { taskId }: { taskId: string }) {
+    comments(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       return getTopLevelCommentsForTask(taskId)
     },
 
@@ -1425,15 +1565,25 @@ export const resolvers = {
       }
     },
 
-    tags(_: unknown, { boardId }: { boardId: string }) {
+    tags(_: unknown, { boardId }: { boardId: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      requireBoardAccess(boardId, authUser)
       return getTagsForBoard(boardId)
     },
 
-    task(_: unknown, { id }: { id: string }) {
+    task(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(id, authUser)
       return getTaskById(id)
     },
 
-    taskTimeline(_: unknown, { taskId }: { taskId: string }) {
+    taskTimeline(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
       const rows = db
         .query(
           'SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at ASC',
@@ -1467,7 +1617,13 @@ export const resolvers = {
       resolve(payload: Record<string, unknown>) {
         return payload
       },
-      subscribe(_: unknown, { taskId }: { taskId: string }) {
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('AGENT_LOG', taskId)
       },
     },
@@ -1476,7 +1632,13 @@ export const resolvers = {
       resolve(payload: Record<string, unknown>) {
         return payload
       },
-      subscribe(_: unknown, { taskId }: { taskId: string }) {
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('COMMENT_ADDED', taskId)
       },
     },
@@ -1485,7 +1647,13 @@ export const resolvers = {
       resolve(payload: Record<string, unknown>) {
         return payload
       },
-      subscribe(_: unknown, { taskId }: { taskId: string }) {
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('COMMENT_UPDATED', taskId)
       },
     },
@@ -1494,7 +1662,13 @@ export const resolvers = {
       resolve(payload: Record<string, unknown>) {
         return payload
       },
-      subscribe(_: unknown, { taskId }: { taskId: string }) {
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('TASK_EVENT', taskId)
       },
     },
@@ -1502,7 +1676,13 @@ export const resolvers = {
       resolve(payload: Record<string, unknown>) {
         return payload
       },
-      subscribe(_: unknown, { boardId }: { boardId: string }) {
+      subscribe(
+        _: unknown,
+        { boardId }: { boardId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireBoardAccess(boardId, authUser)
         return pubsub.subscribe('TASK_UPDATED', boardId)
       },
     },

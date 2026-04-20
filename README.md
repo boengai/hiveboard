@@ -84,6 +84,13 @@ GITHUB_TOKEN=ghp_your_token_here
 # ── GitHub OAuth (required for remote/internet access) ─
 # GITHUB_OAUTH_CLIENT_ID=your_oauth_app_client_id
 # GITHUB_OAUTH_CLIENT_SECRET=your_oauth_app_client_secret
+# SESSION_SECRET=replace-with-32-random-bytes   # required when OAuth is enabled
+
+# ── CORS (required in production) ─────────────────────
+# Comma-separated list of allowed origins for credentialed requests.
+# Dev default: http://localhost:$WEB_PORT + http://localhost:$API_PORT.
+# In production (NODE_ENV=production) the API refuses to start unless set.
+# CORS_ALLOWED_ORIGINS=https://hiveboard.example.com
 
 # ── Optional ──────────────────────────────────────────
 # API_PORT=8080

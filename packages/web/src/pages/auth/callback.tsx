@@ -12,14 +12,14 @@ export function AuthCallbackPage() {
       setError('No authorization code received from GitHub')
       return
     }
-
-    const body: Record<string, string> = { code }
-    if (state) {
-      body.invitationToken = state
+    if (!state) {
+      setError('Missing OAuth state — please restart the sign-in flow')
+      return
     }
 
     fetch('/api/auth/github/callback', {
-      body: JSON.stringify(body),
+      body: JSON.stringify({ code, state }),
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })

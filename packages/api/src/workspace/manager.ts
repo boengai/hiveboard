@@ -219,8 +219,8 @@ export class WorkspaceManager {
       task: {
         action: task.action ?? '',
         id: task.id,
-        repo_name: repoName ?? '',
-        repo_owner: repoOwner ?? '',
+        repo_name: shellEscape(repoName ?? ''),
+        repo_owner: shellEscape(repoOwner ?? ''),
         short_id: task.id.slice(-6),
         slug: shellEscape(slugify(task.title)),
         title: shellEscape(task.title),
