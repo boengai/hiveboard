@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowIcon, Button } from '@/components'
+import { ArrowIcon, Button, TextInput } from '@/components'
 import { graphqlClient } from '@/graphql/client'
 import { GENERATE_INVITATION, REVOKE_USER } from '@/graphql/mutations'
 import { GET_INVITATIONS, GET_USERS } from '@/graphql/queries'
@@ -125,16 +125,17 @@ export function UsersPage() {
           Generate Invitation
         </h2>
         <div className="flex gap-2">
-          <input
-            className="flex-1 rounded-lg border border-border-default bg-surface-page px-3 py-2 text-body-sm focus:border-honey-400 focus:outline-none"
-            onChange={(e) => setNewGithubUsername(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleGenerateInvitation()
-            }}
-            placeholder="GitHub username"
-            type="text"
-            value={newGithubUsername}
-          />
+          <div className="flex-1">
+            <TextInput
+              onChange={setNewGithubUsername}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleGenerateInvitation()
+              }}
+              placeholder="GitHub username"
+              type="text"
+              value={newGithubUsername}
+            />
+          </div>
           <Button onClick={handleGenerateInvitation}>Generate</Button>
         </div>
         {inviteLink && (
@@ -145,13 +146,15 @@ export function UsersPage() {
             <code className="block break-all text-body-xs text-text-primary">
               {inviteLink}
             </code>
-            <button
-              className="text-body-xs text-honey-600 hover:underline"
+            <Button
+              color="primary"
               onClick={() => navigator.clipboard.writeText(inviteLink)}
+              size="small"
               type="button"
+              variant="link"
             >
               Copy to clipboard
-            </button>
+            </Button>
           </div>
         )}
       </section>
@@ -209,13 +212,15 @@ export function UsersPage() {
                   </td>
                   <td className="px-4 py-2 text-right">
                     {u.username !== 'queen-bee' && !u.revokedAt && (
-                      <button
-                        className="text-body-xs text-red-500 hover:underline"
+                      <Button
+                        color="danger"
                         onClick={() => handleRevokeUser(u.id)}
+                        size="small"
                         type="button"
+                        variant="link"
                       >
                         Revoke
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>

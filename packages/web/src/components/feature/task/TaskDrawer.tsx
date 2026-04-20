@@ -316,20 +316,20 @@ const ViewMode = ({
           <div className="flex shrink-0 items-center gap-1 pt-0.5">
             {task.column?.name !== 'Done' && (
               <Button
-                color="ghost"
                 onClick={onEdit}
                 size="small"
                 title="Edit task"
+                variant="ghost"
               >
                 <PencilIcon size={16} />
               </Button>
             )}
             <Button
-              color="ghost"
               disabled={loading}
               onClick={onArchive}
               size="small"
               title={task.archived ? 'Unarchive task' : 'Archive task'}
+              variant="ghost"
             >
               {task.archived ? (
                 <RefreshIcon size={16} />
@@ -692,11 +692,11 @@ const EditMode = ({
           )}
         </form.Subscribe>
         <Button
-          color="ghost"
           disabled={loading}
           onClick={onCancel}
           size="large"
           type="button"
+          variant="ghost"
         >
           Cancel
         </Button>
@@ -999,14 +999,15 @@ export const TaskDrawer = () => {
         <span className="flex items-center gap-2">
           {drawerTitle}
           {task?.id && (
-            <button
-              className="shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
+            <Button
               onClick={handleCopyTaskId}
+              size="icon"
               title={copied ? 'Copied!' : 'Copy task ID'}
               type="button"
+              variant="ghost"
             >
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-            </button>
+            </Button>
           )}
         </span>
       }

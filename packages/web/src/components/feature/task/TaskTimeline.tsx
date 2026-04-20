@@ -11,6 +11,7 @@ import {
   Avatar,
   Badge,
   BoltIcon,
+  Button,
   CheckIcon,
   ChevronDownIcon,
   DotIcon,
@@ -255,7 +256,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
 
   return (
     <div>
-      {/* Summary row */}
+      {/* Summary row — full-width interactive row containing Badge/Avatar; not Button-shaped */}
       <button
         className="flex w-full items-center gap-2.5 py-1.5 text-left transition-colors hover:bg-surface-overlay/40"
         onClick={() => setExpanded((v) => !v)}
@@ -428,13 +429,16 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
     <div className="flex flex-col divide-y divide-border-default/50">
       {/* "Show earlier / Show less" toggle */}
       {grouped.length > VISIBLE_TAIL && (
-        <button
-          className="flex w-full items-center justify-center gap-1.5 py-1.5 text-body-xs text-text-tertiary transition-colors hover:text-honey-400"
+        <Button
+          block
+          color="primary"
           onClick={() => setShowAll((v) => !v)}
+          size="small"
           type="button"
+          variant="link-muted"
         >
           <span
-            className="transition-transform duration-150"
+            className="mr-1.5 transition-transform duration-150"
             style={{ transform: showAll ? 'rotate(180deg)' : undefined }}
           >
             <ChevronDownIcon size={10} />
@@ -444,7 +448,7 @@ export function TaskTimeline({ taskId }: TaskTimelineProps) {
               ? 'Show less'
               : `Show ${hiddenCount} earlier ${hiddenCount === 1 ? 'event' : 'events'}`}
           </span>
-        </button>
+        </Button>
       )}
 
       {/* Visible rows */}

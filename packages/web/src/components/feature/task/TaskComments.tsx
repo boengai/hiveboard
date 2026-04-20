@@ -105,19 +105,19 @@ function CommentBlock({
         {!editing && (
           <div className="flex items-center gap-1">
             <Button
-              color="ghost"
               onClick={() => setShowReplyInput(!showReplyInput)}
               size="small"
+              variant="ghost"
             >
               Reply
             </Button>
             <Button
-              color="ghost"
               onClick={() => {
                 setEditBody(comment.body)
                 setEditing(true)
               }}
               size="small"
+              variant="ghost"
             >
               Edit
             </Button>
@@ -152,12 +152,12 @@ function CommentBlock({
                 {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button
-                color="ghost"
                 onClick={() => {
                   setEditing(false)
                   setEditBody(comment.body)
                 }}
                 size="small"
+                variant="ghost"
               >
                 Cancel
               </Button>
@@ -202,12 +202,12 @@ function CommentBlock({
               {replySubmitting ? 'Replying…' : 'Reply'}
             </Button>
             <Button
-              color="ghost"
               onClick={() => {
                 setShowReplyInput(false)
                 setReplyBody('')
               }}
               size="small"
+              variant="ghost"
             >
               Cancel
             </Button>
@@ -253,14 +253,18 @@ function ReplyBlock({
         <span className="text-body-xs text-text-tertiary">
           {timeAgo(reply.createdAt)}
         </span>
-        <button
-          className="ml-auto text-body-xs text-text-tertiary opacity-0 transition-opacity hover:text-error-400 group-hover/reply:opacity-100"
-          disabled={deleting}
-          onClick={handleDelete}
-          type="button"
-        >
-          {deleting ? '…' : 'Delete'}
-        </button>
+        <div className="ml-auto opacity-0 transition-opacity group-hover/reply:opacity-100">
+          <Button
+            color="danger"
+            disabled={deleting}
+            onClick={handleDelete}
+            size="small"
+            type="button"
+            variant="link-muted"
+          >
+            {deleting ? '…' : 'Delete'}
+          </Button>
+        </div>
       </div>
       <div className="pl-7 text-body-sm text-text-secondary">
         <MarkdownPreview content={reply.body} />

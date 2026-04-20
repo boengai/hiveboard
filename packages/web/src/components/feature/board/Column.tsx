@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { PlusIcon } from '@/components/common'
+import { Button, PlusIcon } from '@/components/common'
 import { useBoardStore } from '@/store'
 import type { ColumnProps } from '@/types'
 import { TaskCard } from './TaskCard'
@@ -30,14 +30,15 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
             {activeTasks.length}
           </span>
         </div>
-        <button
+        <Button
           aria-label={`Add task to ${column.name}`}
-          className="flex h-6 w-6 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
           onClick={() => openDrawerCreate(column.id)}
+          size="icon"
           type="button"
+          variant="ghost"
         >
           <PlusIcon size={14} />
-        </button>
+        </Button>
       </div>
 
       {/* Task list drop zone */}
@@ -72,6 +73,7 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
         {showArchived && archivedTasks.length > 0 && (
           <div className="mt-1 flex flex-col gap-2">
             {archivedTasks.map((task) => (
+              // Card-shaped interactive region, not a Button variant — kept as native <button> for a11y.
               <button
                 className="w-full cursor-pointer rounded-md border border-border-default bg-surface-raised p-3 text-left opacity-50 hover:opacity-70"
                 key={task.id}

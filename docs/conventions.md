@@ -154,6 +154,23 @@ modifier handle styling:
 Common components (`Button`, `Badge`, etc.) **do not accept `className` or
 `style` overrides**. All visual variants must go through `tv()` props.
 
+### Prefer wrappers over raw primitives
+
+Prefer the wrappers in `components/common/` (`Button`, `TextInput`,
+`SelectInput`, `TextAreaInput`, `ComboboxInput`) over raw `<button>`,
+`<input>`, `<select>`, or `<textarea>`. This keeps design tokens and
+interaction states centralized.
+
+If an existing wrapper doesn't fit a use case, **add a new variant** to the
+wrapper rather than one-off styling at the call site. Extending the variant
+matrix keeps new designs discoverable and prevents drift away from the design
+system.
+
+Raw primitives are reasonable when they fall outside the design system entirely
+— for example, hidden file inputs, or card-shaped interactive regions that
+contain their own sub-elements (`Badge` / `Avatar`) and aren't button-shaped.
+Add a short comment at these sites so the exception is visible.
+
 ---
 
 ## 5. Commit Messages

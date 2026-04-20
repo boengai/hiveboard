@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '@/components/common/button'
 import { GitHubIcon } from '@/components/common/icon'
 import { useAuthStore } from '@/store/authStore'
 
@@ -43,15 +44,17 @@ const LoginButton = ({ invitationToken }: { invitationToken?: string }) => {
 
   return (
     <>
-      <button
-        className="flex items-center gap-2 rounded-lg bg-gray-800 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-60"
+      <Button
         disabled={busy}
         onClick={start}
+        size="large"
         type="button"
       >
         <GitHubIcon />
-        {busy ? 'Redirecting...' : 'Sign in with GitHub'}
-      </button>
+        <span className="ml-2">
+          {busy ? 'Redirecting...' : 'Sign in with GitHub'}
+        </span>
+      </Button>
       {error && <p className="text-body-sm text-text-danger">{error}</p>}
     </>
   )

@@ -5,7 +5,8 @@ export type ButtonProps = Omit<
   'className' | 'style'
 > &
   RefAttributes<HTMLButtonElement> & {
-    size?: 'small' | 'default' | 'large'
-    color?: 'default' | 'primary' | 'danger' | 'ghost'
+    size?: 'small' | 'default' | 'large' | 'icon'
+    color?: 'default' | 'primary' | 'danger'
+    variant?: 'solid' | 'ghost' | 'link' | 'link-muted'
     block?: boolean
   }

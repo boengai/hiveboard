@@ -1,6 +1,7 @@
 import * as Tabs from '@radix-ui/react-tabs'
 import type { ReactNode } from 'react'
 import { useCallback, useRef, useState } from 'react'
+import { Button } from '@/components/common/button'
 import { ImageIcon, SpinnerIcon } from '@/components/common/icon'
 import type { MarkdownEditorProps } from '@/types'
 import { MarkdownPreview } from './MarkdownPreview'
@@ -151,15 +152,16 @@ export const MarkdownEditor = ({
                 <SpinnerIcon size={14} />
               </span>
             )}
-            <button
-              className="rounded p-1 text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary"
+            <Button
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
+              size="icon"
               title="Upload image"
               type="button"
+              variant="ghost"
             >
               <ImageIcon size={16} />
-            </button>
+            </Button>
             <input
               accept="image/png,image/jpeg,image/gif,image/webp"
               className="hidden"

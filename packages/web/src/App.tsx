@@ -2,6 +2,7 @@ import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import {
   AuthProvider,
   Avatar,
+  Button,
   ConnectionIndicator,
   RightFromBracketIcon,
   UsersIcon,
@@ -21,22 +22,24 @@ function HeaderUserMenu() {
     <div className="flex items-center gap-3">
       <ConnectionIndicator />
       {user.role === 'super-admin' && (
-        <button
-          className="rounded px-2 py-1 text-text-secondary hover:bg-surface-hover"
+        <Button
           onClick={() => router.navigate({ to: '/users' })}
+          size="icon"
           type="button"
+          variant="ghost"
         >
           <UsersIcon />
-        </button>
+        </Button>
       )}
       {!isLocal && (
-        <button
-          className="rounded px-2 py-1 text-text-secondary hover:bg-surface-hover"
+        <Button
           onClick={logout}
+          size="icon"
           type="button"
+          variant="ghost"
         >
           <RightFromBracketIcon />
-        </button>
+        </Button>
       )}
       <Avatar name={user.username} />
     </div>
