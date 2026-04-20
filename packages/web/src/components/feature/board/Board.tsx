@@ -34,6 +34,7 @@ export function Board() {
   const [dropIndicator, setDropIndicator] = useState<{
     columnId: string
     taskId: string | null
+    atEnd: boolean
   } | null>(null)
 
   const sensors = useSensors(
@@ -101,17 +102,27 @@ export function Board() {
 
     const overId = String(over.id)
 
-    // Check if hovering over a column
+    // Hovering the end-of-column droppable (below the last active task)
+    const endSuffix = ':end'
+    if (overId.endsWith(endSuffix)) {
+      const columnId = overId.slice(0, -endSuffix.length)
+      if (board.columns.some((c) => c.id === columnId)) {
+        setDropIndicator({ atEnd: true, columnId, taskId: null })
+        return
+      }
+    }
+
+    // Hovering the column itself (header / empty area above first task)
     const isColumn = board.columns.some((c) => c.id === overId)
     if (isColumn) {
-      setDropIndicator({ columnId: overId, taskId: null })
+      setDropIndicator({ atEnd: false, columnId: overId, taskId: null })
       return
     }
 
     // Hovering over a task — find its column
     for (const col of board.columns) {
       if (col.tasks.some((t) => t.id === overId)) {
-        setDropIndicator({ columnId: col.id, taskId: overId })
+        setDropIndicator({ atEnd: false, columnId: col.id, taskId: overId })
         return
       }
     }
@@ -153,6 +164,10 @@ export function Board() {
 
     if (visibleTasks.length === 0) {
       position = 0
+    } else if (indicator.atEnd) {
+      // Indicator was below the last active task
+      const lastTask = visibleTasks[visibleTasks.length - 1]
+      position = (lastTask?.position ?? 0) + 1024
     } else if (indicator.taskId === null) {
       // Indicator was at top of column (hovering column header)
       const firstTask = visibleTasks[0]
@@ -250,8 +265,11 @@ export function Board() {
           {sortedColumns.map((col) => (
             <Column
               column={col}
+              dropTargetAtEnd={
+                dropIndicator?.columnId === col.id && dropIndicator.atEnd
+              }
               dropTargetTaskId={
-                dropIndicator?.columnId === col.id
+                dropIndicator?.columnId === col.id && !dropIndicator.atEnd
                   ? dropIndicator.taskId
                   : undefined
               }

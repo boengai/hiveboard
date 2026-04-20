@@ -5,12 +5,17 @@ import { useBoardStore } from '@/store'
 import type { ColumnProps } from '@/types'
 import { TaskCard } from './TaskCard'
 
-export function Column({ column, dropTargetTaskId }: ColumnProps) {
+export function Column({
+  column,
+  dropTargetTaskId,
+  dropTargetAtEnd,
+}: ColumnProps) {
   const openDrawerCreate = useBoardStore((s) => s.openDrawerCreate)
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
   const showArchived = useBoardStore((s) => s.showArchived)
 
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
+  const { setNodeRef: setEndRef } = useDroppable({ id: `${column.id}:end` })
 
   const activeTasks = column.tasks.filter((t) => !t.archived)
   const archivedTasks = column.tasks.filter((t) => t.archived)
@@ -48,7 +53,7 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
         ref={setNodeRef}
         style={{ minHeight: '4rem' }}
       >
-        {dropTargetTaskId === null && (
+        {dropTargetTaskId === null && !dropTargetAtEnd && (
           <div className="mx-1 mb-1 h-0.5 rounded-full bg-honey-400" />
         )}
 
@@ -68,6 +73,14 @@ export function Column({ column, dropTargetTaskId }: ColumnProps) {
             ))
           )}
         </SortableContext>
+
+        {activeTasks.length > 0 && (
+          <div className="min-h-4 flex-1" ref={setEndRef}>
+            {dropTargetAtEnd && (
+              <div className="mx-1 mt-1 h-0.5 rounded-full bg-honey-400" />
+            )}
+          </div>
+        )}
 
         {/* Archived tasks — shown at bottom when showArchived is ON, not draggable */}
         {showArchived && archivedTasks.length > 0 && (

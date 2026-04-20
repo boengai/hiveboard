@@ -2,8 +2,10 @@ import type { Column as ColumnType, Task } from '@/types/models'
 
 export type ColumnProps = {
   column: ColumnType
-  /** The task id where the drop indicator should appear above, or null for end-of-column */
+  /** Task id to show the drop indicator above; null = top of column; undefined = no indicator here */
   dropTargetTaskId?: string | null
+  /** True when the indicator should appear at the end of the active-task list */
+  dropTargetAtEnd?: boolean
 }
 
 export type TaskCardProps = {
