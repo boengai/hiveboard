@@ -15,11 +15,19 @@ import { getPeerIP } from './peer-ip'
  * - Docker compose network (typically 192.168.0.0/16, 10.0.0.0/8)
  */
 
-const LOCAL_IPS = new Set([
-  '127.0.0.1',
-  '::1',
-  '::ffff:127.0.0.1',
-])
+const LOCAL_IPS = new Set(['127.0.0.1', '::1'])
+
+/**
+ * Strip the IPv4-mapped IPv6 prefix (`::ffff:`) so `::ffff:172.17.0.1` and
+ * `172.17.0.1` compare the same. Bun's socket peer address is often returned
+ * in the mapped form when the container listens on a dual-stack socket — the
+ * Docker-port-mapping case where the connection lands on the bridge gateway.
+ */
+function normalizeIp(ip: string): string {
+  const lower = ip.toLowerCase()
+  if (lower.startsWith('::ffff:')) return lower.slice(7)
+  return lower
+}
 
 function isDockerNetwork(ip: string): boolean {
   // 172.16.0.0 - 172.31.255.255 (172.16.0.0/12)
@@ -35,8 +43,8 @@ function isDockerNetwork(ip: string): boolean {
 }
 
 function isLocalOrDockerHost(ip: string): boolean {
-  const lower = ip.toLowerCase()
-  return LOCAL_IPS.has(lower) || isDockerNetwork(lower)
+  const normalized = normalizeIp(ip)
+  return LOCAL_IPS.has(normalized) || isDockerNetwork(normalized)
 }
 
 export function isLocalRequest(request: Request): boolean {
