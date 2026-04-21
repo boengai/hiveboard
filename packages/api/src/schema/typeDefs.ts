@@ -34,6 +34,8 @@ export const typeDefs = /* GraphQL */ `
     sendRedirect(taskId: ID!, body: String!): TaskMessage!
     answerQuestion(taskId: ID!, body: String!): TaskMessage!
 
+    setTaskVerifyCommands(taskId: ID!, commands: [VerifyCommandInput!]): Task!
+
     generateInvitation(githubUsername: String!): Invitation!
     revokeUser(userId: ID!): User!
   }
@@ -46,6 +48,7 @@ export const typeDefs = /* GraphQL */ `
     commentUpdated(taskId: ID!): Comment!
     taskEventAdded(taskId: ID!): TaskEvent!
     messageAdded(taskId: ID!): TaskMessage!
+    verificationRunAdded(taskId: ID!): VerificationRun!
   }
 
   type User {
@@ -112,6 +115,9 @@ export const typeDefs = /* GraphQL */ `
     comments: [Comment!]!
     messages: [TaskMessage!]!
     currentQuestion: TaskMessage
+    verificationRuns: [VerificationRun!]!
+    verifyAttemptCount: Int!
+    verifyCommandsOverride: [VerifyCommand!]
     createdAt: String!
     updatedAt: String!
   }
@@ -199,6 +205,30 @@ export const typeDefs = /* GraphQL */ `
     taskId: ID!
     content: String!
     updatedAt: String!
+  }
+
+  type VerificationRun {
+    id: ID!
+    taskId: ID!
+    agentRunId: ID
+    command: String!
+    label: String!
+    exitCode: Int!
+    output: String!
+    startedAt: String!
+    finishedAt: String!
+  }
+
+  type VerifyCommand {
+    label: String!
+    run: String!
+    timeoutMs: Int
+  }
+
+  input VerifyCommandInput {
+    label: String!
+    run: String!
+    timeoutMs: Int
   }
 
   input CreateTaskInput {

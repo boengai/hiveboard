@@ -20,6 +20,13 @@ export type RunAgentMessage = {
   created_at: string
 }
 
+export type VerificationFailureForPrompt = {
+  label: string
+  command: string
+  exit_code: number
+  output: string
+}
+
 export type PromptContext = {
   task: {
     id: string
@@ -38,6 +45,8 @@ export type PromptContext = {
   scratchpad?: string
   messages?: RunAgentMessage[]
   has_messages?: boolean
+  auto_revise_from_verification?: boolean
+  verification_failures?: VerificationFailureForPrompt[]
 }
 
 /** Render a Mustache template with task context. */
@@ -48,11 +57,14 @@ export function renderPrompt(
   reviewComments?: string,
   scratchpad?: string,
   messages?: RunAgentMessage[],
+  verification?: { verification_failures: VerificationFailureForPrompt[] },
 ): string {
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
   const context: PromptContext = {
     attempt,
+    auto_revise_from_verification:
+      (verification?.verification_failures?.length ?? 0) > 0,
     has_messages: (messages?.length ?? 0) > 0,
     has_review_comments: !!reviewComments,
     messages: messages ?? [],
@@ -69,6 +81,7 @@ export function renderPrompt(
       target_branch: task.targetBranch ?? 'main',
       title: task.title,
     },
+    verification_failures: verification?.verification_failures ?? [],
   }
 
   return Mustache.render(template, context)

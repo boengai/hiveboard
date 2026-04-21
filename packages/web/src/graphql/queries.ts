@@ -30,6 +30,7 @@ export const GET_BOARDS = /* GraphQL */ `
           agentStatus
           retryCount
           prUrl
+          verifyAttemptCount
           archived
           archivedAt
           createdAt
@@ -87,6 +88,7 @@ export const GET_BOARD = /* GraphQL */ `
           agentStatus
           retryCount
           prUrl
+          verifyAttemptCount
           archived
           archivedAt
           createdAt
@@ -196,6 +198,23 @@ export const GET_TASK = /* GraphQL */ `
         id
         body
         createdAt
+      }
+      verificationRuns {
+        id
+        taskId
+        agentRunId
+        command
+        label
+        exitCode
+        output
+        startedAt
+        finishedAt
+      }
+      verifyAttemptCount
+      verifyCommandsOverride {
+        label
+        run
+        timeoutMs
       }
     }
   }

@@ -8,6 +8,7 @@ export const pubsub = createPubSub<{
   TASK_EVENT: [taskId: string, payload: Record<string, unknown>]
   SCRATCHPAD_UPDATED: [taskId: string, payload: Record<string, unknown>]
   TASK_MESSAGE: [taskId: string, payload: Record<string, unknown>]
+  VERIFICATION_RUN: [taskId: string, payload: Record<string, unknown>]
 }>()
 
 export function publishTaskUpdated(boardId: string, task: unknown) {
@@ -46,4 +47,25 @@ export function publishScratchpadUpdated(
 
 export function publishMessageAdded(taskId: string, message: unknown) {
   pubsub.publish('TASK_MESSAGE', taskId, message as Record<string, unknown>)
+}
+
+export function publishVerificationRun(
+  taskId: string,
+  run: {
+    id: string
+    taskId: string
+    agentRunId: string | null
+    command: string
+    label: string
+    exitCode: number
+    output: string
+    startedAt: string
+    finishedAt: string
+  },
+): void {
+  pubsub.publish(
+    'VERIFICATION_RUN',
+    taskId,
+    run as unknown as Record<string, unknown>,
+  )
 }

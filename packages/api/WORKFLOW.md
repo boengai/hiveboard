@@ -28,6 +28,19 @@ agent:
   max_concurrent_agents: 5
   max_retry_backoff_ms: 300000
   state_root: ./tmp/agent-state
+verify:
+  enabled: true
+  max_auto_revises: 1
+  commands:
+    - label: lint
+      run: bun run lint
+      timeout_ms: 120000
+    - label: tsc
+      run: bun run tsc
+      timeout_ms: 180000
+    - label: test
+      run: bun run test
+      timeout_ms: 300000
 worker:
   ssh_hosts: []
 ---
@@ -174,6 +187,32 @@ If the action is "implement":
    c. Create a pull request using `gh pr create` targeting the {{ task.target_branch }} branch.
 
 ### Action: revise
+{{#auto_revise_from_verification}}
+## Verification failed — that is why you are running now
+
+The following verification commands were run on your previous commit and
+at least one failed. Your ONLY job in this run is to make them pass. Do
+not add features, refactor unrelated code, or change behavior beyond what
+is required to get these commands to exit 0.
+
+{{#verification_failures}}
+### {{ label }} — exit {{ exit_code }}
+
+Command: `{{ command }}`
+
+Output (last 200 lines):
+
+```
+{{ output }}
+```
+
+{{/verification_failures}}
+
+After fixing: stage, commit, push to the same branch. HiveBoard will re-run
+verification automatically. Do NOT attempt to open a new PR — the existing
+one is still in progress.
+{{/auto_revise_from_verification}}
+{{^auto_revise_from_verification}}
 If the action is "revise":
 {{#has_review_comments}}
 - Focus exclusively on addressing the review comments listed above.
@@ -193,5 +232,6 @@ If the action is "revise":
       `gh api graphql -f query='{ repository(owner:"{{ task.repo_owner }}", name:"{{ task.repo_name }}") { pullRequest(number:PR_NUMBER) { reviewThreads(first:100) { nodes { id isResolved } } } } }'`
       Then resolve each unresolved thread:
       `gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"THREAD_ID"}) { thread { id } } }'`
+{{/auto_revise_from_verification}}
 
 Work only in the provided repository copy. Do not touch any other path.

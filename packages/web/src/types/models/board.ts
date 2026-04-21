@@ -56,4 +56,21 @@ export type Task = {
   column?: { id: string; name: string }
   messages?: TaskMessageSummary[]
   currentQuestion?: { id: string; body: string; createdAt: string } | null
+  verificationRuns?: Array<{
+    id: string
+    taskId: string
+    agentRunId: string | null
+    command: string
+    label: string
+    exitCode: number
+    output: string
+    startedAt: string
+    finishedAt: string
+  }>
+  verifyAttemptCount?: number
+  verifyCommandsOverride?: Array<{
+    label: string
+    run: string
+    timeoutMs: number | null
+  }> | null
 }

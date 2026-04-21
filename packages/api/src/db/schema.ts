@@ -63,9 +63,12 @@ export function createTables(db: Database): void {
       queue_after    TEXT,
       agent_output   TEXT,
       agent_error    TEXT,
-      retry_count    INTEGER NOT NULL DEFAULT 0,
-      pr_url         TEXT,
-      archived       INTEGER NOT NULL DEFAULT 0,
+      retry_count                       INTEGER NOT NULL DEFAULT 0,
+      pr_url                            TEXT,
+      verify_attempt_count              INTEGER NOT NULL DEFAULT 0,
+      verify_commands                   TEXT,
+      pending_auto_revise_source_run_id TEXT,
+      archived                          INTEGER NOT NULL DEFAULT 0,
       archived_at    TEXT,
       created_by     TEXT NOT NULL REFERENCES users(id),
       updated_by     TEXT NOT NULL REFERENCES users(id),
@@ -114,6 +117,18 @@ export function createTables(db: Database): void {
       finished_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS verification_runs (
+      id            TEXT PRIMARY KEY,
+      task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      agent_run_id  TEXT REFERENCES agent_runs(id),
+      command       TEXT NOT NULL,
+      label         TEXT NOT NULL,
+      exit_code     INTEGER NOT NULL,
+      output        TEXT NOT NULL,
+      started_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      finished_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS tags (
       id         TEXT PRIMARY KEY,
       board_id   TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
@@ -137,6 +152,8 @@ export function createTables(db: Database): void {
       ON task_messages(task_id, delivered_at) WHERE delivered_at IS NULL;
     CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
+    CREATE INDEX IF NOT EXISTS idx_verification_runs_task
+      ON verification_runs(task_id, started_at);
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
@@ -147,4 +164,29 @@ export function createTables(db: Database): void {
     -- Migrate legacy 'idle' action values to NULL
     UPDATE tasks SET action = NULL WHERE action = 'idle';
   `)
+
+  // Idempotent migrations for pre-existing databases.
+  // SQLite's ALTER TABLE ADD COLUMN does not support IF NOT EXISTS, so we
+  // inspect the table first and only add columns that are missing.
+  addColumnIfMissing(
+    db,
+    'tasks',
+    'verify_attempt_count',
+    'INTEGER NOT NULL DEFAULT 0',
+  )
+  addColumnIfMissing(db, 'tasks', 'verify_commands', 'TEXT')
+  addColumnIfMissing(db, 'tasks', 'pending_auto_revise_source_run_id', 'TEXT')
+}
+
+function addColumnIfMissing(
+  db: Database,
+  table: string,
+  column: string,
+  columnDef: string,
+): void {
+  const cols = db.query(`PRAGMA table_info('${table}')`).all() as Array<{
+    name: string
+  }>
+  if (cols.some((c) => c.name === column)) return
+  db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${columnDef}`)
 }

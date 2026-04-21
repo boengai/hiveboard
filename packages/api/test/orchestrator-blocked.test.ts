@@ -60,6 +60,7 @@ mock.module('../src/pubsub', () => ({
   publishScratchpadUpdated: () => {},
   publishTaskEvent: () => {},
   publishTaskUpdated: () => {},
+  publishVerificationRun: () => {},
   pubsub: { publish: () => {} },
 }))
 
@@ -95,6 +96,7 @@ function makeConfig() {
     },
     hooks: { timeout_ms: 5_000 },
     polling: { interval_ms: 60_000 },
+    verify: { commands: [], enabled: false, max_auto_revises: 1 },
     workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
   }
 }

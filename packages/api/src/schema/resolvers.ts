@@ -12,6 +12,7 @@ import {
 } from '../auth'
 import { isLocalRequest } from '../auth/local'
 import { getConfig } from '../config'
+import { VerifyCommandSchema } from '../config/schema'
 import { db, generateId } from '../db'
 import {
   getCurrentQuestion,
@@ -19,6 +20,7 @@ import {
   listMessagesForTask,
   type TaskMessageRow,
 } from '../db/task-messages'
+import { listVerificationRunsForTask } from '../db/verification-runs'
 import { getOrchestrator } from '../orchestrator'
 import {
   publishMessageAdded,
@@ -597,6 +599,8 @@ export const resolvers = {
       db.run(
         `UPDATE tasks SET agent_status = 'queued',
            queue_after = datetime('now', '+30 seconds'),
+           verify_attempt_count = 0,
+           pending_auto_revise_source_run_id = NULL,
            updated_at = datetime('now')
          WHERE id = ?`,
         [taskId],
@@ -1226,6 +1230,8 @@ export const resolvers = {
         'action = ?',
         "agent_status = 'queued'",
         "queue_after = datetime('now', '+15 seconds')",
+        'verify_attempt_count = 0',
+        'pending_auto_revise_source_run_id = NULL',
         'updated_by = ?',
         "updated_at = datetime('now')",
       ]
@@ -1435,6 +1441,54 @@ export const resolvers = {
       }
 
       return task
+    },
+
+    async setTaskVerifyCommands(
+      _: unknown,
+      {
+        taskId,
+        commands,
+      }: {
+        taskId: string
+        commands: Array<{
+          label: string
+          run: string
+          timeoutMs?: number | null
+        }> | null
+      },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+
+      if (commands === null) {
+        db.run(
+          `UPDATE tasks SET verify_commands = NULL, updated_at = datetime('now') WHERE id = ?`,
+          [taskId],
+        )
+      } else {
+        // Validate against the same Zod schema the YAML config uses so both
+        // paths reject empty labels/runs, non-positive timeouts, etc.
+        const parsed = z
+          .array(VerifyCommandSchema)
+          .parse(
+            commands.map((c) => ({
+              label: c.label,
+              run: c.run,
+              timeout_ms: c.timeoutMs ?? undefined,
+            })),
+          )
+        const serialized = JSON.stringify(parsed)
+        db.run(
+          `UPDATE tasks SET verify_commands = ?, updated_at = datetime('now') WHERE id = ?`,
+          [serialized, taskId],
+        )
+      }
+
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow
+      return mapTask(row)
     },
 
     unarchiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
@@ -1935,6 +1989,21 @@ export const resolvers = {
         return pubsub.subscribe('TASK_UPDATED', boardId)
       },
     },
+
+    verificationRunAdded: {
+      resolve(payload: unknown) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+        return pubsub.subscribe('VERIFICATION_RUN', taskId)
+      },
+    },
   },
 
   Task: {
@@ -1968,6 +2037,46 @@ export const resolvers = {
     },
     updatedBy(task: ReturnType<typeof mapTask>) {
       return getUserById(task._updatedBy)
+    },
+    verificationRuns(parent: { id: string }) {
+      return listVerificationRunsForTask(db, parent.id).map((r) => ({
+        agentRunId: r.agentRunId,
+        command: r.command,
+        exitCode: r.exitCode,
+        finishedAt: r.finishedAt,
+        id: r.id,
+        label: r.label,
+        output: r.output,
+        startedAt: r.startedAt,
+        taskId: r.taskId,
+      }))
+    },
+    verifyAttemptCount(parent: { id: string }): number {
+      const row = db
+        .query('SELECT verify_attempt_count FROM tasks WHERE id = ?')
+        .get(parent.id) as { verify_attempt_count: number } | null
+      return row?.verify_attempt_count ?? 0
+    },
+    verifyCommandsOverride(parent: { id: string }) {
+      const row = db
+        .query('SELECT verify_commands FROM tasks WHERE id = ?')
+        .get(parent.id) as { verify_commands: string | null } | null
+      if (!row?.verify_commands) return null
+      try {
+        const parsed = JSON.parse(row.verify_commands) as Array<{
+          label: string
+          run: string
+          timeoutMs?: number
+          timeout_ms?: number
+        }>
+        return parsed.map((c) => ({
+          label: c.label,
+          run: c.run,
+          timeoutMs: c.timeoutMs ?? c.timeout_ms ?? null,
+        }))
+      } catch {
+        return null
+      }
     },
   },
 

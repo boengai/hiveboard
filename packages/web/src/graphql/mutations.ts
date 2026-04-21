@@ -260,6 +260,19 @@ export const SEND_REDIRECT = /* GraphQL */ `
   }
 `
 
+export const SET_TASK_VERIFY_COMMANDS_MUTATION = /* GraphQL */ `
+  mutation SetTaskVerifyCommands($taskId: ID!, $commands: [VerifyCommandInput!]) {
+    setTaskVerifyCommands(taskId: $taskId, commands: $commands) {
+      id
+      verifyCommandsOverride {
+        label
+        run
+        timeoutMs
+      }
+    }
+  }
+`
+
 export const ANSWER_QUESTION = /* GraphQL */ `
   mutation AnswerQuestion($taskId: ID!, $body: String!) {
     answerQuestion(taskId: $taskId, body: $body) {

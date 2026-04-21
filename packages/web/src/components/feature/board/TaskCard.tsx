@@ -66,10 +66,36 @@ const actionBadge = tv({
   },
 })
 
-function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
+function AgentStatusDot({
+  status,
+  verifyAttemptCount,
+}: {
+  status: Task['agentStatus']
+  verifyAttemptCount: number
+}) {
   if (status === 'IDLE') {
     return (
       <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-600" />
+    )
+  }
+  if (status === 'QUEUED' && verifyAttemptCount > 0) {
+    return (
+      <span
+        className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-400/20 font-bold text-warning-400 text-xs"
+        title={`Retrying verification (attempt ${verifyAttemptCount})`}
+      >
+        ↻
+      </span>
+    )
+  }
+  if (status === 'FAILED' && verifyAttemptCount > 0) {
+    return (
+      <span
+        className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-error-400/20 font-bold text-error-400 text-xs"
+        title="Verification failed; human action needed"
+      >
+        !
+      </span>
     )
   }
   if (status === 'QUEUED') {
@@ -147,7 +173,10 @@ export function TaskCard({ task, column }: TaskCardProps) {
         <div className={badgeClass}>
           {/* Agent status — hidden when idle */}
           {task.agentStatus !== 'IDLE' && (
-            <AgentStatusDot status={task.agentStatus} />
+            <AgentStatusDot
+              status={task.agentStatus}
+              verifyAttemptCount={task.verifyAttemptCount ?? 0}
+            />
           )}
           {/* Action badge */}
           {task.action && (

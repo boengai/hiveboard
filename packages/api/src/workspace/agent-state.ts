@@ -167,6 +167,31 @@ export async function readQuestion(
 }
 
 /**
+ * Append an entry to the task's scratchpad.md (created if missing).
+ * Used by the orchestrator to record verification summaries.
+ * Silently no-ops on invalid id; errors logged but not thrown.
+ */
+export async function appendScratchpadEntry(
+  config: Config,
+  taskId: string,
+  entry: string,
+): Promise<void> {
+  try {
+    assertValidTaskId(taskId)
+  } catch {
+    return
+  }
+  try {
+    const dir = agentStateDir(config, taskId)
+    await mkdir(dir, { recursive: true })
+    const trailing = entry.endsWith('\n') ? '' : '\n'
+    await appendFile(scratchpadPath(config, taskId), `\n${entry}${trailing}`)
+  } catch (err) {
+    consola.warn(`appendScratchpadEntry ${taskId}: ${(err as Error).message}`)
+  }
+}
+
+/**
  * Append a line to the task's inbox file. Creates the directory if needed.
  * Silently returns on invalid id. Errors logged, not thrown.
  */

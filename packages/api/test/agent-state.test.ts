@@ -233,3 +233,52 @@ describe('appendToInbox', () => {
     await appendToInbox(testConfig, '../evil', 'x')
   })
 })
+
+describe('appendScratchpadEntry', () => {
+  let tempRoot: string
+  let cfg: ReturnType<typeof ConfigSchema.parse>
+
+  beforeEach(() => {
+    tempRoot = mkdtempSync(join(tmpdir(), 'hb-sp-append-'))
+    cfg = ConfigSchema.parse({ agent: { state_root: tempRoot } })
+  })
+
+  afterEach(() => rmSync(tempRoot, { force: true, recursive: true }))
+
+  it('appends to an existing file without overwriting', async () => {
+    const { appendScratchpadEntry } = await import(
+      '../src/workspace/agent-state'
+    )
+    const dir = join(tempRoot, VALID_ULID)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'scratchpad.md'), '# existing\n')
+
+    await appendScratchpadEntry(cfg, VALID_ULID, '## new entry')
+    const content = readFileSync(join(dir, 'scratchpad.md'), 'utf8')
+    expect(content).toContain('# existing')
+    expect(content).toContain('## new entry')
+    expect(content.indexOf('# existing')).toBeLessThan(
+      content.indexOf('## new entry'),
+    )
+  })
+
+  it('creates the file and directory if missing', async () => {
+    const { appendScratchpadEntry } = await import(
+      '../src/workspace/agent-state'
+    )
+    await appendScratchpadEntry(cfg, VALID_ULID, 'first')
+    const content = readFileSync(
+      join(tempRoot, VALID_ULID, 'scratchpad.md'),
+      'utf8',
+    )
+    expect(content).toContain('first')
+  })
+
+  it('silently no-ops on invalid task id', async () => {
+    const { appendScratchpadEntry } = await import(
+      '../src/workspace/agent-state'
+    )
+    await appendScratchpadEntry(cfg, '../evil', 'x')
+    // no throw; nothing created
+  })
+})

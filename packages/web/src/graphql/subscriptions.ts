@@ -165,6 +165,7 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       agentStatus
       retryCount
       prUrl
+      verifyAttemptCount
       archived
       archivedAt
       createdAt
@@ -254,6 +255,22 @@ export const SCRATCHPAD_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       taskId
       content
       updatedAt
+    }
+  }
+`
+
+export const VERIFICATION_RUN_ADDED_SUBSCRIPTION = /* GraphQL */ `
+  subscription VerificationRunAdded($taskId: ID!) {
+    verificationRunAdded(taskId: $taskId) {
+      id
+      taskId
+      agentRunId
+      command
+      label
+      exitCode
+      output
+      startedAt
+      finishedAt
     }
   }
 `

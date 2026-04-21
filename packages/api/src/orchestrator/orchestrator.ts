@@ -1,6 +1,12 @@
 import { unlink } from 'node:fs/promises'
 import { consola } from 'consola'
 import { runAgent } from '../agent/runner'
+import { listFailingRunsForAgentRun } from '../db/verification-runs'
+import { escapeMustacheSyntax } from './mustache-escape'
+import { formatVerificationFailureForAgent, verifyAndGate } from './verify'
+
+export { escapeMustacheSyntax } from './mustache-escape'
+
 import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
 import {
@@ -107,22 +113,6 @@ function findColumnName(columnId: string): string | null {
     .query('SELECT name FROM columns WHERE id = ?')
     .get(columnId) as { name: string } | null
   return row?.name ?? null
-}
-
-/**
- * Escape Mustache/template delimiters in untrusted text so that user-provided
- * content (e.g. PR review comments from GitHub) is never interpreted as
- * Mustache tags or JS template-literal expressions when embedded in a prompt.
- *
- * - `{{` → `{ {`  (break the opening Mustache delimiter)
- * - `}}` → `} }`  (break the closing Mustache delimiter)
- * - `${` → `$ {`  (break JS template-literal expressions)
- */
-export function escapeMustacheSyntax(text: string): string {
-  return text
-    .replace(/\{(?=\{)/g, '{ ')
-    .replace(/\}(?=\})/g, '} ')
-    .replace(/\$(?=\{)/g, '$ ')
 }
 
 /**
@@ -499,6 +489,49 @@ export class Orchestrator {
     runState: RunState,
   ): Promise<void> {
     try {
+      // Detect auto-revise-from-verification mode: the task carries a pointer to
+      // the agent_run whose verification failed. We load the failing runs, format
+      // them for the prompt, then CLEAR the pointer so a subsequent human-driven
+      // revise on the same task doesn't re-render the verification block.
+      let verificationFailures: Array<{
+        label: string
+        command: string
+        exit_code: number
+        output: string
+      }> = []
+
+      const pendingRow = db
+        .query(
+          'SELECT pending_auto_revise_source_run_id FROM tasks WHERE id = ?',
+        )
+        .get(task.id) as {
+        pending_auto_revise_source_run_id: string | null
+      } | null
+
+      if (pendingRow?.pending_auto_revise_source_run_id) {
+        const sourceRunId = pendingRow.pending_auto_revise_source_run_id
+        const failing = listFailingRunsForAgentRun(db, sourceRunId)
+        if (failing.length > 0) {
+          const fmt = formatVerificationFailureForAgent(
+            failing.map((f) => ({
+              command: f.command,
+              exit_code: f.exitCode,
+              finished_at: f.finishedAt,
+              label: f.label,
+              output: f.output,
+              started_at: f.startedAt,
+            })),
+          )
+          verificationFailures = fmt.verification_failures
+        }
+        // Clear the pointer regardless — whether or not we found failing runs,
+        // this spawn is the attempt triggered by it.
+        db.run(
+          `UPDATE tasks SET pending_auto_revise_source_run_id = NULL, updated_at = datetime('now') WHERE id = ?`,
+          [task.id],
+        )
+      }
+
       // For revise action, fetch PR review comments to include in the agent prompt
       let reviewComments: string | undefined
       if (task.action === 'revise' && task.pr_url) {
@@ -602,6 +635,7 @@ export class Orchestrator {
           title: task.title,
         },
         tokenDir: this.github.getTokenDir(),
+        verificationFailures,
         workspacePath: runState.workspacePath,
       })
 
@@ -736,6 +770,25 @@ export class Orchestrator {
 
     if (result.success) {
       consola.info(`Task ${task.id} completed successfully`)
+
+      // --- Gate on verification for implement/revise ---
+      if (task.action === 'implement' || task.action === 'revise') {
+        const workspacePath = this.running.get(task.id)?.workspacePath
+        if (workspacePath && this.config.verify.enabled) {
+          const verdict = await verifyAndGate({
+            agentRunId: runId,
+            config: this.config,
+            db,
+            taskId: task.id,
+            workspacePath,
+          })
+          if (verdict === 'fail') {
+            await this.dispatchVerificationFailure(task, runId)
+            return
+          }
+        }
+      }
+      // --- end verify gate ---
 
       // Parse PR URL from output if applicable
       let prUrl: string | null = null
@@ -974,6 +1027,130 @@ export class Orchestrator {
   }
 
   // -------------------------------------------------------------------------
+  // Verification failure dispatch
+  // -------------------------------------------------------------------------
+
+  private async dispatchVerificationFailure(
+    task: TaskRow,
+    sourceAgentRunId: string,
+  ): Promise<void> {
+    const current = db
+      .query('SELECT verify_attempt_count FROM tasks WHERE id = ?')
+      .get(task.id) as { verify_attempt_count: number } | null
+    const nextAttempt = (current?.verify_attempt_count ?? 0) + 1
+    const cap = this.config.verify.max_auto_revises
+
+    if (nextAttempt > cap) {
+      // Exhausted — surface as FAILED
+      const reason = `verification failed after ${nextAttempt - 1} attempt(s)`
+      db.transaction(() => {
+        db.run(
+          `UPDATE tasks SET
+             agent_status='failed',
+             agent_error=?,
+             action=NULL,
+             verify_attempt_count=?,
+             pending_auto_revise_source_run_id=NULL,
+             updated_at=datetime('now')
+           WHERE id=?`,
+          [reason, nextAttempt - 1, task.id],
+        )
+        db.run(
+          `UPDATE agent_runs SET status='failed', error=?, finished_at=datetime('now') WHERE id=?`,
+          [reason, sourceAgentRunId],
+        )
+        db.run(
+          `INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?,?,?,?,?)`,
+          [
+            generateId(),
+            task.id,
+            'SYSTEM',
+            'verification_exhausted',
+            JSON.stringify({ attempts: nextAttempt - 1 }),
+          ],
+        )
+      })()
+      const updated = db
+        .query('SELECT * FROM tasks WHERE id=?')
+        .get(task.id) as TaskRow | null
+      if (updated) {
+        pubsub.publish(
+          'TASK_UPDATED',
+          updated.board_id,
+          mapTask(updated) as unknown as Record<string, unknown>,
+        )
+        pubsub.publish('TASK_EVENT', task.id, {
+          _actor: 'SYSTEM',
+          createdAt: new Date().toISOString(),
+          data: JSON.stringify({ attempts: nextAttempt - 1 }),
+          isSystem: true,
+          type: 'verification_exhausted',
+        } as unknown as Record<string, unknown>)
+      }
+      consola.warn(`Task ${task.id}: ${reason}; transitioning to FAILED`)
+      return
+    }
+
+    // Queue auto-revise
+    db.transaction(() => {
+      db.run(
+        `UPDATE tasks SET
+           agent_status='queued',
+           action='revise',
+           agent_error=NULL,
+           verify_attempt_count=?,
+           pending_auto_revise_source_run_id=?,
+           queue_after=datetime('now','+5 seconds'),
+           updated_at=datetime('now')
+         WHERE id=?`,
+        [nextAttempt, sourceAgentRunId, task.id],
+      )
+      db.run(
+        `UPDATE agent_runs SET status='fail_verify', finished_at=datetime('now') WHERE id=?`,
+        [sourceAgentRunId],
+      )
+      db.run(
+        `INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?,?,?,?,?)`,
+        [
+          generateId(),
+          task.id,
+          'SYSTEM',
+          'auto_revise_dispatched',
+          JSON.stringify({
+            attempt: nextAttempt,
+            source_agent_run_id: sourceAgentRunId,
+          }),
+        ],
+      )
+    })()
+
+    const updated = db
+      .query('SELECT * FROM tasks WHERE id=?')
+      .get(task.id) as TaskRow | null
+    if (updated) {
+      pubsub.publish(
+        'TASK_UPDATED',
+        updated.board_id,
+        mapTask(updated) as unknown as Record<string, unknown>,
+      )
+      pubsub.publish('TASK_EVENT', task.id, {
+        _actor: 'SYSTEM',
+        createdAt: new Date().toISOString(),
+        data: JSON.stringify({
+          attempt: nextAttempt,
+          source_agent_run_id: sourceAgentRunId,
+        }),
+        isSystem: true,
+        type: 'auto_revise_dispatched',
+      } as unknown as Record<string, unknown>)
+    }
+
+    consola.info(
+      `Task ${task.id}: verification failed (attempt ${nextAttempt}/${cap}); auto-REVISE dispatched`,
+    )
+  }
+
+  // -------------------------------------------------------------------------
   // External API
   // -------------------------------------------------------------------------
 
@@ -1007,8 +1184,10 @@ export class Orchestrator {
       }
       if (isRunning) {
         // Requeue with a short grace window so follow-up messages can batch.
+        // Redirect is a human kick: reset verification state so the new run
+        // starts fresh, not mid-retry.
         db.run(
-          `UPDATE tasks SET agent_status = 'queued', queue_after = datetime('now', '+5 seconds'), updated_at = datetime('now') WHERE id = ?`,
+          `UPDATE tasks SET agent_status = 'queued', queue_after = datetime('now', '+5 seconds'), verify_attempt_count = 0, pending_auto_revise_source_run_id = NULL, updated_at = datetime('now') WHERE id = ?`,
           [taskId],
         )
       }
@@ -1062,5 +1241,18 @@ export class Orchestrator {
       pendingRetries: this.retryTimers.size,
       running: this.running.size,
     }
+  }
+
+  /**
+   * @internal Integration-test hook for the verify-gate path.
+   * Allows tests to call onComplete directly without going through poll().
+   * Exposes the private onComplete so tests can seed a RunState and invoke it.
+   */
+  _onCompleteForTest(
+    task: Parameters<typeof this.onComplete>[0],
+    runId: string,
+    result: Parameters<typeof this.onComplete>[2],
+  ): Promise<void> {
+    return this.onComplete(task, runId, result)
   }
 }

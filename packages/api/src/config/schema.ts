@@ -60,6 +60,18 @@ export const HooksSchema = z.object({
   timeout_ms: z.number().int().positive().default(60_000),
 })
 
+export const VerifyCommandSchema = z.object({
+  label: z.string().min(1),
+  run: z.string().min(1),
+  timeout_ms: z.number().int().positive().default(300_000),
+})
+
+export const VerifySchema = z.object({
+  commands: z.array(VerifyCommandSchema).default([]),
+  enabled: z.boolean().default(true),
+  max_auto_revises: z.number().int().nonnegative().default(1),
+})
+
 // ---------------------------------------------------------------------------
 // Root schema
 // ---------------------------------------------------------------------------
@@ -69,6 +81,7 @@ export const ConfigSchema = z.object({
   claude: objectWithDefaults(ClaudeSchema),
   hooks: objectWithDefaults(HooksSchema),
   polling: objectWithDefaults(PollingSchema),
+  verify: objectWithDefaults(VerifySchema),
   workspace: objectWithDefaults(WorkspaceSchema),
 })
 
@@ -78,3 +91,5 @@ export type WorkspaceConfig = z.infer<typeof WorkspaceSchema>
 export type ClaudeConfig = z.infer<typeof ClaudeSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
 export type HooksConfig = z.infer<typeof HooksSchema>
+export type VerifyConfig = z.infer<typeof VerifySchema>
+export type VerifyCommand = z.infer<typeof VerifyCommandSchema>

@@ -49,6 +49,7 @@ import { TaskComments } from './TaskComments'
 import { TaskMessages } from './TaskMessages'
 import { TaskScratchpad } from './TaskScratchpad'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
+import { TaskVerification } from './TaskVerification'
 
 const agentDot = tv({
   base: 'size-2 rounded-full',
@@ -432,6 +433,14 @@ const ViewMode = ({
           currentQuestion={task.currentQuestion ?? null}
           initialMessages={task.messages ?? []}
           taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Verification</SectionLabel>
+        <TaskVerification
+          initialRuns={task.verificationRuns ?? []}
+          taskId={task.id}
+          verifyAttemptCount={task.verifyAttemptCount ?? 0}
         />
       </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
