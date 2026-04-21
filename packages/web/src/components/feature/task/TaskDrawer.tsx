@@ -46,6 +46,7 @@ import type {
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
 import { TaskComments } from './TaskComments'
+import { TaskScratchpad } from './TaskScratchpad'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
 
 const agentDot = tv({
@@ -414,6 +415,13 @@ const ViewMode = ({
         </span>
       </div>
 
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Scratchpad</SectionLabel>
+        <TaskScratchpad
+          initialContent={task.scratchpad ?? ''}
+          taskId={task.id}
+        />
+      </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Activity</SectionLabel>
         <TaskTimeline taskId={task.id} />

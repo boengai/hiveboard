@@ -4,8 +4,8 @@ import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
 import type { GitHubClient, ReviewComment } from '../github/client'
 import { publishAgentLog, pubsub } from '../pubsub'
-import { slugify } from '../workspace/manager'
 import type { WorkspaceManager } from '../workspace/manager'
+import { slugify } from '../workspace/manager'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -635,9 +635,7 @@ export class Orchestrator {
           const branch = `task-${task.id.slice(-6)}/${slugify(task.title)}`
           prUrl = await this.github.findPrByHead(owner, repo, branch)
           if (prUrl) {
-            consola.info(
-              `Found PR URL via GitHub API fallback: ${prUrl}`,
-            )
+            consola.info(`Found PR URL via GitHub API fallback: ${prUrl}`)
           }
         }
       }

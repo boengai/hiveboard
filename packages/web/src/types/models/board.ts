@@ -34,6 +34,7 @@ export type Task = {
   agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'
   retryCount: number
   prUrl: string | null
+  scratchpad: string | null
   archived: boolean
   archivedAt: string | null
   tags: Tag[]

@@ -9,3 +9,4 @@ export type {
   WorkspaceConfig,
 } from './schema'
 export { ConfigSchema } from './schema'
+export { getConfig, setConfig } from './singleton'

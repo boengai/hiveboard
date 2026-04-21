@@ -159,3 +159,20 @@ export type TaskTimelineProps = {
   /** Called when a comment is added/updated so parent can refresh */
   onCommentMutation?: () => void
 }
+
+// ---------------------------------------------------------------------------
+// TaskScratchpad
+// ---------------------------------------------------------------------------
+
+export type TaskScratchpadProps = {
+  taskId: string
+  initialContent: string
+}
+
+export type ScratchpadUpdatedPayload = {
+  scratchpadUpdated: {
+    taskId: string
+    content: string
+    updatedAt: string
+  }
+}

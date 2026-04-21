@@ -43,6 +43,13 @@ export const ClaudeSchema = z.object({
 export const AgentSchema = z.object({
   max_concurrent_agents: z.number().int().positive().default(5),
   max_retry_backoff_ms: z.number().int().positive().default(300_000),
+  state_root: z
+    .string()
+    .default('./tmp/agent-state')
+    .transform((p) => {
+      const { resolve } = require('node:path')
+      return resolve(p)
+    }),
 })
 
 export const HooksSchema = z.object({

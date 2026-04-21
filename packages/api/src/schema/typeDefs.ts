@@ -37,6 +37,7 @@ export const typeDefs = /* GraphQL */ `
   type Subscription {
     taskUpdated(boardId: ID!): Task!
     agentLogStream(taskId: ID!): AgentLogChunk!
+    scratchpadUpdated(taskId: ID!): ScratchpadChunk!
     commentAdded(taskId: ID!): Comment!
     commentUpdated(taskId: ID!): Comment!
     taskEventAdded(taskId: ID!): TaskEvent!
@@ -97,6 +98,7 @@ export const typeDefs = /* GraphQL */ `
     agentStatus: AgentStatus!
     retryCount: Int!
     prUrl: String
+    scratchpad: String!
     archived: Boolean!
     archivedAt: String
     createdBy: User!
@@ -160,6 +162,12 @@ export const typeDefs = /* GraphQL */ `
     taskId: ID!
     chunk: String!
     timestamp: String!
+  }
+
+  type ScratchpadChunk {
+    taskId: ID!
+    content: String!
+    updatedAt: String!
   }
 
   input CreateTaskInput {

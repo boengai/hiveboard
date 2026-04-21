@@ -6,6 +6,7 @@ export const pubsub = createPubSub<{
   COMMENT_ADDED: [taskId: string, payload: Record<string, unknown>]
   COMMENT_UPDATED: [taskId: string, payload: Record<string, unknown>]
   TASK_EVENT: [taskId: string, payload: Record<string, unknown>]
+  SCRATCHPAD_UPDATED: [taskId: string, payload: Record<string, unknown>]
 }>()
 
 export function publishTaskUpdated(boardId: string, task: unknown) {
@@ -29,4 +30,15 @@ export function publishCommentAdded(taskId: string, comment: unknown) {
 
 export function publishTaskEvent(taskId: string, event: unknown) {
   pubsub.publish('TASK_EVENT', taskId, event as Record<string, unknown>)
+}
+
+export function publishScratchpadUpdated(
+  taskId: string,
+  payload: { taskId: string; content: string; updatedAt: string },
+) {
+  pubsub.publish(
+    'SCRATCHPAD_UPDATED',
+    taskId,
+    payload as unknown as Record<string, unknown>,
+  )
 }

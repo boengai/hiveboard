@@ -1,5 +1,5 @@
-import type { AuthState, AuthUser } from '@/types'
 import { create } from 'zustand'
+import type { AuthState, AuthUser } from '@/types'
 
 const STORAGE_KEY = 'hiveboard_access_token'
 

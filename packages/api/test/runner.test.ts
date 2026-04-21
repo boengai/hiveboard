@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { buildAgentEnv } from '../src/agent/env'
 import type { TaskForAgent } from '../src/agent/runner'
+import { ConfigSchema } from '../src/config/schema'
 
 const TASK: TaskForAgent = {
   action: 'implement',
@@ -103,5 +104,37 @@ describe('buildAgentEnv', () => {
     const env = buildAgentEnv(TASK, WORKSPACE)
 
     expect('CLAUDE_CODE_USE_BEDROCK' in env).toBe(false)
+  })
+})
+
+describe('HIVEBOARD_SCRATCHPAD env var', () => {
+  const VALID_ULID = '01HYX3KPQR000000000000000A'
+  const ULID_TASK: TaskForAgent = { ...TASK, id: VALID_ULID }
+  const testConfig = ConfigSchema.parse({
+    agent: { state_root: '/tmp/hb-state' },
+  })
+
+  it('is defined when config is passed', () => {
+    const env = buildAgentEnv(
+      ULID_TASK,
+      WORKSPACE,
+      undefined,
+      undefined,
+      testConfig,
+    )
+    expect(env.HIVEBOARD_SCRATCHPAD).toBeDefined()
+    expect(
+      env.HIVEBOARD_SCRATCHPAD?.endsWith(`/${VALID_ULID}/scratchpad.md`),
+    ).toBe(true)
+  })
+
+  it('is undefined when config is omitted', () => {
+    const env = buildAgentEnv(ULID_TASK, WORKSPACE)
+    expect(env.HIVEBOARD_SCRATCHPAD).toBeUndefined()
+  })
+
+  it('is undefined for a non-ULID task id (skipped silently)', () => {
+    const env = buildAgentEnv(TASK, WORKSPACE, undefined, undefined, testConfig)
+    expect(env.HIVEBOARD_SCRATCHPAD).toBeUndefined()
   })
 })

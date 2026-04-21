@@ -11,11 +11,14 @@ import {
   revokeSessionsForUser,
 } from '../auth'
 import { isLocalRequest } from '../auth/local'
+import { getConfig } from '../config'
 import { db, generateId } from '../db'
 import { getOrchestrator } from '../orchestrator'
-import { pubsub } from '../pubsub'
+import { publishScratchpadUpdated, pubsub } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
+import { readScratchpad } from '../workspace/agent-state'
+import { watchScratchpad } from '../workspace/scratchpad-watcher'
 import {
   HexColorSchema,
   validateTargetBranch,
@@ -333,9 +336,7 @@ function requireCommentAccess(
     .query(
       'SELECT c.task_id as task_id, c.created_by as author, b.created_by as owner FROM task_comments c INNER JOIN tasks t ON t.id = c.task_id INNER JOIN boards b ON b.id = t.board_id WHERE c.id = ?',
     )
-    .get(commentId) as
-    | { task_id: string; author: string; owner: string }
-    | null
+    .get(commentId) as { task_id: string; author: string; owner: string } | null
   if (!row) throw notFound('Comment', commentId)
   if (user.role !== 'super-admin' && row.owner !== user.id) {
     throw notFound('Comment', commentId)
@@ -504,6 +505,7 @@ export const resolvers = {
       const user = { id: authUser.id }
 
       db.transaction(() => {
+        // Scratchpad dir is retained on archive; orphan sweep handles it only on hard delete.
         db.run(
           `UPDATE tasks SET archived = 1, archived_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`,
           [user.id, id],
@@ -1181,9 +1183,12 @@ export const resolvers = {
           )
           .all(boardId, ...tagIds) as Array<{ id: string }>
         if (rows.length !== tagIds.length) {
-          throw new GraphQLError('One or more tags do not exist on this board', {
-            extensions: { code: 'NOT_FOUND' },
-          })
+          throw new GraphQLError(
+            'One or more tags do not exist on this board',
+            {
+              extensions: { code: 'NOT_FOUND' },
+            },
+          )
         }
       }
 
@@ -1528,11 +1533,7 @@ export const resolvers = {
       return rows.map(mapBoard)
     },
 
-    comments(
-      _: unknown,
-      { taskId }: { taskId: string },
-      ctx: ResolverContext,
-    ) {
+    comments(_: unknown, { taskId }: { taskId: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
       return getTopLevelCommentsForTask(taskId)
@@ -1658,6 +1659,41 @@ export const resolvers = {
       },
     },
 
+    scratchpadUpdated: {
+      resolve(payload: { taskId: string; content: string; updatedAt: string }) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+
+        const config = getConfig()
+        const dispose = config
+          ? watchScratchpad(config, taskId, (content) => {
+              publishScratchpadUpdated(taskId, {
+                content,
+                taskId,
+                updatedAt: new Date().toISOString(),
+              })
+            })
+          : () => {}
+
+        const iterator = pubsub.subscribe('SCRATCHPAD_UPDATED', taskId)
+        const originalReturn = iterator.return?.bind(iterator)
+        iterator.return = async (value?: unknown) => {
+          dispose()
+          return originalReturn
+            ? originalReturn(value)
+            : { done: true, value: undefined }
+        }
+        return iterator
+      },
+    },
+
     taskEventAdded: {
       resolve(payload: Record<string, unknown>) {
         return payload
@@ -1701,6 +1737,11 @@ export const resolvers = {
     },
     createdBy(task: ReturnType<typeof mapTask>) {
       return getUserById(task._createdBy)
+    },
+    async scratchpad(task: ReturnType<typeof mapTask>): Promise<string> {
+      const config = getConfig()
+      if (!config) return ''
+      return readScratchpad(config, task.id)
     },
     tags(task: ReturnType<typeof mapTask>) {
       return getTagsForTask(task.id)

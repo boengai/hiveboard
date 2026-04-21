@@ -1,4 +1,6 @@
 import { join } from 'node:path'
+import type { Config } from '../config/schema'
+import { scratchpadPath } from '../workspace/agent-state'
 import type { TaskForAgent } from './runner'
 
 /**
@@ -47,6 +49,7 @@ export function buildAgentEnv(
   workspacePath: string,
   gitIdentity?: { name: string; email: string },
   tokenDir?: string,
+  config?: Config,
 ): Record<string, string> {
   const env: Record<string, string> = {}
 
@@ -82,6 +85,16 @@ export function buildAgentEnv(
     env.GH_CONFIG_DIR = join(tokenDir, 'gh')
     env.GIT_ASKPASS = join(tokenDir, 'askpass.sh')
     env.HIVEBOARD_TOKEN_FILE = join(tokenDir, 'token')
+  }
+
+  // Expose per-task scratchpad path to the agent (ULID-validated). Skipped
+  // silently for invalid ids so legacy/fixture data doesn't break env build.
+  if (config) {
+    try {
+      env.HIVEBOARD_SCRATCHPAD = scratchpadPath(config, task.id)
+    } catch {
+      // Invalid ULIDs in fixtures / legacy data: skip silently.
+    }
   }
 
   return env

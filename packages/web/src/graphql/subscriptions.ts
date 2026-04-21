@@ -247,3 +247,13 @@ export const TASK_EVENT_ADDED_SUBSCRIPTION = /* GraphQL */ `
     }
   }
 `
+
+export const SCRATCHPAD_UPDATED_SUBSCRIPTION = /* GraphQL */ `
+  subscription ScratchpadUpdated($taskId: ID!) {
+    scratchpadUpdated(taskId: $taskId) {
+      taskId
+      content
+      updatedAt
+    }
+  }
+`

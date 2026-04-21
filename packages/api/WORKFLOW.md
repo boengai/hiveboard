@@ -27,6 +27,7 @@ claude:
 agent:
   max_concurrent_agents: 5
   max_retry_backoff_ms: 300000
+  state_root: ./tmp/agent-state
 worker:
   ssh_hosts: []
 ---
@@ -45,6 +46,45 @@ Description:
 Agent Instruction:
 {{ task.agent_instruction }}
 {{/task.agent_instruction}}
+
+## Scratchpad — your memory across runs on this task
+
+You have a scratchpad file at `$HIVEBOARD_SCRATCHPAD` that persists across all
+runs on this task (including prior PLAN/IMPLEMENT/REVISE attempts). Use it as
+your working memory.
+
+{{#scratchpad}}
+### What past runs learned (auto-loaded from your scratchpad):
+
+{{{scratchpad}}}
+
+---
+{{/scratchpad}}
+{{^scratchpad}}
+(Scratchpad is empty — this is the first run on this task.)
+{{/scratchpad}}
+
+Before finishing this run, append a short entry to `$HIVEBOARD_SCRATCHPAD`
+covering: key decisions made, files you touched or ruled out, and anything a
+future run on this task should know. Keep it concise — this is notes for
+yourself, not a report for humans.
+
+**Appending rules:**
+- Always use the Bash `>>` operator to append. NEVER use the `Write` tool on
+  this file — `Write` replaces contents and would delete older notes you
+  cannot see (the auto-loaded block above may be truncated if the file has
+  grown large).
+- Prefix every entry with an ISO 8601 UTC timestamp and the current action,
+  e.g. `## 2026-04-21T14:32:05Z — IMPLEMENT`.
+- Example:
+
+  ```bash
+  cat <<'EOF' >> "$HIVEBOARD_SCRATCHPAD"
+
+  ## 2026-04-21T14:32:05Z — IMPLEMENT
+  Reused JWT helper from packages/shared/jwt. Ruled out sessions (no Redis).
+  EOF
+  ```
 
 {{#has_review_comments}}
 

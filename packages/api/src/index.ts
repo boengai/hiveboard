@@ -11,15 +11,15 @@ import {
 } from 'graphql'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { getAuthContext, handleInvitationOAuth, handleLoginOAuth } from './auth'
-import { setPeerIP } from './auth/peer-ip'
-import { cleanExpiredSessions } from './auth/session'
 import {
   buildOAuthStateCookie,
   clearOAuthStateCookieHeader,
   generateOAuthState,
   readOAuthStateCookie,
 } from './auth/oauth-state'
-import { loadWorkflow } from './config'
+import { setPeerIP } from './auth/peer-ip'
+import { cleanExpiredSessions } from './auth/session'
+import { loadWorkflow, setConfig } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
 import { Orchestrator, setOrchestrator } from './orchestrator'
@@ -64,6 +64,7 @@ setInterval(cleanExpiredSessions, 60 * 60 * 1000)
 async function startOrchestrator() {
   try {
     const { config, promptTemplate } = await loadWorkflow()
+    setConfig(config)
     const github = GitHubClient.create()
     // Generate initial token so process.env.GITHUB_TOKEN is set
     // before any agent spawns (gh/git need it immediately)
@@ -77,6 +78,8 @@ async function startOrchestrator() {
     )
     setOrchestrator(orchestrator)
     orchestrator.start()
+    // Start periodic cleanup of temp uploads + orphaned agent-state dirs
+    startCleanupInterval(config)
   } catch (err) {
     console.warn(
       `Orchestrator not started (WORKFLOW.md not found or invalid): ${(err as Error).message}`,
@@ -292,9 +295,6 @@ async function handleOAuthCallback(req: Request): Promise<Response> {
     )
   }
 }
-
-// Start periodic cleanup of orphaned temp uploads
-startCleanupInterval()
 
 Bun.serve({
   async fetch(req, server) {

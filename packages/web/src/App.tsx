@@ -32,12 +32,7 @@ function HeaderUserMenu() {
         </Button>
       )}
       {!isLocal && (
-        <Button
-          onClick={logout}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
+        <Button onClick={logout} size="icon" type="button" variant="ghost">
           <RightFromBracketIcon />
         </Button>
       )}

@@ -1,5 +1,6 @@
 import { consola } from 'consola'
 import type { Config } from '../config/schema'
+import { readScratchpad } from '../workspace/agent-state'
 import { buildAgentEnv } from './env'
 import { renderPrompt } from './prompt'
 
@@ -78,11 +79,14 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     tokenDir,
   } = options
 
+  const scratchpad = await readScratchpad(config, task.id)
+
   const prompt = renderPrompt(
     promptTemplate,
     task,
     retryAttempt && retryAttempt > 0 ? retryAttempt : undefined,
     reviewComments,
+    scratchpad,
   )
 
   const args = buildClaudeArgs(config, prompt)
@@ -93,7 +97,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   const proc = Bun.spawn(args, {
     cwd: workspacePath,
-    env: buildAgentEnv(task, workspacePath, gitIdentity, tokenDir),
+    env: buildAgentEnv(task, workspacePath, gitIdentity, tokenDir, config),
     stderr: 'pipe',
     stdout: 'pipe',
   })

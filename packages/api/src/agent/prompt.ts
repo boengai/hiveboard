@@ -29,6 +29,7 @@ export type PromptContext = {
   attempt?: number
   review_comments?: string
   has_review_comments?: boolean
+  scratchpad?: string
 }
 
 /** Render a Mustache template with task context. */
@@ -37,6 +38,7 @@ export function renderPrompt(
   task: TaskForPrompt,
   attempt?: number,
   reviewComments?: string,
+  scratchpad?: string,
 ): string {
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
@@ -44,6 +46,7 @@ export function renderPrompt(
     attempt,
     has_review_comments: !!reviewComments,
     review_comments: reviewComments,
+    scratchpad: scratchpad ?? '',
     task: {
       action: task.action ?? '',
       agent_instruction: task.agentInstruction ?? '',

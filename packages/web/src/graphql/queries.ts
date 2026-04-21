@@ -130,6 +130,7 @@ export const GET_TASK = /* GraphQL */ `
       agentStatus
       retryCount
       prUrl
+      scratchpad
       archived
       archivedAt
       createdAt

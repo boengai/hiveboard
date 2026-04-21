@@ -44,12 +44,7 @@ const LoginButton = ({ invitationToken }: { invitationToken?: string }) => {
 
   return (
     <>
-      <Button
-        disabled={busy}
-        onClick={start}
-        size="large"
-        type="button"
-      >
+      <Button disabled={busy} onClick={start} size="large" type="button">
         <GitHubIcon />
         <span className="ml-2">
           {busy ? 'Redirecting...' : 'Sign in with GitHub'}
