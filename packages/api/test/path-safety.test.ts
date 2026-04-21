@@ -1,5 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -11,8 +18,14 @@ let root: string
 let outside: string
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'path-safety-root-'))
-  outside = await mkdtemp(join(tmpdir(), 'path-safety-outside-'))
+  // Canonicalize via realpath so expectations match resolvePathSafe's output.
+  // On macOS, /var/folders is a symlink to /private/var/folders, and
+  // resolvePathSafe (which runs realpath internally) would otherwise return
+  // the /private/-prefixed form while the raw mkdtemp output wouldn't.
+  root = await realpath(await mkdtemp(join(tmpdir(), 'path-safety-root-')))
+  outside = await realpath(
+    await mkdtemp(join(tmpdir(), 'path-safety-outside-')),
+  )
 
   // Create directories inside root
   await mkdir(join(root, 'workspaces', 'project'), { recursive: true })
