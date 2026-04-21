@@ -86,6 +86,51 @@ yourself, not a report for humans.
   EOF
   ```
 
+## Messages from the human (auto-loaded)
+
+{{#has_messages}}
+The following messages arrived before this run started. They are ordered from
+oldest to newest.
+
+{{#messages}}
+- **[{{ kind }}]** {{ body }}
+{{/messages}}
+
+---
+{{/has_messages}}
+{{^has_messages}}
+(No pending messages.)
+{{/has_messages}}
+
+## Mid-run communication
+
+During your work, the human may send you additional messages. To check for
+them, read the inbox file at natural stopping points:
+
+```bash
+cat "$HIVEBOARD_INBOX" 2>/dev/null || true
+```
+
+Check at least: (a) before making a significant decision, (b) before running
+destructive commands (migrations, force-push), (c) after completing a major
+step. The inbox is append-only; messages accumulate until the run ends.
+
+## Asking the human a question
+
+If you are blocked on a decision only a human can make (e.g. "Postgres or
+MySQL?", "is this the intended behavior?"), do NOT guess. Instead:
+
+1. Write your question to `$HIVEBOARD_QUESTION` using shell append (same rule
+   as the scratchpad — never use `Write`). One question per blocking point;
+   keep it concise and specific.
+2. Exit cleanly immediately after. Your final message should confirm that you
+   asked a question — do not also try to "make progress" after writing the
+   question.
+
+Only use the question file for decisions that meaningfully change the
+approach. Do not ask clarifying questions for trivia that can be inferred
+from the task body, the scratchpad, or the repo.
+
 {{#has_review_comments}}
 
 ## Review Comments to Address

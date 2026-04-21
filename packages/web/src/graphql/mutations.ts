@@ -228,3 +228,42 @@ export const REVOKE_USER = /* GraphQL */ `
     }
   }
 `
+
+const TASK_MESSAGE_FIELDS = /* GraphQL */ `
+  id
+  taskId
+  authorType
+  kind
+  body
+  deliveredAt
+  createdAt
+  createdBy {
+    id
+    username
+    displayName
+  }
+`
+
+export const SEND_HINT = /* GraphQL */ `
+  mutation SendHint($taskId: ID!, $body: String!) {
+    sendHint(taskId: $taskId, body: $body) {
+      ${TASK_MESSAGE_FIELDS}
+    }
+  }
+`
+
+export const SEND_REDIRECT = /* GraphQL */ `
+  mutation SendRedirect($taskId: ID!, $body: String!) {
+    sendRedirect(taskId: $taskId, body: $body) {
+      ${TASK_MESSAGE_FIELDS}
+    }
+  }
+`
+
+export const ANSWER_QUESTION = /* GraphQL */ `
+  mutation AnswerQuestion($taskId: ID!, $body: String!) {
+    answerQuestion(taskId: $taskId, body: $body) {
+      ${TASK_MESSAGE_FIELDS}
+    }
+  }
+`

@@ -13,8 +13,18 @@ import {
 import { isLocalRequest } from '../auth/local'
 import { getConfig } from '../config'
 import { db, generateId } from '../db'
+import {
+  getCurrentQuestion,
+  insertMessage,
+  listMessagesForTask,
+  type TaskMessageRow,
+} from '../db/task-messages'
 import { getOrchestrator } from '../orchestrator'
-import { publishScratchpadUpdated, pubsub } from '../pubsub'
+import {
+  publishMessageAdded,
+  publishScratchpadUpdated,
+  pubsub,
+} from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
 import { readScratchpad } from '../workspace/agent-state'
@@ -189,6 +199,54 @@ function mapComment(row: CommentRow) {
     parentId: row.parent_id,
     updatedAt: row.updated_at,
   }
+}
+
+function mapTaskMessage(row: TaskMessageRow): {
+  id: string
+  taskId: string
+  authorType: 'HUMAN' | 'AGENT'
+  kind: 'HINT' | 'REDIRECT' | 'QUESTION' | 'ANSWER'
+  body: string
+  deliveredAt: string | null
+  createdBy: string | null
+  createdAt: string
+  _createdBy: string | null
+} {
+  return {
+    _createdBy: row.createdBy,
+    authorType: row.authorType.toUpperCase() as 'HUMAN' | 'AGENT',
+    body: row.body,
+    createdAt: row.createdAt,
+    createdBy: row.createdBy,
+    deliveredAt: row.deliveredAt,
+    id: row.id,
+    kind: row.kind.toUpperCase() as 'HINT' | 'REDIRECT' | 'QUESTION' | 'ANSWER',
+    taskId: row.taskId,
+  }
+}
+
+/** Fetch a task_messages row by id and return the mapped GraphQL shape. */
+function fetchMessage(id: string) {
+  const row = db.query('SELECT * FROM task_messages WHERE id = ?').get(id) as {
+    id: string
+    task_id: string
+    author_type: 'human' | 'agent'
+    kind: 'hint' | 'redirect' | 'question' | 'answer'
+    body: string
+    delivered_at: string | null
+    created_by: string | null
+    created_at: string
+  }
+  return mapTaskMessage({
+    authorType: row.author_type,
+    body: row.body,
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    deliveredAt: row.delivered_at,
+    id: row.id,
+    kind: row.kind,
+    taskId: row.task_id,
+  })
 }
 
 function mapColumn(row: ColumnRow) {
@@ -497,6 +555,65 @@ export const resolvers = {
       }
 
       return comment
+    },
+
+    answerQuestion(
+      _: unknown,
+      { taskId, body }: { taskId: string; body: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+
+      const trimmed = body.trim()
+      if (trimmed.length === 0) {
+        throw new GraphQLError('Answer body cannot be empty', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      if (trimmed.length > 8 * 1024) {
+        throw new GraphQLError('Message body too long (max 8 KB)', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+
+      const task = db
+        .query('SELECT agent_status FROM tasks WHERE id = ?')
+        .get(taskId) as { agent_status: string } | null
+      if (!task) throw notFound('Task', taskId)
+      if (task.agent_status !== 'blocked') {
+        throw new GraphQLError('Task is not BLOCKED — no question to answer', {
+          extensions: { code: 'TASK_NOT_BLOCKED' },
+        })
+      }
+
+      const id = insertMessage(db, {
+        authorType: 'human',
+        body: trimmed,
+        createdBy: authUser.id,
+        kind: 'answer',
+        taskId,
+      })
+      db.run(
+        `UPDATE tasks SET agent_status = 'queued',
+           queue_after = datetime('now', '+30 seconds'),
+           updated_at = datetime('now')
+         WHERE id = ?`,
+        [taskId],
+      )
+
+      const message = fetchMessage(id)
+      publishMessageAdded(taskId, message)
+
+      // Broadcast the queued status change so the board re-renders.
+      const taskRow = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (taskRow) {
+        publishTaskUpdated(mapTask(taskRow))
+      }
+
+      return message
     },
 
     archiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
@@ -1161,6 +1278,87 @@ export const resolvers = {
       return task
     },
 
+    async sendHint(
+      _: unknown,
+      { taskId, body }: { taskId: string; body: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+
+      const trimmed = body.trim()
+      if (trimmed.length === 0) {
+        throw new GraphQLError('Hint body cannot be empty', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      if (trimmed.length > 8 * 1024) {
+        throw new GraphQLError('Message body too long (max 8 KB)', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+
+      const id = insertMessage(db, {
+        authorType: 'human',
+        body: trimmed,
+        createdBy: authUser.id,
+        kind: 'hint',
+        taskId,
+      })
+      await getOrchestrator()?.dispatchHumanMessage(taskId, 'hint', trimmed, id)
+
+      const message = fetchMessage(id)
+      publishMessageAdded(taskId, message)
+      return message
+    },
+
+    async sendRedirect(
+      _: unknown,
+      { taskId, body }: { taskId: string; body: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+
+      const trimmed = body.trim()
+      if (trimmed.length === 0) {
+        throw new GraphQLError('Redirect body cannot be empty', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      if (trimmed.length > 8 * 1024) {
+        throw new GraphQLError('Message body too long (max 8 KB)', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+
+      const id = insertMessage(db, {
+        authorType: 'human',
+        body: trimmed,
+        createdBy: authUser.id,
+        kind: 'redirect',
+        taskId,
+      })
+      await getOrchestrator()?.dispatchHumanMessage(
+        taskId,
+        'redirect',
+        trimmed,
+        id,
+      )
+
+      const message = fetchMessage(id)
+      publishMessageAdded(taskId, message)
+
+      // A redirect may have flipped agent_status; broadcast so UI updates.
+      const taskRow = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (taskRow) {
+        publishTaskUpdated(mapTask(taskRow))
+      }
+      return message
+    },
+
     setTaskTags(
       _: unknown,
       { taskId, tagIds }: { taskId: string; tagIds: string[] },
@@ -1659,6 +1857,21 @@ export const resolvers = {
       },
     },
 
+    messageAdded: {
+      resolve(payload: Record<string, unknown>) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+        return pubsub.subscribe('TASK_MESSAGE', taskId)
+      },
+    },
+
     scratchpadUpdated: {
       resolve(payload: { taskId: string; content: string; updatedAt: string }) {
         return payload
@@ -1738,6 +1951,13 @@ export const resolvers = {
     createdBy(task: ReturnType<typeof mapTask>) {
       return getUserById(task._createdBy)
     },
+    currentQuestion(task: ReturnType<typeof mapTask>) {
+      const q = getCurrentQuestion(db, task.id)
+      return q ? mapTaskMessage(q) : null
+    },
+    messages(task: ReturnType<typeof mapTask>) {
+      return listMessagesForTask(db, task.id).map(mapTaskMessage)
+    },
     async scratchpad(task: ReturnType<typeof mapTask>): Promise<string> {
       const config = getConfig()
       if (!config) return ''
@@ -1758,6 +1978,13 @@ export const resolvers = {
     },
     isSystem(event: { isSystem: boolean }) {
       return event.isSystem
+    },
+  },
+
+  TaskMessage: {
+    createdBy(message: { _createdBy: string | null }) {
+      if (!message._createdBy) return null
+      return getUserById(message._createdBy)
     },
   },
 }

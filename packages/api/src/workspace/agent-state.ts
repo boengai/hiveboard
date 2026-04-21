@@ -1,4 +1,4 @@
-import { readdir, readFile, rm } from 'node:fs/promises'
+import { appendFile, mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { consola } from 'consola'
 import type { Config } from '../config/schema'
@@ -6,6 +6,8 @@ import type { Config } from '../config/schema'
 const ULID_REGEX = /^[0-9A-HJKMNP-TV-Z]{26}$/
 const MAX_INJECTED_BYTES = 64 * 1024
 const TRUNCATION_MARKER = '<!-- truncated: earlier notes omitted -->\n'
+const MAX_QUESTION_BYTES = 32 * 1024
+const QUESTION_TRUNCATION_SUFFIX = '...[truncated]'
 
 function assertValidTaskId(taskId: string): void {
   if (!ULID_REGEX.test(taskId)) {
@@ -120,4 +122,70 @@ export async function sweepOrphanAgentStateDirs(
   if (removed > 0)
     consola.info(`sweep: removed ${removed} orphan agent-state dir(s)`)
   return removed
+}
+
+/** Path to `inbox.md` inside the per-task agent state directory. */
+export function inboxPath(config: Config, taskId: string): string {
+  return join(agentStateDir(config, taskId), 'inbox.md')
+}
+
+/** Path to `question.md` inside the per-task agent state directory. */
+export function questionPath(config: Config, taskId: string): string {
+  return join(agentStateDir(config, taskId), 'question.md')
+}
+
+/**
+ * Read the question file for a task, capped at 32 KB with a truncation suffix.
+ * Returns '' on invalid id, missing file, or read error (non-ENOENT errors logged).
+ */
+export async function readQuestion(
+  config: Config,
+  taskId: string,
+): Promise<string> {
+  try {
+    assertValidTaskId(taskId)
+  } catch {
+    return ''
+  }
+  try {
+    const buf = await readFile(questionPath(config, taskId))
+    const str = buf.toString('utf8').trim()
+    if (str.length === 0) return ''
+    if (buf.byteLength > MAX_QUESTION_BYTES) {
+      const head = str.slice(
+        0,
+        MAX_QUESTION_BYTES - QUESTION_TRUNCATION_SUFFIX.length,
+      )
+      return head + QUESTION_TRUNCATION_SUFFIX
+    }
+    return str
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return ''
+    consola.warn(`readQuestion ${taskId}: ${(err as Error).message}`)
+    return ''
+  }
+}
+
+/**
+ * Append a line to the task's inbox file. Creates the directory if needed.
+ * Silently returns on invalid id. Errors logged, not thrown.
+ */
+export async function appendToInbox(
+  config: Config,
+  taskId: string,
+  line: string,
+): Promise<void> {
+  try {
+    assertValidTaskId(taskId)
+  } catch {
+    return
+  }
+  try {
+    const dir = agentStateDir(config, taskId)
+    await mkdir(dir, { recursive: true })
+    const stamp = new Date().toISOString()
+    await appendFile(inboxPath(config, taskId), `\n---\n${stamp}\n${line}\n`)
+  } catch (err) {
+    consola.warn(`appendToInbox ${taskId}: ${(err as Error).message}`)
+  }
 }

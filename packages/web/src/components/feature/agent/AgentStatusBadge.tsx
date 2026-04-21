@@ -9,6 +9,8 @@ function agentStatusColor(status: AgentStatus): BadgeColor {
       return 'honey'
     case 'RUNNING':
       return 'info'
+    case 'BLOCKED':
+      return 'honey'
     case 'SUCCESS':
       return 'success'
     case 'FAILED':

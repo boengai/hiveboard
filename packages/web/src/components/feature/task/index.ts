@@ -1,4 +1,5 @@
 export { TaskComments } from './TaskComments'
 export { TaskDrawer } from './TaskDrawer'
+export { TaskMessages } from './TaskMessages'
 export { TaskScratchpad } from './TaskScratchpad'
 export { TaskTimeline, timeAgo } from './TaskTimeline'

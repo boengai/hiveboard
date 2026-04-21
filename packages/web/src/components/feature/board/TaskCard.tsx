@@ -27,6 +27,8 @@ const parseActionLabel = (
       }
     case 'FAILED':
       return 'Failed'
+    case 'BLOCKED':
+      return 'Waiting on you'
     case 'RUNNING':
       switch (action) {
         case 'IMPLEMENT':
@@ -82,6 +84,13 @@ function AgentStatusDot({ status }: { status: Task['agentStatus'] }) {
       </span>
     )
   }
+  if (status === 'BLOCKED') {
+    return (
+      <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-honey-400/20 font-bold text-honey-300 text-xs">
+        ?
+      </span>
+    )
+  }
   if (status === 'SUCCESS') {
     return (
       <span className="inline-flex text-success-400">
@@ -128,7 +137,7 @@ export function TaskCard({ task, column }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md"
+      className={`flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md ${task.agentStatus === 'BLOCKED' ? 'ring-1 ring-honey-400/60' : ''}`}
       data-dragging={isDragging ? 'true' : 'false'}
       onClick={() => openDrawerView(task.id)}
       whileHover={{ y: -1 }}

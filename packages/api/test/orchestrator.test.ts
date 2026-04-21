@@ -13,11 +13,26 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from 'bun:test'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
 import { calculateRetryDelay } from '../src/orchestrator/orchestrator'
+
+// Unique tmp dir for this test suite's agent-state so readQuestion() doesn't
+// warn about undefined paths and so we don't collide with other test suites.
+const stateRoot = mkdtempSync(join(tmpdir(), 'hb-orch-state-'))
 
 // ---------------------------------------------------------------------------
 // In-memory database shared across module mocks
@@ -77,6 +92,7 @@ function makeConfig(
     agent: {
       max_concurrent_agents: overrides.maxAgents ?? 5,
       max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
+      state_root: stateRoot,
     },
     claude: {
       allowed_tools: [],
@@ -180,6 +196,15 @@ async function flushMicrotasks(ms = 50) {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+afterAll(() => {
+  // Clean up tmp state_root after the suite so we don't litter /tmp
+  try {
+    rmSync(stateRoot, { force: true, recursive: true })
+  } catch {
+    // ignore
+  }
+})
 
 describe('Orchestrator – dispatch flow', () => {
   let orchestrator: InstanceType<typeof Orchestrator>

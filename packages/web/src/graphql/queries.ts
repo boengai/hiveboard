@@ -178,6 +178,25 @@ export const GET_TASK = /* GraphQL */ `
           }
         }
       }
+      messages {
+        id
+        taskId
+        authorType
+        kind
+        body
+        deliveredAt
+        createdAt
+        createdBy {
+          id
+          username
+          displayName
+        }
+      }
+      currentQuestion {
+        id
+        body
+        createdAt
+      }
     }
   }
 `

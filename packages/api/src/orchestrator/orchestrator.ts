@@ -1,9 +1,25 @@
+import { unlink } from 'node:fs/promises'
 import { consola } from 'consola'
 import { runAgent } from '../agent/runner'
 import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
+import {
+  insertMessage,
+  listUndeliveredHumanMessages,
+  markMessagesDelivered,
+} from '../db/task-messages'
 import type { GitHubClient, ReviewComment } from '../github/client'
-import { publishAgentLog, pubsub } from '../pubsub'
+import {
+  publishAgentLog,
+  publishMessageAdded,
+  publishTaskUpdated,
+  pubsub,
+} from '../pubsub'
+import {
+  appendToInbox,
+  questionPath,
+  readQuestion,
+} from '../workspace/agent-state'
 import type { WorkspaceManager } from '../workspace/manager'
 import { slugify } from '../workspace/manager'
 
@@ -539,9 +555,31 @@ export class Orchestrator {
       }
 
       const gitIdentity = await this.github.getIdentity()
+
+      const undeliveredMessages = listUndeliveredHumanMessages(db, task.id)
+      const messagesForPrompt = undeliveredMessages
+        .filter((m) => m.kind !== 'question') // questions are agent-authored anyway; safety
+        .map((m) => ({
+          body: escapeMustacheSyntax(m.body),
+          created_at: m.createdAt,
+          kind: m.kind as 'hint' | 'redirect' | 'answer',
+        }))
+
+      // Mark delivered before spawn. If spawn fails, the message is still preserved
+      // in task_messages and the next spawn-time query will exclude it; the agent
+      // won't see it. This is acceptable per spec (scratchpad captures context
+      // across runs).
+      if (undeliveredMessages.length > 0) {
+        markMessagesDelivered(
+          db,
+          undeliveredMessages.map((m) => m.id),
+        )
+      }
+
       const result = await runAgent({
         config: this.config,
         gitIdentity,
+        messages: messagesForPrompt,
         onLog: (chunk) => {
           pubsub.publish('AGENT_LOG', task.id, {
             chunk,
@@ -602,6 +640,99 @@ export class Orchestrator {
       taskId: task.id,
       timestamp: new Date().toISOString(),
     })
+
+    // Check for an agent-authored question file. If present, transition to
+    // BLOCKED (regardless of success/failure exit code) and skip the normal
+    // SUCCESS/FAILED path. The question body is captured as a task_messages row.
+    const question = await readQuestion(this.config, task.id)
+    if (question.length > 0) {
+      let eventId!: string
+      let msgId!: string
+      db.transaction(() => {
+        msgId = insertMessage(db, {
+          authorType: 'agent',
+          body: question,
+          createdBy: null,
+          kind: 'question',
+          taskId: task.id,
+        })
+        db.run(
+          `UPDATE tasks SET agent_status = 'blocked', updated_at = datetime('now') WHERE id = ?`,
+          [task.id],
+        )
+        db.run(
+          `UPDATE agent_runs SET status = 'blocked', finished_at = datetime('now'), error = ? WHERE id = ?`,
+          [result.error ?? null, runId],
+        )
+        eventId = generateId()
+        db.run(
+          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+          [
+            eventId,
+            task.id,
+            'SYSTEM',
+            'agent_blocked',
+            JSON.stringify({ question_preview: question.slice(0, 120) }),
+          ],
+        )
+      })()
+
+      // Publish agent_blocked event so subscribers see it in real time
+      const blockedEvent = db
+        .query('SELECT * FROM task_events WHERE id = ?')
+        .get(eventId) as {
+        id: string
+        type: string
+        data: string | null
+        created_at: string
+        actor: string
+      } | null
+      if (blockedEvent) {
+        pubsub.publish('TASK_EVENT', task.id, {
+          _actor: 'SYSTEM',
+          createdAt: blockedEvent.created_at,
+          data: blockedEvent.data,
+          id: blockedEvent.id,
+          isSystem: true,
+          type: blockedEvent.type,
+        } as unknown as Record<string, unknown>)
+      }
+
+      // Fetch full message row to publish
+      const row = db
+        .query('SELECT * FROM task_messages WHERE id = ?')
+        .get(msgId) as Record<string, unknown>
+      publishMessageAdded(task.id, {
+        authorType: 'AGENT',
+        body: row.body,
+        createdAt: row.created_at,
+        createdBy: null,
+        deliveredAt: row.delivered_at,
+        id: row.id,
+        kind: 'QUESTION',
+        taskId: row.task_id,
+      })
+
+      // Also republish updated task so board refreshes
+      const updatedTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(task.id) as TaskRow | null
+      if (updatedTask) {
+        publishTaskUpdated(updatedTask.board_id, mapTask(updatedTask))
+      }
+
+      // Best-effort cleanup of the question file so a subsequent run doesn't
+      // re-trigger BLOCKED on the stale contents.
+      try {
+        const qPath = questionPath(this.config, task.id)
+        await unlink(qPath)
+      } catch {
+        // ignore — file may already be gone
+      }
+
+      consola.info(`Task ${task.id} BLOCKED on agent question`)
+      return
+    }
 
     if (result.success) {
       consola.info(`Task ${task.id} completed successfully`)
@@ -845,6 +976,59 @@ export class Orchestrator {
   // -------------------------------------------------------------------------
   // External API
   // -------------------------------------------------------------------------
+
+  /**
+   * React to a human-authored message for a task. Called by the GraphQL
+   * resolvers (sendHint/sendRedirect) AFTER the task_messages row is
+   * inserted, so the mutation can decide whether the message triggers an
+   * immediate orchestrator action (redirect = abort+requeue; hint = inbox
+   * append). 'answer' messages are handled by the answerQuestion mutation
+   * directly and are a no-op here.
+   */
+  async dispatchHumanMessage(
+    taskId: string,
+    kind: 'hint' | 'redirect' | 'answer',
+    body: string,
+    messageId?: string,
+  ): Promise<void> {
+    if (kind === 'answer') return
+
+    const row = db
+      .query('SELECT agent_status FROM tasks WHERE id = ?')
+      .get(taskId) as { agent_status: string } | null
+    if (!row) return
+    const isRunning = row.agent_status === 'running'
+
+    if (kind === 'redirect') {
+      const runState = this.running.get(taskId)
+      if (runState) {
+        consola.info(`Redirect received for task ${taskId} — aborting agent`)
+        runState.abortController.abort()
+      }
+      if (isRunning) {
+        // Requeue with a short grace window so follow-up messages can batch.
+        db.run(
+          `UPDATE tasks SET agent_status = 'queued', queue_after = datetime('now', '+5 seconds'), updated_at = datetime('now') WHERE id = ?`,
+          [taskId],
+        )
+      }
+      return
+    }
+
+    // kind === 'hint'
+    if (!isRunning) return
+    await appendToInbox(this.config, taskId, `[hint] ${body}`)
+    if (messageId) {
+      // Mark only the specific row just inserted. Prevents a race where two
+      // concurrent hints would each mark ALL undelivered hints delivered,
+      // silently dropping the one that wasn't actually appended.
+      db.run(
+        `UPDATE task_messages SET delivered_at = datetime('now')
+         WHERE id = ? AND delivered_at IS NULL`,
+        [messageId],
+      )
+    }
+  }
 
   /** Cancel a running agent for a task. */
   async cancelTask(taskId: string): Promise<void> {

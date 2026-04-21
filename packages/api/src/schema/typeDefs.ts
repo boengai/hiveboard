@@ -30,6 +30,10 @@ export const typeDefs = /* GraphQL */ `
     cancelAgent(taskId: ID!): Task!
     runAgent(taskId: ID!, action: BoardAction!, instruction: String): Task!
 
+    sendHint(taskId: ID!, body: String!): TaskMessage!
+    sendRedirect(taskId: ID!, body: String!): TaskMessage!
+    answerQuestion(taskId: ID!, body: String!): TaskMessage!
+
     generateInvitation(githubUsername: String!): Invitation!
     revokeUser(userId: ID!): User!
   }
@@ -41,6 +45,7 @@ export const typeDefs = /* GraphQL */ `
     commentAdded(taskId: ID!): Comment!
     commentUpdated(taskId: ID!): Comment!
     taskEventAdded(taskId: ID!): TaskEvent!
+    messageAdded(taskId: ID!): TaskMessage!
   }
 
   type User {
@@ -105,6 +110,8 @@ export const typeDefs = /* GraphQL */ `
     updatedBy: User!
     tags: [Tag!]!
     comments: [Comment!]!
+    messages: [TaskMessage!]!
+    currentQuestion: TaskMessage
     createdAt: String!
     updatedAt: String!
   }
@@ -119,6 +126,7 @@ export const typeDefs = /* GraphQL */ `
     IDLE
     QUEUED
     RUNNING
+    BLOCKED
     SUCCESS
     FAILED
   }
@@ -129,6 +137,18 @@ export const typeDefs = /* GraphQL */ `
     REVISE
   }
 
+  enum MessageKind {
+    HINT
+    REDIRECT
+    QUESTION
+    ANSWER
+  }
+
+  enum MessageAuthorType {
+    HUMAN
+    AGENT
+  }
+
   type Comment {
     id: ID!
     body: String!
@@ -137,6 +157,17 @@ export const typeDefs = /* GraphQL */ `
     createdBy: User!
     createdAt: String!
     updatedAt: String!
+  }
+
+  type TaskMessage {
+    id: ID!
+    taskId: ID!
+    authorType: MessageAuthorType!
+    kind: MessageKind!
+    body: String!
+    deliveredAt: String
+    createdBy: User
+    createdAt: String!
   }
 
   type TaskEvent {

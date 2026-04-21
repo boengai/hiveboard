@@ -257,3 +257,22 @@ export const SCRATCHPAD_UPDATED_SUBSCRIPTION = /* GraphQL */ `
     }
   }
 `
+
+export const MESSAGE_ADDED_SUBSCRIPTION = /* GraphQL */ `
+  subscription MessageAdded($taskId: ID!) {
+    messageAdded(taskId: $taskId) {
+      id
+      taskId
+      authorType
+      kind
+      body
+      deliveredAt
+      createdAt
+      createdBy {
+        id
+        username
+        displayName
+      }
+    }
+  }
+`

@@ -46,6 +46,7 @@ import type {
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
 import { TaskComments } from './TaskComments'
+import { TaskMessages } from './TaskMessages'
 import { TaskScratchpad } from './TaskScratchpad'
 import { TaskTimeline, timeAgo } from './TaskTimeline'
 
@@ -74,6 +75,8 @@ function agentStatusColor(status: string): ActionColor {
       return 'warning'
     case 'RUNNING':
       return 'info'
+    case 'BLOCKED':
+      return 'honey'
     case 'SUCCESS':
       return 'success'
     case 'FAILED':
@@ -419,6 +422,15 @@ const ViewMode = ({
         <SectionLabel>Scratchpad</SectionLabel>
         <TaskScratchpad
           initialContent={task.scratchpad ?? ''}
+          taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Messages</SectionLabel>
+        <TaskMessages
+          agentStatus={task.agentStatus}
+          currentQuestion={task.currentQuestion ?? null}
+          initialMessages={task.messages ?? []}
           taskId={task.id}
         />
       </div>

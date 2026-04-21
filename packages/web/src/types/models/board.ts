@@ -22,6 +22,17 @@ export type Tag = {
 
 export type BoardAction = 'PLAN' | 'IMPLEMENT' | 'REVISE'
 
+export type TaskMessageSummary = {
+  id: string
+  taskId: string
+  authorType: 'HUMAN' | 'AGENT'
+  kind: 'HINT' | 'REDIRECT' | 'QUESTION' | 'ANSWER'
+  body: string
+  deliveredAt: string | null
+  createdAt: string
+  createdBy: { id: string; username: string; displayName: string } | null
+}
+
 export type Task = {
   id: string
   title: string
@@ -31,7 +42,7 @@ export type Task = {
   agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null
-  agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED'
+  agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'BLOCKED' | 'SUCCESS' | 'FAILED'
   retryCount: number
   prUrl: string | null
   scratchpad: string | null
@@ -43,4 +54,6 @@ export type Task = {
   createdAt: string
   updatedAt: string
   column?: { id: string; name: string }
+  messages?: TaskMessageSummary[]
+  currentQuestion?: { id: string; body: string; createdAt: string } | null
 }

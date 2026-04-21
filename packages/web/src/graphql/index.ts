@@ -1,6 +1,7 @@
 export { graphqlClient } from './client'
 export {
   ADD_COMMENT,
+  ANSWER_QUESTION,
   ARCHIVE_TASK,
   CANCEL_AGENT,
   CREATE_TAG,
@@ -9,6 +10,8 @@ export {
   DELETE_TAG,
   MOVE_TASK,
   RUN_AGENT,
+  SEND_HINT,
+  SEND_REDIRECT,
   SET_TASK_TAGS,
   UNARCHIVE_TASK,
   UPDATE_COMMENT,
@@ -28,6 +31,7 @@ export {
   AGENT_LOG_STREAM_SUBSCRIPTION,
   COMMENT_ADDED_SUBSCRIPTION,
   connectionStateManager,
+  MESSAGE_ADDED_SUBSCRIPTION,
   SCRATCHPAD_UPDATED_SUBSCRIPTION,
   sseClient,
   subscribe,

@@ -15,6 +15,7 @@ export type AgentStatus =
   | 'IDLE'
   | 'QUEUED'
   | 'RUNNING'
+  | 'BLOCKED'
   | 'SUCCESS'
   | 'FAILED'
   | string

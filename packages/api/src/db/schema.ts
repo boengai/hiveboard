@@ -92,6 +92,17 @@ export function createTables(db: Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS task_messages (
+      id            TEXT PRIMARY KEY,
+      task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      author_type   TEXT NOT NULL CHECK (author_type IN ('human', 'agent')),
+      kind          TEXT NOT NULL CHECK (kind IN ('hint', 'redirect', 'question', 'answer')),
+      body          TEXT NOT NULL,
+      delivered_at  TEXT,
+      created_by    TEXT REFERENCES users(id),
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS agent_runs (
       id          TEXT PRIMARY KEY,
       task_id     TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -121,6 +132,9 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_tasks_board_column ON tasks(board_id, column_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_status);
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_task_messages_task ON task_messages(task_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_task_messages_undelivered
+      ON task_messages(task_id, delivered_at) WHERE delivered_at IS NULL;
     CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);

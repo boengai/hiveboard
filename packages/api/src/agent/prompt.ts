@@ -14,6 +14,12 @@ export type TaskForPrompt = {
   prUrl: string | null
 }
 
+export type RunAgentMessage = {
+  kind: 'hint' | 'redirect' | 'answer'
+  body: string
+  created_at: string
+}
+
 export type PromptContext = {
   task: {
     id: string
@@ -30,6 +36,8 @@ export type PromptContext = {
   review_comments?: string
   has_review_comments?: boolean
   scratchpad?: string
+  messages?: RunAgentMessage[]
+  has_messages?: boolean
 }
 
 /** Render a Mustache template with task context. */
@@ -39,12 +47,15 @@ export function renderPrompt(
   attempt?: number,
   reviewComments?: string,
   scratchpad?: string,
+  messages?: RunAgentMessage[],
 ): string {
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
   const context: PromptContext = {
     attempt,
+    has_messages: (messages?.length ?? 0) > 0,
     has_review_comments: !!reviewComments,
+    messages: messages ?? [],
     review_comments: reviewComments,
     scratchpad: scratchpad ?? '',
     task: {

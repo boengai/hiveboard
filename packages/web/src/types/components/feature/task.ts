@@ -176,3 +176,38 @@ export type ScratchpadUpdatedPayload = {
     updatedAt: string
   }
 }
+
+// ---------------------------------------------------------------------------
+// TaskMessages
+// ---------------------------------------------------------------------------
+
+export type TaskMessageAuthorType = 'HUMAN' | 'AGENT'
+export type TaskMessageKind = 'HINT' | 'REDIRECT' | 'QUESTION' | 'ANSWER'
+
+export type TaskMessageUser = {
+  id: string
+  username: string
+  displayName: string
+}
+
+export type TaskMessage = {
+  id: string
+  taskId: string
+  authorType: TaskMessageAuthorType
+  kind: TaskMessageKind
+  body: string
+  deliveredAt: string | null
+  createdAt: string
+  createdBy: TaskMessageUser | null
+}
+
+export type TaskMessagesProps = {
+  taskId: string
+  agentStatus: string // 'IDLE' | 'QUEUED' | 'RUNNING' | 'BLOCKED' | 'SUCCESS' | 'FAILED'
+  currentQuestion: { id: string; body: string; createdAt: string } | null
+  initialMessages: TaskMessage[]
+}
+
+export type MessageAddedPayload = {
+  messageAdded: TaskMessage
+}

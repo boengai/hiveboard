@@ -2,7 +2,9 @@ import { consola } from 'consola'
 import type { Config } from '../config/schema'
 import { readScratchpad } from '../workspace/agent-state'
 import { buildAgentEnv } from './env'
-import { renderPrompt } from './prompt'
+import { type RunAgentMessage, renderPrompt } from './prompt'
+
+export type { RunAgentMessage }
 
 export type TaskForAgent = {
   id: string
@@ -34,6 +36,7 @@ export type RunAgentOptions = {
   gitIdentity?: { name: string; email: string }
   /** Directory containing token files for dynamic credential refresh. */
   tokenDir?: string
+  messages?: RunAgentMessage[]
 }
 
 /** Build Claude CLI arguments from config. */
@@ -77,6 +80,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     onLog,
     gitIdentity,
     tokenDir,
+    messages,
   } = options
 
   const scratchpad = await readScratchpad(config, task.id)
@@ -87,6 +91,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     retryAttempt && retryAttempt > 0 ? retryAttempt : undefined,
     reviewComments,
     scratchpad,
+    messages,
   )
 
   const args = buildClaudeArgs(config, prompt)

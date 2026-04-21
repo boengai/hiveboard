@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -11,7 +12,11 @@ import { join, resolve } from 'node:path'
 import { ConfigSchema } from '../src/config/schema'
 import {
   agentStateDir,
+  appendToInbox,
   deleteAgentState,
+  inboxPath,
+  questionPath,
+  readQuestion,
   readScratchpad,
   scratchpadPath,
   sweepOrphanAgentStateDirs,
@@ -156,5 +161,75 @@ describe('sweepOrphanAgentStateDirs', () => {
   it('returns cleanly if state_root does not exist', async () => {
     rmSync(tempRoot, { force: true, recursive: true })
     await sweepOrphanAgentStateDirs(testConfig, new Set())
+  })
+})
+
+describe('inboxPath / questionPath', () => {
+  it('returns files under the per-task directory', () => {
+    const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
+    expect(inboxPath(cfg, VALID_ULID).endsWith(`${VALID_ULID}/inbox.md`)).toBe(
+      true,
+    )
+    expect(
+      questionPath(cfg, VALID_ULID).endsWith(`${VALID_ULID}/question.md`),
+    ).toBe(true)
+  })
+})
+
+describe('readQuestion', () => {
+  let tempRoot: string
+  let testConfig: ReturnType<typeof ConfigSchema.parse>
+
+  beforeEach(() => {
+    tempRoot = mkdtempSync(join(tmpdir(), 'hb-q-'))
+    testConfig = ConfigSchema.parse({ agent: { state_root: tempRoot } })
+  })
+  afterEach(() => rmSync(tempRoot, { force: true, recursive: true }))
+
+  it('returns "" when absent', async () => {
+    const r = await readQuestion(testConfig, VALID_ULID)
+    expect(r).toBe('')
+  })
+
+  it('returns contents trimmed when present', async () => {
+    const dir = join(tempRoot, VALID_ULID)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'question.md'), '  should I use Postgres?  \n')
+    const r = await readQuestion(testConfig, VALID_ULID)
+    expect(r).toBe('should I use Postgres?')
+  })
+
+  it('truncates at 32 KB with a marker', async () => {
+    const dir = join(tempRoot, VALID_ULID)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'question.md'), 'Q'.repeat(40_000))
+    const r = await readQuestion(testConfig, VALID_ULID)
+    expect(r.length).toBeLessThanOrEqual(32 * 1024 + 200)
+    expect(r.endsWith('...[truncated]')).toBe(true)
+  })
+})
+
+describe('appendToInbox', () => {
+  let tempRoot: string
+  let testConfig: ReturnType<typeof ConfigSchema.parse>
+
+  beforeEach(() => {
+    tempRoot = mkdtempSync(join(tmpdir(), 'hb-ib-'))
+    testConfig = ConfigSchema.parse({ agent: { state_root: tempRoot } })
+    mkdirSync(join(tempRoot, VALID_ULID), { recursive: true })
+  })
+  afterEach(() => rmSync(tempRoot, { force: true, recursive: true }))
+
+  it('creates and appends a line', async () => {
+    await appendToInbox(testConfig, VALID_ULID, 'first')
+    await appendToInbox(testConfig, VALID_ULID, 'second')
+    const content = readFileSync(inboxPath(testConfig, VALID_ULID), 'utf8')
+    expect(content).toContain('first')
+    expect(content).toContain('second')
+    expect(content.indexOf('first')).toBeLessThan(content.indexOf('second'))
+  })
+
+  it('swallows errors on invalid id', async () => {
+    await appendToInbox(testConfig, '../evil', 'x')
   })
 })
