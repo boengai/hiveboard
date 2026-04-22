@@ -46,9 +46,11 @@ import type {
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
 import { TaskComments } from './TaskComments'
+import { TaskEventHistory, timeAgo } from './TaskEventHistory'
 import { TaskMessages } from './TaskMessages'
+import { TaskProgress } from './TaskProgress'
 import { TaskScratchpad } from './TaskScratchpad'
-import { TaskTimeline, timeAgo } from './TaskTimeline'
+import { TaskTimeline } from './TaskTimeline'
 import { TaskVerification } from './TaskVerification'
 
 const agentDot = tv({
@@ -436,6 +438,21 @@ const ViewMode = ({
         />
       </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Progress</SectionLabel>
+        <TaskProgress
+          agentStatus={task.agentStatus}
+          initialEntries={[]}
+          taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Timeline</SectionLabel>
+        <TaskTimeline
+          initialSnapshots={task.workspaceSnapshots ?? []}
+          taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Verification</SectionLabel>
         <TaskVerification
           initialRuns={task.verificationRuns ?? []}
@@ -444,8 +461,8 @@ const ViewMode = ({
         />
       </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Activity</SectionLabel>
-        <TaskTimeline taskId={task.id} />
+        <SectionLabel>Event History</SectionLabel>
+        <TaskEventHistory taskId={task.id} />
       </div>
       {task.column?.name !== 'Done' && (
         <div className="flex flex-col gap-3 border-border-default border-t pt-5">

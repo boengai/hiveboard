@@ -1,1 +1,10 @@
-export type { Board, BoardAction, Column, Tag, Task } from './board'
+export type {
+  Board,
+  BoardAction,
+  Column,
+  SnapshotFileEntry,
+  Tag,
+  Task,
+  TaskProgressEntry,
+  WorkspaceSnapshotSummary,
+} from './board'

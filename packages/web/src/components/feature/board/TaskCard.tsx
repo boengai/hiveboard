@@ -1,10 +1,13 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { Avatar, CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
 import { GitHubIcon } from '@/components/common/icon'
+import { subscribe, TASK_PROGRESS_ADDED_SUBSCRIPTION } from '@/graphql'
 import { useBoardStore } from '@/store'
 import type { Task, TaskCardProps } from '@/types'
+import type { TaskProgressEntry } from '@/types/models'
 import { tv } from '@/utils'
 
 const parseActionLabel = (
@@ -137,6 +140,25 @@ function AgentStatusDot({
 export function TaskCard({ task, column }: TaskCardProps) {
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
 
+  const [latestProgress, setLatestProgress] =
+    useState<TaskProgressEntry | null>(null)
+
+  useEffect(() => {
+    if (task.agentStatus !== 'RUNNING') {
+      setLatestProgress(null)
+      return
+    }
+    const dispose = subscribe<{ taskProgressAdded: TaskProgressEntry }>(
+      TASK_PROGRESS_ADDED_SUBSCRIPTION,
+      { taskId: task.id },
+      (data) => {
+        if (data.taskProgressAdded?.taskId !== task.id) return
+        setLatestProgress(data.taskProgressAdded)
+      },
+    )
+    return dispose
+  }, [task.id, task.agentStatus])
+
   const {
     attributes,
     listeners,
@@ -181,6 +203,14 @@ export function TaskCard({ task, column }: TaskCardProps) {
           {/* Action badge */}
           {task.action && (
             <span>{parseActionLabel(task.agentStatus, task.action)}</span>
+          )}
+          {task.agentStatus === 'RUNNING' && latestProgress && (
+            <span
+              className="ml-1 rounded-full bg-info-400/15 px-1 font-mono text-[10px] text-info-400 tabular-nums"
+              title={`Step ${latestProgress.step} of ${latestProgress.total}: ${latestProgress.label}`}
+            >
+              {latestProgress.step}/{latestProgress.total}
+            </span>
           )}
         </div>
       )}

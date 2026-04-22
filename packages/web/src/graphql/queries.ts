@@ -210,6 +210,20 @@ export const GET_TASK = /* GraphQL */ `
         startedAt
         finishedAt
       }
+      workspaceSnapshots {
+        id
+        taskId
+        agentRunId
+        statSummary
+        fileStatus {
+          path
+          status
+          additions
+          deletions
+        }
+        hasPatch
+        capturedAt
+      }
       verifyAttemptCount
       verifyCommandsOverride {
         label
@@ -277,6 +291,27 @@ export const GET_AGENT_RUNS = /* GraphQL */ `
       startedAt
       finishedAt
     }
+  }
+`
+
+export const GET_TASK_PROGRESS = /* GraphQL */ `
+  query GetTaskProgress($taskId: ID!) {
+    taskProgress(taskId: $taskId) {
+      taskId
+      agentRunId
+      ts
+      step
+      total
+      label
+      detail
+      status
+    }
+  }
+`
+
+export const GET_WORKSPACE_SNAPSHOT_PATCH = /* GraphQL */ `
+  query GetWorkspaceSnapshotPatch($id: ID!) {
+    workspaceSnapshotPatch(id: $id)
   }
 `
 

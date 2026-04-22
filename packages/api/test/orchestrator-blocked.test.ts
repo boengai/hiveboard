@@ -59,8 +59,10 @@ mock.module('../src/pubsub', () => ({
   publishMessageAdded: () => {},
   publishScratchpadUpdated: () => {},
   publishTaskEvent: () => {},
+  publishTaskProgress: () => {},
   publishTaskUpdated: () => {},
   publishVerificationRun: () => {},
+  publishWorkspaceSnapshot: () => {},
   pubsub: { publish: () => {} },
 }))
 

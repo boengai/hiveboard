@@ -25,7 +25,9 @@ export {
   GET_COMMENTS,
   GET_ME,
   GET_TASK,
+  GET_TASK_PROGRESS,
   GET_TASK_TIMELINE,
+  GET_WORKSPACE_SNAPSHOT_PATCH,
 } from './queries'
 export type { ConnectionState } from './subscriptions'
 export {
@@ -37,6 +39,8 @@ export {
   sseClient,
   subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
+  TASK_PROGRESS_ADDED_SUBSCRIPTION,
   TASK_UPDATED_SUBSCRIPTION,
   VERIFICATION_RUN_ADDED_SUBSCRIPTION,
+  WORKSPACE_SNAPSHOT_ADDED_SUBSCRIPTION,
 } from './subscriptions'

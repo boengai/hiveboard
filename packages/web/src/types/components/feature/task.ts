@@ -1,5 +1,9 @@
 import type { TaskFormValues } from '@/schemas/task'
-import type { Task } from '@/types/models'
+import type {
+  Task,
+  TaskProgressEntry,
+  WorkspaceSnapshotSummary,
+} from '@/types/models'
 import type { ComboboxOption } from '../common/input'
 
 // ---------------------------------------------------------------------------
@@ -104,7 +108,7 @@ export type TaskCommentsProps = {
 }
 
 // ---------------------------------------------------------------------------
-// TaskTimeline
+// TaskEventHistory
 // ---------------------------------------------------------------------------
 
 export type TimelineEntry = {
@@ -154,7 +158,7 @@ export type RawComment = {
   }>
 }
 
-export type TaskTimelineProps = {
+export type TaskEventHistoryProps = {
   taskId: string
   /** Called when a comment is added/updated so parent can refresh */
   onCommentMutation?: () => void
@@ -210,4 +214,31 @@ export type TaskMessagesProps = {
 
 export type MessageAddedPayload = {
   messageAdded: TaskMessage
+}
+
+// ---------------------------------------------------------------------------
+// TaskProgress (step list) — new in Plan D
+// ---------------------------------------------------------------------------
+
+export type TaskProgressProps = {
+  taskId: string
+  initialEntries: TaskProgressEntry[]
+  agentStatus: string
+}
+
+export type TaskProgressAddedPayload = {
+  taskProgressAdded: TaskProgressEntry
+}
+
+// ---------------------------------------------------------------------------
+// TaskTimeline (diff scrubber) — new in Plan D
+// ---------------------------------------------------------------------------
+
+export type TaskTimelineProps = {
+  taskId: string
+  initialSnapshots: WorkspaceSnapshotSummary[]
+}
+
+export type WorkspaceSnapshotAddedPayload = {
+  workspaceSnapshotAdded: WorkspaceSnapshotSummary
 }

@@ -33,6 +33,34 @@ export type TaskMessageSummary = {
   createdBy: { id: string; username: string; displayName: string } | null
 }
 
+export type SnapshotFileEntry = {
+  path: string
+  status: string
+  additions: number
+  deletions: number
+}
+
+export type WorkspaceSnapshotSummary = {
+  id: string
+  taskId: string
+  agentRunId: string | null
+  statSummary: string
+  fileStatus: SnapshotFileEntry[]
+  hasPatch: boolean
+  capturedAt: string
+}
+
+export type TaskProgressEntry = {
+  taskId: string
+  agentRunId: string | null
+  ts: string
+  step: number
+  total: number
+  label: string
+  detail: string | null
+  status: 'IN_PROGRESS' | 'DONE' | 'FAILED'
+}
+
 export type Task = {
   id: string
   title: string
@@ -73,4 +101,6 @@ export type Task = {
     run: string
     timeoutMs: number | null
   }> | null
+  workspaceSnapshots?: WorkspaceSnapshotSummary[]
+  latestProgress?: TaskProgressEntry | null
 }

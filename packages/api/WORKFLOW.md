@@ -41,6 +41,10 @@ verify:
     - label: test
       run: bun run test
       timeout_ms: 300000
+progress:
+  enabled: true
+  snapshot_interval_ms: 15000
+  snapshot_disk_budget_mb: 10
 worker:
   ssh_hosts: []
 ---
@@ -98,6 +102,37 @@ yourself, not a report for humans.
   Reused JWT helper from packages/shared/jwt. Ruled out sessions (no Redis).
   EOF
   ```
+
+## Progress pings — tell the human what you're doing
+
+Optional. You have a file at `$HIVEBOARD_PROGRESS`. Appending one NDJSON
+object per line gives the watcher in HiveBoard a human-readable progress
+feed for this run. Silence is fine — if you emit nothing, the UI shows an
+empty "no progress yet" state, not a failure.
+
+**Good cadence:**
+- One line when you start a logical step (`status: in_progress`).
+- One line when you finish it (`status: done`) or give up on it (`status: failed`).
+- Target 5–12 steps total for a typical run. Too few = poor visibility; too
+  many = noise.
+
+**Schema (one NDJSON object per line):**
+
+```json
+{"ts":"<ISO8601 UTC>","step":<n>,"total":<N>,"label":"<≤60 chars>","status":"in_progress|done|failed","detail":"<optional>"}
+```
+
+**Example append command:**
+
+```bash
+printf '%s\n' \
+  '{"ts":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","step":3,"total":7,"label":"resolvers","status":"in_progress"}' \
+  >> "$HIVEBOARD_PROGRESS"
+```
+
+NEVER use the `Write` tool on this file — it overwrites prior entries. Use
+shell `>>` only. Malformed lines are silently dropped, so the rest of your
+feed keeps flowing.
 
 ## Messages from the human (auto-loaded)
 

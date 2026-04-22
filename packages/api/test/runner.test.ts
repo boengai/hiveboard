@@ -138,3 +138,32 @@ describe('HIVEBOARD_SCRATCHPAD env var', () => {
     expect(env.HIVEBOARD_SCRATCHPAD).toBeUndefined()
   })
 })
+
+describe('HIVEBOARD_PROGRESS env var', () => {
+  const VALID_ULID = '01HYX3KPQR000000000000000A'
+  const ULID_TASK: TaskForAgent = { ...TASK, id: VALID_ULID }
+  const testConfig = ConfigSchema.parse({
+    agent: { state_root: '/tmp/hb-state' },
+  })
+
+  it('points at {agent.state_root}/{task-id}/progress.ndjson', () => {
+    const env = buildAgentEnv(
+      ULID_TASK,
+      WORKSPACE,
+      undefined,
+      undefined,
+      testConfig,
+    )
+    expect(env.HIVEBOARD_PROGRESS).toBeDefined()
+    expect(
+      env.HIVEBOARD_PROGRESS?.endsWith(
+        '/01HYX3KPQR000000000000000A/progress.ndjson',
+      ),
+    ).toBe(true)
+  })
+
+  it('is skipped silently for non-ULID task ids', () => {
+    const env = buildAgentEnv(TASK, WORKSPACE, undefined, undefined, testConfig)
+    expect(env.HIVEBOARD_PROGRESS).toBeUndefined()
+  })
+})

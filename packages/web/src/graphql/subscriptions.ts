@@ -275,6 +275,40 @@ export const VERIFICATION_RUN_ADDED_SUBSCRIPTION = /* GraphQL */ `
   }
 `
 
+export const TASK_PROGRESS_ADDED_SUBSCRIPTION = /* GraphQL */ `
+  subscription TaskProgressAdded($taskId: ID!) {
+    taskProgressAdded(taskId: $taskId) {
+      taskId
+      agentRunId
+      ts
+      step
+      total
+      label
+      detail
+      status
+    }
+  }
+`
+
+export const WORKSPACE_SNAPSHOT_ADDED_SUBSCRIPTION = /* GraphQL */ `
+  subscription WorkspaceSnapshotAdded($taskId: ID!) {
+    workspaceSnapshotAdded(taskId: $taskId) {
+      id
+      taskId
+      agentRunId
+      statSummary
+      fileStatus {
+        path
+        status
+        additions
+        deletions
+      }
+      hasPatch
+      capturedAt
+    }
+  }
+`
+
 export const MESSAGE_ADDED_SUBSCRIPTION = /* GraphQL */ `
   subscription MessageAdded($taskId: ID!) {
     messageAdded(taskId: $taskId) {

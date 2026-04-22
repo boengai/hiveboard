@@ -18,6 +18,7 @@ import type { GitHubClient, ReviewComment } from '../github/client'
 import {
   publishAgentLog,
   publishMessageAdded,
+  publishTaskProgress,
   publishTaskUpdated,
   pubsub,
 } from '../pubsub'
@@ -28,6 +29,8 @@ import {
 } from '../workspace/agent-state'
 import type { WorkspaceManager } from '../workspace/manager'
 import { slugify } from '../workspace/manager'
+import { watchProgress } from '../workspace/progress-watcher'
+import { startSnapshotLoop } from './snapshot-loop'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +68,8 @@ type RunState = {
   abortController: AbortController
   done: Promise<void>
   resolveDone: () => void
+  progressDispose?: () => void
+  snapshotLoop?: { stop: () => Promise<void> }
 }
 
 // ---------------------------------------------------------------------------
@@ -587,6 +592,50 @@ export class Orchestrator {
         } as unknown as Record<string, unknown>)
       }
 
+      // --- Plan D: progress watcher + snapshot loop ---
+      if (this.config.progress?.enabled) {
+        try {
+          runState.progressDispose = watchProgress(
+            this.config,
+            task.id,
+            (entry) => {
+              publishTaskProgress(task.id, {
+                agentRunId: runId,
+                detail: entry.detail ?? null,
+                label: entry.label,
+                status: entry.status.toUpperCase() as
+                  | 'IN_PROGRESS'
+                  | 'DONE'
+                  | 'FAILED',
+                step: entry.step,
+                taskId: task.id,
+                total: entry.total,
+                ts: entry.ts,
+              })
+            },
+          )
+        } catch (err) {
+          consola.warn(
+            `progress watcher setup failed for ${task.id}: ${(err as Error).message}`,
+          )
+        }
+
+        try {
+          runState.snapshotLoop = startSnapshotLoop({
+            agentRunId: runId,
+            config: this.config,
+            db,
+            taskId: task.id,
+            workspacePath: runState.workspacePath,
+          })
+        } catch (err) {
+          consola.warn(
+            `snapshot loop setup failed for ${task.id}: ${(err as Error).message}`,
+          )
+        }
+      }
+      // --- end Plan D setup ---
+
       const gitIdentity = await this.github.getIdentity()
 
       const undeliveredMessages = listUndeliveredHumanMessages(db, task.id)
@@ -639,9 +688,17 @@ export class Orchestrator {
         workspacePath: runState.workspacePath,
       })
 
+      // Plan D teardown: stop the progress watcher + snapshot loop as soon
+      // as the agent exits, BEFORE `onComplete` runs `verifyAndGate`. The
+      // verify phase can take minutes and shells out `bun run lint/tsc/test`
+      // — keeping the 15s snapshot loop alive during that window wastes git
+      // forks and risks racing with verify commands that might also touch
+      // the workspace.
+      await this.stopObservability(runState, task.id)
       await this.onComplete(task, runId, result)
     } catch (err) {
       consola.error(`Agent crashed for task ${task.id}:`, err)
+      await this.stopObservability(runState, task.id)
       await this.onComplete(task, runId, {
         error: String(err),
         output: '',
@@ -649,8 +706,43 @@ export class Orchestrator {
         taskId: task.id,
       })
     } finally {
+      // Defensive: if neither the happy nor the catch path executed the
+      // teardown (e.g. an exception escaped stopObservability itself), do
+      // it here. The helper is idempotent via null-out.
+      await this.stopObservability(runState, task.id)
+
       this.running.delete(task.id)
       runState.resolveDone()
+    }
+  }
+
+  /**
+   * Stop the per-run progress watcher + snapshot loop. Idempotent — sets the
+   * RunState fields to undefined after teardown so repeat calls are no-ops.
+   */
+  private async stopObservability(
+    runState: RunState,
+    taskId: string,
+  ): Promise<void> {
+    const ds = runState.progressDispose
+    if (ds) {
+      runState.progressDispose = undefined
+      try {
+        ds()
+      } catch {
+        /* ignore */
+      }
+    }
+    const loop = runState.snapshotLoop
+    if (loop) {
+      runState.snapshotLoop = undefined
+      try {
+        await loop.stop()
+      } catch (err) {
+        consola.warn(
+          `snapshot-loop stop ${taskId}: ${(err as Error).message}`,
+        )
+      }
     }
   }
 

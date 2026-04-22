@@ -134,6 +134,11 @@ export function questionPath(config: Config, taskId: string): string {
   return join(agentStateDir(config, taskId), 'question.md')
 }
 
+/** Path to `progress.ndjson` inside the per-task agent state directory. */
+export function progressPath(config: Config, taskId: string): string {
+  return join(agentStateDir(config, taskId), 'progress.ndjson')
+}
+
 /**
  * Read the question file for a task, capped at 32 KB with a truncation suffix.
  * Returns '' on invalid id, missing file, or read error (non-ENOENT errors logged).

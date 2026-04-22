@@ -129,6 +129,17 @@ export function createTables(db: Database): void {
       finished_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS workspace_snapshots (
+      id            TEXT PRIMARY KEY,
+      task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      agent_run_id  TEXT REFERENCES agent_runs(id),
+      stat_summary  TEXT NOT NULL,
+      stat_hash     TEXT NOT NULL,
+      file_status   TEXT NOT NULL,
+      patch         BLOB,
+      captured_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS tags (
       id         TEXT PRIMARY KEY,
       board_id   TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
@@ -154,6 +165,8 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
     CREATE INDEX IF NOT EXISTS idx_verification_runs_task
       ON verification_runs(task_id, started_at);
+    CREATE INDEX IF NOT EXISTS idx_workspace_snapshots_task
+      ON workspace_snapshots(task_id, captured_at);
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);

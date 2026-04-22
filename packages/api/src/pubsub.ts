@@ -9,6 +9,8 @@ export const pubsub = createPubSub<{
   SCRATCHPAD_UPDATED: [taskId: string, payload: Record<string, unknown>]
   TASK_MESSAGE: [taskId: string, payload: Record<string, unknown>]
   VERIFICATION_RUN: [taskId: string, payload: Record<string, unknown>]
+  WORKSPACE_SNAPSHOT: [taskId: string, payload: Record<string, unknown>]
+  TASK_PROGRESS: [taskId: string, payload: Record<string, unknown>]
 }>()
 
 export function publishTaskUpdated(boardId: string, task: unknown) {
@@ -67,5 +69,49 @@ export function publishVerificationRun(
     'VERIFICATION_RUN',
     taskId,
     run as unknown as Record<string, unknown>,
+  )
+}
+
+export function publishWorkspaceSnapshot(
+  taskId: string,
+  snapshot: {
+    id: string
+    taskId: string
+    agentRunId: string | null
+    statSummary: string
+    fileStatus: Array<{
+      path: string
+      status: string
+      additions: number
+      deletions: number
+    }>
+    hasPatch: boolean
+    capturedAt: string
+  },
+): void {
+  pubsub.publish(
+    'WORKSPACE_SNAPSHOT',
+    taskId,
+    snapshot as unknown as Record<string, unknown>,
+  )
+}
+
+export function publishTaskProgress(
+  taskId: string,
+  entry: {
+    taskId: string
+    agentRunId: string | null
+    ts: string
+    step: number
+    total: number
+    label: string
+    detail: string | null
+    status: 'IN_PROGRESS' | 'DONE' | 'FAILED'
+  },
+): void {
+  pubsub.publish(
+    'TASK_PROGRESS',
+    taskId,
+    entry as unknown as Record<string, unknown>,
   )
 }

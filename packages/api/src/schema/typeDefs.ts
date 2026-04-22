@@ -4,6 +4,9 @@ export const typeDefs = /* GraphQL */ `
     boards: [Board!]!
     task(id: ID!): Task
     agentRuns(taskId: ID!): [AgentRun!]!
+    taskProgress(taskId: ID!): [TaskProgress!]!
+    workspaceSnapshot(id: ID!): WorkspaceSnapshot
+    workspaceSnapshotPatch(id: ID!): String
     taskTimeline(taskId: ID!): [TaskEvent!]!
     comments(taskId: ID!): [Comment!]!
     tags(boardId: ID!): [Tag!]!
@@ -49,6 +52,8 @@ export const typeDefs = /* GraphQL */ `
     taskEventAdded(taskId: ID!): TaskEvent!
     messageAdded(taskId: ID!): TaskMessage!
     verificationRunAdded(taskId: ID!): VerificationRun!
+    taskProgressAdded(taskId: ID!): TaskProgress!
+    workspaceSnapshotAdded(taskId: ID!): WorkspaceSnapshot!
   }
 
   type User {
@@ -116,6 +121,7 @@ export const typeDefs = /* GraphQL */ `
     messages: [TaskMessage!]!
     currentQuestion: TaskMessage
     verificationRuns: [VerificationRun!]!
+    workspaceSnapshots: [WorkspaceSnapshot!]!
     verifyAttemptCount: Int!
     verifyCommandsOverride: [VerifyCommand!]
     createdAt: String!
@@ -217,6 +223,40 @@ export const typeDefs = /* GraphQL */ `
     output: String!
     startedAt: String!
     finishedAt: String!
+  }
+
+  enum ProgressStatus {
+    IN_PROGRESS
+    DONE
+    FAILED
+  }
+
+  type TaskProgress {
+    taskId: ID!
+    agentRunId: ID
+    ts: String!
+    step: Int!
+    total: Int!
+    label: String!
+    detail: String
+    status: ProgressStatus!
+  }
+
+  type SnapshotFileEntry {
+    path: String!
+    status: String!
+    additions: Int!
+    deletions: Int!
+  }
+
+  type WorkspaceSnapshot {
+    id: ID!
+    taskId: ID!
+    agentRunId: ID
+    statSummary: String!
+    fileStatus: [SnapshotFileEntry!]!
+    hasPatch: Boolean!
+    capturedAt: String!
   }
 
   type VerifyCommand {

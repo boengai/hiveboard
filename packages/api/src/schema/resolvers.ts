@@ -1,4 +1,4 @@
-import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GraphQLError } from 'graphql'
 import { z } from 'zod/v4'
@@ -21,6 +21,11 @@ import {
   type TaskMessageRow,
 } from '../db/task-messages'
 import { listVerificationRunsForTask } from '../db/verification-runs'
+import {
+  getSnapshotById,
+  getSnapshotPatch,
+  listSnapshotsForTask,
+} from '../db/workspace-snapshots'
 import { getOrchestrator } from '../orchestrator'
 import {
   publishMessageAdded,
@@ -29,7 +34,8 @@ import {
 } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
-import { readScratchpad } from '../workspace/agent-state'
+import { progressPath, readScratchpad } from '../workspace/agent-state'
+import { parseProgressLines } from '../workspace/progress-watcher'
 import { watchScratchpad } from '../workspace/scratchpad-watcher'
 import {
   HexColorSchema,
@@ -223,6 +229,26 @@ function mapTaskMessage(row: TaskMessageRow): {
     deliveredAt: row.deliveredAt,
     id: row.id,
     kind: row.kind.toUpperCase() as 'HINT' | 'REDIRECT' | 'QUESTION' | 'ANSWER',
+    taskId: row.taskId,
+  }
+}
+
+function mapSnapshotRow(
+  row: NonNullable<ReturnType<typeof getSnapshotById>>,
+): Record<string, unknown> {
+  let parsedFileStatus: unknown[] = []
+  try {
+    parsedFileStatus = JSON.parse(row.fileStatus) as unknown[]
+  } catch {
+    parsedFileStatus = []
+  }
+  return {
+    agentRunId: row.agentRunId,
+    capturedAt: row.capturedAt,
+    fileStatus: parsedFileStatus,
+    hasPatch: row.hasPatch,
+    id: row.id,
+    statSummary: row.statSummary,
     taskId: row.taskId,
   }
 }
@@ -1469,15 +1495,13 @@ export const resolvers = {
       } else {
         // Validate against the same Zod schema the YAML config uses so both
         // paths reject empty labels/runs, non-positive timeouts, etc.
-        const parsed = z
-          .array(VerifyCommandSchema)
-          .parse(
-            commands.map((c) => ({
-              label: c.label,
-              run: c.run,
-              timeout_ms: c.timeoutMs ?? undefined,
-            })),
-          )
+        const parsed = z.array(VerifyCommandSchema).parse(
+          commands.map((c) => ({
+            label: c.label,
+            run: c.run,
+            timeout_ms: c.timeoutMs ?? undefined,
+          })),
+        )
         const serialized = JSON.stringify(parsed)
         db.run(
           `UPDATE tasks SET verify_commands = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -1830,6 +1854,35 @@ export const resolvers = {
       return getTaskById(id)
     },
 
+    async taskProgress(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ): Promise<unknown[]> {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      const config = getConfig()
+      if (!config) return []
+      let buf: Buffer
+      try {
+        buf = await readFile(progressPath(config, taskId))
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return []
+        throw err
+      }
+      const { entries } = parseProgressLines(buf.toString('utf8') + '\n')
+      return entries.map((e) => ({
+        agentRunId: null,
+        detail: e.detail ?? null,
+        label: e.label,
+        status: e.status.toUpperCase(),
+        step: e.step,
+        taskId,
+        total: e.total,
+        ts: e.ts,
+      }))
+    },
+
     taskTimeline(
       _: unknown,
       { taskId }: { taskId: string },
@@ -1858,6 +1911,44 @@ export const resolvers = {
         .query('SELECT * FROM users ORDER BY created_at ASC')
         .all() as UserRow[]
       return rows.map(mapUser)
+    },
+
+    workspaceSnapshot(
+      _: unknown,
+      { id }: { id: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      const row = getSnapshotById(db, id)
+      if (!row) return null
+      requireTaskAccess(row.taskId, authUser)
+      return mapSnapshotRow(row)
+    },
+
+    workspaceSnapshotPatch(
+      _: unknown,
+      { id }: { id: string },
+      ctx: ResolverContext,
+    ): string {
+      const authUser = requireAuth(ctx)
+      const row = getSnapshotById(db, id)
+      if (!row) return ''
+      requireTaskAccess(row.taskId, authUser)
+      if (!row.hasPatch) return ''
+      const blob = getSnapshotPatch(db, id)
+      if (!blob) return ''
+      try {
+        const bytes = new Uint8Array(
+          blob.buffer.slice(
+            blob.byteOffset,
+            blob.byteOffset + blob.byteLength,
+          ) as ArrayBuffer,
+        )
+        const raw = Bun.gunzipSync(bytes)
+        return Buffer.from(raw).toString('utf8')
+      } catch {
+        return ''
+      }
     },
   },
 
@@ -1975,6 +2066,21 @@ export const resolvers = {
         return pubsub.subscribe('TASK_EVENT', taskId)
       },
     },
+
+    taskProgressAdded: {
+      resolve(payload: unknown) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+        return pubsub.subscribe('TASK_PROGRESS', taskId)
+      },
+    },
     taskUpdated: {
       resolve(payload: Record<string, unknown>) {
         return payload
@@ -2002,6 +2108,21 @@ export const resolvers = {
         const authUser = requireAuth(ctx)
         requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('VERIFICATION_RUN', taskId)
+      },
+    },
+
+    workspaceSnapshotAdded: {
+      resolve(payload: unknown) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+        return pubsub.subscribe('WORKSPACE_SNAPSHOT', taskId)
       },
     },
   },
@@ -2077,6 +2198,9 @@ export const resolvers = {
       } catch {
         return null
       }
+    },
+    workspaceSnapshots(parent: { id: string }) {
+      return listSnapshotsForTask(db, parent.id).map(mapSnapshotRow)
     },
   },
 

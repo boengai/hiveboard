@@ -20,7 +20,7 @@ import type {
   Reply,
   TaskCommentsProps,
 } from '@/types'
-import { timeAgo } from './TaskTimeline'
+import { timeAgo } from './TaskEventHistory'
 
 function CommentBlock({
   taskId,

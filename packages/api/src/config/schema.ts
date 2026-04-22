@@ -72,6 +72,12 @@ export const VerifySchema = z.object({
   max_auto_revises: z.number().int().nonnegative().default(1),
 })
 
+export const ProgressSchema = z.object({
+  enabled: z.boolean().default(true),
+  snapshot_disk_budget_mb: z.number().int().positive().default(10),
+  snapshot_interval_ms: z.number().int().positive().default(15_000),
+})
+
 // ---------------------------------------------------------------------------
 // Root schema
 // ---------------------------------------------------------------------------
@@ -81,6 +87,7 @@ export const ConfigSchema = z.object({
   claude: objectWithDefaults(ClaudeSchema),
   hooks: objectWithDefaults(HooksSchema),
   polling: objectWithDefaults(PollingSchema),
+  progress: objectWithDefaults(ProgressSchema),
   verify: objectWithDefaults(VerifySchema),
   workspace: objectWithDefaults(WorkspaceSchema),
 })
@@ -91,5 +98,6 @@ export type WorkspaceConfig = z.infer<typeof WorkspaceSchema>
 export type ClaudeConfig = z.infer<typeof ClaudeSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
 export type HooksConfig = z.infer<typeof HooksSchema>
+export type ProgressConfig = z.infer<typeof ProgressSchema>
 export type VerifyConfig = z.infer<typeof VerifySchema>
 export type VerifyCommand = z.infer<typeof VerifyCommandSchema>

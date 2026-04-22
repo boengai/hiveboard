@@ -15,6 +15,7 @@ import {
   appendToInbox,
   deleteAgentState,
   inboxPath,
+  progressPath,
   questionPath,
   readQuestion,
   readScratchpad,
@@ -280,5 +281,18 @@ describe('appendScratchpadEntry', () => {
     )
     await appendScratchpadEntry(cfg, '../evil', 'x')
     // no throw; nothing created
+  })
+})
+
+describe('progressPath', () => {
+  it('returns {state_dir}/progress.ndjson for a valid id', () => {
+    const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
+    const p = progressPath(cfg, VALID_ULID)
+    expect(p.endsWith(`${VALID_ULID}/progress.ndjson`)).toBe(true)
+  })
+
+  it('throws on invalid task id', () => {
+    const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
+    expect(() => progressPath(cfg, '../evil')).toThrow()
   })
 })

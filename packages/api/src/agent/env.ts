@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import type { Config } from '../config/schema'
 import {
   inboxPath,
+  progressPath,
   questionPath,
   scratchpadPath,
 } from '../workspace/agent-state'
@@ -91,7 +92,7 @@ export function buildAgentEnv(
     env.HIVEBOARD_TOKEN_FILE = join(tokenDir, 'token')
   }
 
-  // Expose per-task scratchpad / inbox / question paths to the agent
+  // Expose per-task scratchpad / inbox / question / progress paths to the agent
   // (ULID-validated). Skipped silently for invalid ids so legacy/fixture data
   // doesn't break env build.
   if (config) {
@@ -99,6 +100,7 @@ export function buildAgentEnv(
       env.HIVEBOARD_SCRATCHPAD = scratchpadPath(config, task.id)
       env.HIVEBOARD_INBOX = inboxPath(config, task.id)
       env.HIVEBOARD_QUESTION = questionPath(config, task.id)
+      env.HIVEBOARD_PROGRESS = progressPath(config, task.id)
     } catch {
       // Invalid ULIDs in fixtures / legacy data: skip silently.
     }

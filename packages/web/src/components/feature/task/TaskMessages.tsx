@@ -14,7 +14,7 @@ import type {
   TaskMessageKind,
   TaskMessagesProps,
 } from '@/types'
-import { timeAgo } from './TaskTimeline'
+import { timeAgo } from './TaskEventHistory'
 
 // ---------------------------------------------------------------------------
 // Kind chip
