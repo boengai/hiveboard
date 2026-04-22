@@ -1,7 +1,10 @@
 import type { TaskFormValues } from '@/schemas/task'
 import type {
+  BlockReason,
   Task,
+  TaskBlockerSummary,
   TaskProgressEntry,
+  TaskSubtaskSummary,
   WorkspaceSnapshotSummary,
 } from '@/types/models'
 import type { ComboboxOption } from '../common/input'
@@ -241,4 +244,39 @@ export type TaskTimelineProps = {
 
 export type WorkspaceSnapshotAddedPayload = {
   workspaceSnapshotAdded: WorkspaceSnapshotSummary
+}
+
+// ---------------------------------------------------------------------------
+// TaskDependencies — new in Plan E
+// ---------------------------------------------------------------------------
+
+export type TaskDependenciesProps = {
+  taskId: string
+  blockers: TaskBlockerSummary[]
+  dependents: TaskBlockerSummary[]
+  blockReason: BlockReason | null
+  agentStatus: Task['agentStatus']
+}
+
+// ---------------------------------------------------------------------------
+// TaskSubtasks — new in Plan E
+// ---------------------------------------------------------------------------
+
+export type TaskSubtasksProps = {
+  taskId: string
+  parentTask: { id: string; title: string } | null
+  subtasks: TaskSubtaskSummary[]
+}
+
+// ---------------------------------------------------------------------------
+// TaskTimeBox — new in Plan E
+// ---------------------------------------------------------------------------
+
+export type TaskTimeBoxProps = {
+  taskId: string
+  agentStatus: Task['agentStatus']
+  timeBoxMs: number | null
+  timeBoxStartedAt: string | null
+  timeBoxRemainingMs: number | null
+  blockReason: BlockReason | null
 }

@@ -21,7 +21,7 @@ type Props = {
 
 function durationSecs(start: string, end: string): string {
   const ms = new Date(end).getTime() - new Date(start).getTime()
-  return (ms / 1000).toFixed(1) + 's'
+  return `${(ms / 1000).toFixed(1)}s`
 }
 
 function groupByAgentRun(

@@ -37,6 +37,13 @@ export const typeDefs = /* GraphQL */ `
     sendRedirect(taskId: ID!, body: String!): TaskMessage!
     answerQuestion(taskId: ID!, body: String!): TaskMessage!
 
+    addTaskDependency(taskId: ID!, blockerId: ID!): Task!
+    removeTaskDependency(taskId: ID!, blockerId: ID!): Task!
+
+    setTimeBox(taskId: ID!, timeBoxMs: Int): Task!
+    extendTimeBox(taskId: ID!, additionalMs: Int!): Task!
+    killTask(taskId: ID!): Task!
+
     setTaskVerifyCommands(taskId: ID!, commands: [VerifyCommandInput!]): Task!
 
     generateInvitation(githubUsername: String!): Invitation!
@@ -124,6 +131,14 @@ export const typeDefs = /* GraphQL */ `
     workspaceSnapshots: [WorkspaceSnapshot!]!
     verifyAttemptCount: Int!
     verifyCommandsOverride: [VerifyCommand!]
+    parentTask: Task
+    subtasks: [Task!]!
+    blockers: [Task!]!
+    dependents: [Task!]!
+    blockReason: BlockReason
+    timeBoxMs: Int
+    timeBoxStartedAt: String
+    timeBoxRemainingMs: Int
     createdAt: String!
     updatedAt: String!
   }
@@ -159,6 +174,12 @@ export const typeDefs = /* GraphQL */ `
   enum MessageAuthorType {
     HUMAN
     AGENT
+  }
+
+  enum BlockReason {
+    QUESTION
+    TIMEOUT
+    DEPENDENCY_FAILED
   }
 
   type Comment {

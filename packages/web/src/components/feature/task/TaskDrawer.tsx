@@ -46,10 +46,13 @@ import type {
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
 import { TaskComments } from './TaskComments'
+import { TaskDependencies } from './TaskDependencies'
 import { TaskEventHistory, timeAgo } from './TaskEventHistory'
 import { TaskMessages } from './TaskMessages'
 import { TaskProgress } from './TaskProgress'
 import { TaskScratchpad } from './TaskScratchpad'
+import { TaskSubtasks } from './TaskSubtasks'
+import { TaskTimeBox } from './TaskTimeBox'
 import { TaskTimeline } from './TaskTimeline'
 import { TaskVerification } from './TaskVerification'
 
@@ -421,6 +424,35 @@ const ViewMode = ({
         </span>
       </div>
 
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Dependencies</SectionLabel>
+        <TaskDependencies
+          agentStatus={task.agentStatus}
+          blockers={task.blockers ?? []}
+          blockReason={task.blockReason ?? null}
+          dependents={task.dependents ?? []}
+          taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Subtasks</SectionLabel>
+        <TaskSubtasks
+          parentTask={task.parentTask ?? null}
+          subtasks={task.subtasks ?? []}
+          taskId={task.id}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Time Box</SectionLabel>
+        <TaskTimeBox
+          agentStatus={task.agentStatus}
+          blockReason={task.blockReason ?? null}
+          taskId={task.id}
+          timeBoxMs={task.timeBoxMs ?? null}
+          timeBoxRemainingMs={task.timeBoxRemainingMs ?? null}
+          timeBoxStartedAt={task.timeBoxStartedAt ?? null}
+        />
+      </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Scratchpad</SectionLabel>
         <TaskScratchpad

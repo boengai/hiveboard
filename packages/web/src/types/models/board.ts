@@ -22,6 +22,39 @@ export type Tag = {
 
 export type BoardAction = 'PLAN' | 'IMPLEMENT' | 'REVISE'
 
+export type AgentStatus =
+  | 'IDLE'
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'BLOCKED'
+  | 'SUCCESS'
+  | 'FAILED'
+
+export type BlockReason = 'QUESTION' | 'TIMEOUT' | 'DEPENDENCY_FAILED'
+
+export type TaskBlockerSummary = {
+  id: string
+  title: string
+  agentStatus: AgentStatus
+  blockReason: BlockReason | null
+}
+
+export type TaskSubtaskSummary = {
+  id: string
+  title: string
+  agentStatus: AgentStatus
+  blockReason: BlockReason | null
+  action: BoardAction | null
+  createdAt: string
+}
+
+export type TaskParentSummary = {
+  id: string
+  title: string
+  agentStatus?: AgentStatus
+  tags?: Array<{ color: string }>
+}
+
 export type TaskMessageSummary = {
   id: string
   taskId: string
@@ -103,4 +136,13 @@ export type Task = {
   }> | null
   workspaceSnapshots?: WorkspaceSnapshotSummary[]
   latestProgress?: TaskProgressEntry | null
+  // Plan E — dependencies, subtasks, time-boxing
+  blockReason?: BlockReason | null
+  timeBoxMs?: number | null
+  timeBoxStartedAt?: string | null
+  timeBoxRemainingMs?: number | null
+  parentTask?: TaskParentSummary | null
+  subtasks?: TaskSubtaskSummary[]
+  blockers?: TaskBlockerSummary[]
+  dependents?: TaskBlockerSummary[]
 }

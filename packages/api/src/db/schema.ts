@@ -68,6 +68,10 @@ export function createTables(db: Database): void {
       verify_attempt_count              INTEGER NOT NULL DEFAULT 0,
       verify_commands                   TEXT,
       pending_auto_revise_source_run_id TEXT,
+      parent_task_id                    TEXT REFERENCES tasks(id),
+      time_box_ms                       INTEGER,
+      time_box_started_at               TEXT,
+      block_reason                      TEXT,
       archived                          INTEGER NOT NULL DEFAULT 0,
       archived_at    TEXT,
       created_by     TEXT NOT NULL REFERENCES users(id),
@@ -104,6 +108,13 @@ export function createTables(db: Database): void {
       delivered_at  TEXT,
       created_by    TEXT REFERENCES users(id),
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS task_dependencies (
+      task_id     TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      blocker_id  TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (task_id, blocker_id)
     );
 
     CREATE TABLE IF NOT EXISTS agent_runs (
@@ -162,6 +173,8 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_task_messages_undelivered
       ON task_messages(task_id, delivered_at) WHERE delivered_at IS NULL;
     CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+    CREATE INDEX IF NOT EXISTS idx_task_deps_task ON task_dependencies(task_id);
+    CREATE INDEX IF NOT EXISTS idx_task_deps_blocker ON task_dependencies(blocker_id);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
     CREATE INDEX IF NOT EXISTS idx_verification_runs_task
       ON verification_runs(task_id, started_at);
@@ -189,6 +202,20 @@ export function createTables(db: Database): void {
   )
   addColumnIfMissing(db, 'tasks', 'verify_commands', 'TEXT')
   addColumnIfMissing(db, 'tasks', 'pending_auto_revise_source_run_id', 'TEXT')
+
+  addColumnIfMissing(db, 'tasks', 'parent_task_id', 'TEXT')
+  addColumnIfMissing(db, 'tasks', 'time_box_ms', 'INTEGER')
+  addColumnIfMissing(db, 'tasks', 'time_box_started_at', 'TEXT')
+  addColumnIfMissing(db, 'tasks', 'block_reason', 'TEXT')
+
+  // Backfill Plan B BLOCKED rows (written before block_reason existed) to
+  // block_reason='QUESTION'. Safe to run on every startup: only touches rows
+  // that are still blocked AND have no reason set yet.
+  db.run(
+    `UPDATE tasks
+        SET block_reason = 'QUESTION'
+      WHERE agent_status = 'blocked' AND block_reason IS NULL`,
+  )
 }
 
 function addColumnIfMissing(

@@ -40,7 +40,7 @@ export function TaskTimeline({ taskId, initialSnapshots }: TaskTimelineProps) {
       setIndex(Math.max(0, initialSnapshots.length - 1))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSnapshots])
+  }, [initialSnapshots, liveFollow])
 
   // Live subscription
   useEffect(() => {
@@ -104,7 +104,7 @@ export function TaskTimeline({ taskId, initialSnapshots }: TaskTimelineProps) {
     return () => {
       cancelled = true
     }
-  }, [current?.id, current?.hasPatch])
+  }, [current?.id, current?.hasPatch, current])
 
   const changedFiles: SnapshotFileEntry[] = useMemo(
     () => current?.fileStatus ?? [],
@@ -194,7 +194,7 @@ export function TaskTimeline({ taskId, initialSnapshots }: TaskTimelineProps) {
           budget; only file stats were captured).
         </p>
       )}
-      {current && current.hasPatch && (
+      {current?.hasPatch && (
         <details className="rounded border border-border-default">
           <summary className="cursor-pointer p-2 text-body-sm">
             Show diff

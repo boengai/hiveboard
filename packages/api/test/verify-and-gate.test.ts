@@ -86,7 +86,7 @@ describe('verifyAndGate', () => {
     expect(verdict).toBe('fail')
     const rows = listVerificationRunsForTask(db, '01HYX3KPQR000000000000000A')
     expect(rows).toHaveLength(2)
-    expect(rows.find((r) => r.label === 'nope')!.exitCode).toBe(2)
+    expect(rows.find((r) => r.label === 'nope')?.exitCode).toBe(2)
   })
 
   it('returns "pass" when verify.enabled is false', async () => {

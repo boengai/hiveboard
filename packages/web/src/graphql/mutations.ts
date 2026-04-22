@@ -280,3 +280,60 @@ export const ANSWER_QUESTION = /* GraphQL */ `
     }
   }
 `
+
+export const ADD_TASK_DEPENDENCY = /* GraphQL */ `
+  mutation AddTaskDependency($taskId: ID!, $blockerId: ID!) {
+    addTaskDependency(taskId: $taskId, blockerId: $blockerId) {
+      id
+      blockers {
+        id
+        title
+        agentStatus
+        blockReason
+      }
+    }
+  }
+`
+
+export const REMOVE_TASK_DEPENDENCY = /* GraphQL */ `
+  mutation RemoveTaskDependency($taskId: ID!, $blockerId: ID!) {
+    removeTaskDependency(taskId: $taskId, blockerId: $blockerId) {
+      id
+      blockers {
+        id
+        title
+        agentStatus
+        blockReason
+      }
+    }
+  }
+`
+
+export const SET_TIME_BOX = /* GraphQL */ `
+  mutation SetTimeBox($taskId: ID!, $timeBoxMs: Int) {
+    setTimeBox(taskId: $taskId, timeBoxMs: $timeBoxMs) {
+      id
+      timeBoxMs
+    }
+  }
+`
+
+export const EXTEND_TIME_BOX = /* GraphQL */ `
+  mutation ExtendTimeBox($taskId: ID!, $additionalMs: Int!) {
+    extendTimeBox(taskId: $taskId, additionalMs: $additionalMs) {
+      id
+      agentStatus
+      timeBoxMs
+      blockReason
+    }
+  }
+`
+
+export const KILL_TASK = /* GraphQL */ `
+  mutation KillTask($taskId: ID!) {
+    killTask(taskId: $taskId) {
+      id
+      agentStatus
+    }
+  }
+`

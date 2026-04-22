@@ -179,10 +179,22 @@ export function TaskCard({ task, column }: TaskCardProps) {
     ? actionBadge({ action: task.action as keyof typeof actionBadge })
     : null
 
+  const unresolvedBlockers =
+    task.blockers?.filter(
+      (b: { agentStatus: string }) => b.agentStatus !== 'SUCCESS',
+    ) ?? []
+  const hasUnresolvedBlockers = unresolvedBlockers.length > 0
+  const parentTagColor = task.parentTask?.tags?.[0]?.color
+
   return (
     <m.div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        ...(parentTagColor
+          ? { borderLeft: `3px solid ${parentTagColor}` }
+          : {}),
+      }}
       {...attributes}
       {...listeners}
       className={`flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md ${task.agentStatus === 'BLOCKED' ? 'ring-1 ring-honey-400/60' : ''}`}
@@ -214,6 +226,31 @@ export function TaskCard({ task, column }: TaskCardProps) {
           )}
         </div>
       )}
+
+      {/* Plan E indicators: chain-link for blocked deps, ↳ for subtasks */}
+      {(hasUnresolvedBlockers || task.parentTask) && (
+        <div className="flex flex-wrap items-center gap-2 text-body-xs text-text-tertiary">
+          {hasUnresolvedBlockers && (
+            <span
+              className="inline-flex items-center gap-1"
+              title={`Blocked by ${unresolvedBlockers.length} unresolved task${unresolvedBlockers.length === 1 ? '' : 's'}`}
+            >
+              <span>🔗</span>
+              <span>{unresolvedBlockers.length}</span>
+            </span>
+          )}
+          {task.parentTask && (
+            <span
+              className="inline-flex min-w-0 items-center gap-1"
+              title={`Subtask of ${task.parentTask.title}`}
+            >
+              <span>↳</span>
+              <span className="truncate">{task.parentTask.title}</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Title */}
       <p className="line-clamp-2 text-body text-text-primary">{task.title}</p>
 

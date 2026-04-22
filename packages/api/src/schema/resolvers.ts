@@ -15,6 +15,13 @@ import { getConfig } from '../config'
 import { VerifyCommandSchema } from '../config/schema'
 import { db, generateId } from '../db'
 import {
+  addDependencyEdge,
+  listBlockers,
+  listDependents,
+  removeDependencyEdge,
+  sameBoard,
+} from '../db/task-dependencies'
+import {
   getCurrentQuestion,
   insertMessage,
   listMessagesForTask,
@@ -27,6 +34,7 @@ import {
   listSnapshotsForTask,
 } from '../db/workspace-snapshots'
 import { getOrchestrator } from '../orchestrator'
+import { wouldCreateCycle } from '../orchestrator/dependencies'
 import {
   publishMessageAdded,
   publishScratchpadUpdated,
@@ -97,6 +105,10 @@ type TaskRow = {
   updated_by: string
   created_at: string
   updated_at: string
+  parent_task_id: string | null
+  time_box_ms: number | null
+  time_box_started_at: string | null
+  block_reason: string | null
 }
 
 /** Convert a lowercase DB action value to uppercase GraphQL enum value. */
@@ -188,11 +200,15 @@ function mapTask(row: TaskRow) {
     agentStatus: row.agent_status.toUpperCase(),
     archived: Boolean(row.archived),
     archivedAt: row.archived_at,
+    blockReason: row.block_reason,
     createdAt: row.created_at,
+    parentTaskId: row.parent_task_id,
     prUrl: row.pr_url,
     retryCount: row.retry_count,
     targetBranch: row.target_branch,
     targetRepo: row.target_repo,
+    timeBoxMs: row.time_box_ms,
+    timeBoxStartedAt: row.time_box_started_at,
     updatedAt: row.updated_at,
   }
 }
@@ -585,6 +601,42 @@ export const resolvers = {
       return comment
     },
 
+    addTaskDependency(
+      _: unknown,
+      { taskId, blockerId }: { taskId: string; blockerId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      requireTaskAccess(blockerId, authUser)
+
+      if (taskId === blockerId) {
+        throw new GraphQLError('A task cannot depend on itself', {
+          extensions: { code: 'DEPENDENCY_SELF' },
+        })
+      }
+      if (!sameBoard(db, taskId, blockerId)) {
+        throw new GraphQLError('Cross-board dependencies are not supported', {
+          extensions: { code: 'DEPENDENCY_CROSS_BOARD' },
+        })
+      }
+      if (wouldCreateCycle(db, taskId, blockerId)) {
+        throw new GraphQLError('Adding this dependency would create a cycle', {
+          extensions: { code: 'DEPENDENCY_CYCLE' },
+        })
+      }
+
+      addDependencyEdge(db, taskId, blockerId)
+
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      const task = mapTask(row)
+      publishTaskUpdated(task)
+      return task
+    },
+
     answerQuestion(
       _: unknown,
       { taskId, body }: { taskId: string; body: string },
@@ -627,6 +679,7 @@ export const resolvers = {
            queue_after = datetime('now', '+30 seconds'),
            verify_attempt_count = 0,
            pending_auto_revise_source_run_id = NULL,
+           block_reason = NULL,
            updated_at = datetime('now')
          WHERE id = ?`,
         [taskId],
@@ -1040,6 +1093,47 @@ export const resolvers = {
       return true
     },
 
+    async extendTimeBox(
+      _: unknown,
+      { taskId, additionalMs }: { taskId: string; additionalMs: number },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      if (additionalMs <= 0) {
+        throw new GraphQLError('additionalMs must be positive', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      if (row.agent_status !== 'blocked' || row.block_reason !== 'TIMEOUT') {
+        throw new GraphQLError(
+          'extendTimeBox is only valid when task is BLOCKED with reason=TIMEOUT',
+          { extensions: { code: 'TIME_BOX_NOT_EXPIRED' } },
+        )
+      }
+      const newBudget = (row.time_box_ms ?? 0) + additionalMs
+      db.run(
+        `UPDATE tasks SET agent_status = 'queued',
+           queue_after = datetime('now', '+5 seconds'),
+           time_box_ms = ?,
+           time_box_started_at = NULL,
+           block_reason = NULL,
+           updated_at = datetime('now')
+         WHERE id = ?`,
+        [newBudget, taskId],
+      )
+      const updated = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow
+      const task = mapTask(updated)
+      publishTaskUpdated(task)
+      return task
+    },
+
     generateInvitation(
       _: unknown,
       { githubUsername }: { githubUsername: string },
@@ -1078,6 +1172,22 @@ export const resolvers = {
         token: row.token,
         usedAt: row.used_at,
       }
+    },
+
+    async killTask(
+      _: unknown,
+      { taskId }: { taskId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      const orch = getOrchestrator()
+      if (orch) await orch.killTask(taskId)
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      return mapTask(row)
     },
 
     moveTask(
@@ -1188,6 +1298,25 @@ export const resolvers = {
         } as unknown as Record<string, unknown>)
       }
 
+      return task
+    },
+
+    removeTaskDependency(
+      _: unknown,
+      { taskId, blockerId }: { taskId: string; blockerId: string },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+
+      removeDependencyEdge(db, taskId, blockerId)
+
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      const task = mapTask(row)
+      publishTaskUpdated(task)
       return task
     },
 
@@ -1513,6 +1642,31 @@ export const resolvers = {
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(taskId) as TaskRow
       return mapTask(row)
+    },
+
+    setTimeBox(
+      _: unknown,
+      { taskId, timeBoxMs }: { taskId: string; timeBoxMs: number | null },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      if (timeBoxMs !== null && timeBoxMs !== undefined && timeBoxMs < 1000) {
+        throw new GraphQLError('timeBoxMs must be at least 1000 (1s) or null', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      db.run(
+        `UPDATE tasks SET time_box_ms = ?, updated_at = datetime('now') WHERE id = ?`,
+        [timeBoxMs ?? null, taskId],
+      )
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      const task = mapTask(row)
+      publishTaskUpdated(task)
+      return task
     },
 
     unarchiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
@@ -1870,7 +2024,7 @@ export const resolvers = {
         if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return []
         throw err
       }
-      const { entries } = parseProgressLines(buf.toString('utf8') + '\n')
+      const { entries } = parseProgressLines(`${buf.toString('utf8')}\n`)
       return entries.map((e) => ({
         agentRunId: null,
         detail: e.detail ?? null,
@@ -2128,6 +2282,22 @@ export const resolvers = {
   },
 
   Task: {
+    blockers(parent: { id: string }) {
+      const ids = listBlockers(db, parent.id)
+      if (ids.length === 0) return []
+      const placeholders = ids.map(() => '?').join(',')
+      const rows = db
+        .query(`SELECT * FROM tasks WHERE id IN (${placeholders})`)
+        .all(...ids) as TaskRow[]
+      // preserve the add-order returned by listBlockers
+      const order = new Map(ids.map((id, i) => [id, i] as const))
+      return rows
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+        .map(mapTask)
+    },
+    blockReason(parent: ReturnType<typeof mapTask>) {
+      return (parent as unknown as { blockReason: string | null }).blockReason
+    },
     column(task: ReturnType<typeof mapTask>) {
       const row = db
         .query('SELECT * FROM columns WHERE id = ?')
@@ -2145,16 +2315,59 @@ export const resolvers = {
       const q = getCurrentQuestion(db, task.id)
       return q ? mapTaskMessage(q) : null
     },
+    dependents(parent: { id: string }) {
+      const ids = listDependents(db, parent.id)
+      if (ids.length === 0) return []
+      const placeholders = ids.map(() => '?').join(',')
+      const rows = db
+        .query(`SELECT * FROM tasks WHERE id IN (${placeholders})`)
+        .all(...ids) as TaskRow[]
+      const order = new Map(ids.map((id, i) => [id, i] as const))
+      return rows
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+        .map(mapTask)
+    },
     messages(task: ReturnType<typeof mapTask>) {
       return listMessagesForTask(db, task.id).map(mapTaskMessage)
+    },
+    parentTask(parent: ReturnType<typeof mapTask>) {
+      const pid = (parent as unknown as { parentTaskId: string | null })
+        .parentTaskId
+      if (!pid) return null
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(pid) as TaskRow | null
+      return row ? mapTask(row) : null
     },
     async scratchpad(task: ReturnType<typeof mapTask>): Promise<string> {
       const config = getConfig()
       if (!config) return ''
       return readScratchpad(config, task.id)
     },
+    subtasks(parent: { id: string }) {
+      const rows = db
+        .query(
+          'SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC',
+        )
+        .all(parent.id) as TaskRow[]
+      return rows.map(mapTask)
+    },
     tags(task: ReturnType<typeof mapTask>) {
       return getTagsForTask(task.id)
+    },
+    timeBoxRemainingMs(parent: ReturnType<typeof mapTask>) {
+      const { timeBoxMs, timeBoxStartedAt, agentStatus } =
+        parent as unknown as {
+          timeBoxMs: number | null
+          timeBoxStartedAt: string | null
+          agentStatus: string
+        }
+      if (agentStatus !== 'RUNNING') return null
+      if (!timeBoxMs || !timeBoxStartedAt) return null
+      const started = new Date(`${timeBoxStartedAt}Z`).getTime()
+      const elapsed = Date.now() - started
+      const remaining = timeBoxMs - elapsed
+      return Math.max(0, remaining)
     },
     updatedBy(task: ReturnType<typeof mapTask>) {
       return getUserById(task._updatedBy)

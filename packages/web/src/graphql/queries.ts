@@ -50,6 +50,18 @@ export const GET_BOARDS = /* GraphQL */ `
             name
             color
           }
+          blockReason
+          blockers {
+            id
+            agentStatus
+          }
+          parentTask {
+            id
+            title
+            tags {
+              color
+            }
+          }
         }
       }
     }
@@ -111,6 +123,18 @@ export const GET_BOARD = /* GraphQL */ `
             id
             name
             color
+          }
+          blockReason
+          blockers {
+            id
+            agentStatus
+          }
+          parentTask {
+            id
+            title
+            tags {
+              color
+            }
           }
         }
       }
@@ -230,6 +254,35 @@ export const GET_TASK = /* GraphQL */ `
         run
         timeoutMs
       }
+      parentTask {
+        id
+        title
+        agentStatus
+      }
+      subtasks {
+        id
+        title
+        agentStatus
+        blockReason
+        action
+        createdAt
+      }
+      blockers {
+        id
+        title
+        agentStatus
+        blockReason
+      }
+      dependents {
+        id
+        title
+        agentStatus
+        blockReason
+      }
+      blockReason
+      timeBoxMs
+      timeBoxStartedAt
+      timeBoxRemainingMs
     }
   }
 `

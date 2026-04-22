@@ -1,8 +1,12 @@
-import { unlink } from 'node:fs/promises'
+import type { Database } from 'bun:sqlite'
+import { readFile, rename, unlink } from 'node:fs/promises'
 import { consola } from 'consola'
 import { runAgent } from '../agent/runner'
 import { listFailingRunsForAgentRun } from '../db/verification-runs'
+import { subtasksPath } from '../workspace/agent-state'
+import { cascadeDependencyFailure } from './dependencies'
 import { escapeMustacheSyntax } from './mustache-escape'
+import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
 import { formatVerificationFailureForAgent, verifyAndGate } from './verify'
 
 export { escapeMustacheSyntax } from './mustache-escape'
@@ -36,7 +40,7 @@ import { startSnapshotLoop } from './snapshot-loop'
 // Types
 // ---------------------------------------------------------------------------
 
-type TaskRow = {
+export type TaskRow = {
   id: string
   board_id: string
   column_id: string
@@ -58,6 +62,10 @@ type TaskRow = {
   updated_by: string
   created_at: string
   updated_at: string
+  parent_task_id: string | null
+  time_box_ms: number | null
+  time_box_started_at: string | null
+  block_reason: string | null
 }
 
 type RunState = {
@@ -70,6 +78,9 @@ type RunState = {
   resolveDone: () => void
   progressDispose?: () => void
   snapshotLoop?: { stop: () => Promise<void> }
+  timeBoxTimer?: NodeJS.Timeout
+  /** Abort reason set on time-box expiry; read in onComplete to decide BLOCKED vs SUCCESS/FAIL. */
+  abortReason?: 'TIMEOUT' | 'REDIRECT' | 'CANCEL'
 }
 
 // ---------------------------------------------------------------------------
@@ -90,11 +101,15 @@ function mapTask(row: TaskRow) {
     agentStatus: row.agent_status.toUpperCase(),
     archived: Boolean(row.archived),
     archivedAt: row.archived_at,
+    blockReason: row.block_reason,
     createdAt: row.created_at,
+    parentTaskId: row.parent_task_id,
     prUrl: row.pr_url,
     retryCount: row.retry_count,
     targetBranch: row.target_branch,
     targetRepo: row.target_repo,
+    timeBoxMs: row.time_box_ms,
+    timeBoxStartedAt: row.time_box_started_at,
     updatedAt: row.updated_at,
   }
 }
@@ -218,6 +233,54 @@ export function calculateRetryDelay(
   random = Math.random,
 ): number {
   return Math.min(baseDelay * 2 ** retryCount * (0.5 + random()), maxBackoffMs)
+}
+
+/**
+ * Pick the next N queued tasks that are eligible to spawn. Dep-aware by
+ * default: excludes any task with at least one blocker whose `agent_status`
+ * is not `success`. Tie-broken by (direct-blocker count DESC, updated_at ASC)
+ * so tasks deeper in the dependency chain are prioritized.
+ *
+ * `legacyMode=true` falls back to the pre-Plan-E SELECT that ignores
+ * dependencies entirely. Kept as an escape hatch behind
+ * `config.scheduler.legacy_mode`.
+ *
+ * Exported for unit tests; production callers should use the `poll()` wrapper.
+ */
+export function selectSchedulableTasks(
+  db: Database,
+  opts: { limit: number; legacyMode: boolean },
+): TaskRow[] {
+  if (opts.legacyMode) {
+    return db
+      .query(
+        `SELECT * FROM tasks
+          WHERE agent_status = 'queued'
+            AND action IS NOT NULL
+            AND (queue_after IS NULL OR queue_after <= datetime('now'))
+          ORDER BY updated_at ASC
+          LIMIT ?`,
+      )
+      .all(opts.limit) as TaskRow[]
+  }
+
+  return db
+    .query(
+      `SELECT t.* FROM tasks t
+        WHERE t.agent_status = 'queued'
+          AND t.action IS NOT NULL
+          AND (t.queue_after IS NULL OR t.queue_after <= datetime('now'))
+          AND NOT EXISTS (
+            SELECT 1 FROM task_dependencies d
+              JOIN tasks b ON b.id = d.blocker_id
+             WHERE d.task_id = t.id AND b.agent_status != 'success'
+          )
+        ORDER BY
+          (SELECT COUNT(*) FROM task_dependencies d2 WHERE d2.task_id = t.id) DESC,
+          t.updated_at ASC
+        LIMIT ?`,
+    )
+    .all(opts.limit) as TaskRow[]
 }
 
 // ---------------------------------------------------------------------------
@@ -349,11 +412,10 @@ export class Orchestrator {
         return
       }
 
-      const queued = db
-        .query(
-          `SELECT * FROM tasks WHERE agent_status = ? AND action IS NOT NULL AND (queue_after IS NULL OR queue_after <= datetime('now')) ORDER BY updated_at ASC LIMIT ?`,
-        )
-        .all('queued', available) as TaskRow[]
+      const queued = selectSchedulableTasks(db, {
+        legacyMode: this.config.scheduler.legacy_mode,
+        limit: available,
+      })
 
       consola.debug(
         `Polled: ${queued.length} queued task(s), ${this.running.size} running`,
@@ -463,6 +525,22 @@ export class Orchestrator {
       }
 
       this.running.set(task.id, runState)
+
+      // Plan E: per-task time box. If set, abort the run after the budget
+      // and stamp `time_box_started_at` so the UI can show a countdown.
+      if (task.time_box_ms && task.time_box_ms > 0) {
+        db.run(
+          `UPDATE tasks SET time_box_started_at = datetime('now') WHERE id = ?`,
+          [task.id],
+        )
+        runState.timeBoxTimer = setTimeout(() => {
+          consola.warn(
+            `Task ${task.id} exceeded time_box_ms=${task.time_box_ms} — aborting`,
+          )
+          runState.abortReason = 'TIMEOUT'
+          runState.abortController.abort()
+        }, task.time_box_ms)
+      }
 
       // 8. Fire runAgentAsync (not awaited)
       this.runAgentAsync(updatedTask, runId, runState)
@@ -724,6 +802,10 @@ export class Orchestrator {
     runState: RunState,
     taskId: string,
   ): Promise<void> {
+    if (runState.timeBoxTimer) {
+      clearTimeout(runState.timeBoxTimer)
+      runState.timeBoxTimer = undefined
+    }
     const ds = runState.progressDispose
     if (ds) {
       runState.progressDispose = undefined
@@ -739,9 +821,7 @@ export class Orchestrator {
       try {
         await loop.stop()
       } catch (err) {
-        consola.warn(
-          `snapshot-loop stop ${taskId}: ${(err as Error).message}`,
-        )
+        consola.warn(`snapshot-loop stop ${taskId}: ${(err as Error).message}`)
       }
     }
   }
@@ -760,6 +840,50 @@ export class Orchestrator {
       error?: string
     },
   ): Promise<void> {
+    // Plan E: time-box expiry. If the abort reason was TIMEOUT, transition the
+    // task to BLOCKED with block_reason='TIMEOUT' instead of the normal
+    // SUCCESS/FAIL / question flow. This wins over the question flow because
+    // the agent was killed mid-thought — the question file (if any) may be
+    // partial and cannot be trusted as a clean "I'm blocked on X" signal.
+    const runState = this.running.get(task.id)
+    if (runState?.abortReason === 'TIMEOUT') {
+      db.transaction(() => {
+        db.run(
+          `UPDATE tasks SET agent_status = 'blocked',
+             block_reason = 'TIMEOUT',
+             updated_at = datetime('now')
+           WHERE id = ?`,
+          [task.id],
+        )
+        db.run(
+          `UPDATE agent_runs SET status = 'failed', finished_at = datetime('now'), error = ? WHERE id = ?`,
+          ['time-box expired', runId],
+        )
+        db.run(
+          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+          [
+            generateId(),
+            task.id,
+            'SYSTEM',
+            'time_box_expired',
+            JSON.stringify({ limit_ms: task.time_box_ms }),
+          ],
+        )
+      })()
+
+      const updatedTask = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(task.id) as TaskRow | null
+      if (updatedTask) {
+        pubsub.publish(
+          'TASK_UPDATED',
+          updatedTask.board_id,
+          mapTask(updatedTask) as unknown as Record<string, unknown>,
+        )
+      }
+      return
+    }
+
     // Publish [DONE] marker so frontend knows stream ended
     publishAgentLog(task.id, {
       chunk: '[DONE]',
@@ -783,7 +907,10 @@ export class Orchestrator {
           taskId: task.id,
         })
         db.run(
-          `UPDATE tasks SET agent_status = 'blocked', updated_at = datetime('now') WHERE id = ?`,
+          `UPDATE tasks SET agent_status = 'blocked',
+             block_reason = 'QUESTION',
+             updated_at = datetime('now')
+           WHERE id = ?`,
           [task.id],
         )
         db.run(
@@ -862,6 +989,12 @@ export class Orchestrator {
 
     if (result.success) {
       consola.info(`Task ${task.id} completed successfully`)
+
+      // Plan E: materialize subtasks declared by the agent via $HIVEBOARD_SUBTASKS.
+      // Runs AFTER Plan B question detection (so BLOCKED tasks never spawn
+      // children) and BEFORE Plan C's verify gate (so verification still
+      // applies to the parent's own code changes).
+      await this.processSubtaskManifest(task)
 
       // --- Gate on verification for implement/revise ---
       if (task.action === 'implement' || task.action === 'revise') {
@@ -1014,6 +1147,24 @@ export class Orchestrator {
         mapTask(updatedTask) as unknown as Record<string, unknown>,
       )
 
+      // Tell dependents to re-render: their chain-link count just went down.
+      // Cross-board deps are rejected at mutation time, so all dependents
+      // share the same board_id as this task.
+      const dependentRows = db
+        .query(
+          `SELECT t.* FROM tasks t
+             JOIN task_dependencies d ON d.task_id = t.id
+            WHERE d.blocker_id = ?`,
+        )
+        .all(task.id) as TaskRow[]
+      for (const depRow of dependentRows) {
+        pubsub.publish(
+          'TASK_UPDATED',
+          depRow.board_id,
+          mapTask(depRow) as unknown as Record<string, unknown>,
+        )
+      }
+
       // Publish agent_succeeded event
       pubsub.publish('TASK_EVENT', task.id, {
         _actor: 'SYSTEM',
@@ -1064,6 +1215,23 @@ export class Orchestrator {
         isSystem: true,
         type: 'agent_failed',
       } as unknown as Record<string, unknown>)
+
+      // Dependency cascade: direct dependents of this task become BLOCKED with
+      // block_reason='DEPENDENCY_FAILED'. Human can remove the edge or mark
+      // the blocker resolved to unblock them.
+      const cascaded = cascadeDependencyFailure(db, task.id)
+      for (const depTaskId of cascaded) {
+        const depRow = db
+          .query('SELECT * FROM tasks WHERE id = ?')
+          .get(depTaskId) as TaskRow | null
+        if (depRow) {
+          pubsub.publish(
+            'TASK_UPDATED',
+            depRow.board_id,
+            mapTask(depRow) as unknown as Record<string, unknown>,
+          )
+        }
+      }
 
       // Schedule retry with exponential backoff
       await this.scheduleRetry(task, result.error ?? 'Unknown error')
@@ -1242,6 +1410,109 @@ export class Orchestrator {
     )
   }
 
+  /**
+   * Inspect `$HIVEBOARD_SUBTASKS`; if present and valid, materialize the
+   * declared children. On invalid manifest: rename to `subtasks.yaml.errored`
+   * and log for human inspection. On DB-level failure: caught here; parent
+   * flow continues.
+   */
+  private async processSubtaskManifest(task: TaskRow): Promise<void> {
+    const path = subtasksPath(this.config, task.id)
+    let yaml: string
+    try {
+      yaml = await readFile(path, 'utf8')
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return
+      consola.warn(
+        `processSubtaskManifest ${task.id}: read failed — ${(err as Error).message}`,
+      )
+      return
+    }
+
+    const parsed = parseSubtasksManifest(yaml)
+    if (parsed.kind === 'error') {
+      consola.warn(
+        `subtask manifest invalid for ${task.id}: ${parsed.errors.map((e) => e.code).join(',')}`,
+      )
+      db.run(
+        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+        [
+          generateId(),
+          task.id,
+          'SYSTEM',
+          'subtask_manifest_invalid',
+          JSON.stringify({ errors: parsed.errors }),
+        ],
+      )
+      try {
+        await rename(path, `${path}.errored`)
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+
+    let createdIds: string[] = []
+    try {
+      createdIds = createSubtasksFromManifest(
+        db,
+        task.id,
+        parsed.manifest,
+        task.created_by,
+      )
+    } catch (err) {
+      consola.error(
+        `createSubtasksFromManifest failed for ${task.id}: ${(err as Error).message}`,
+      )
+      db.run(
+        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+        [
+          generateId(),
+          task.id,
+          'SYSTEM',
+          'subtask_creation_failed',
+          JSON.stringify({ message: (err as Error).message }),
+        ],
+      )
+      try {
+        await rename(path, `${path}.errored`)
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+
+    // Success — clean up manifest and emit event
+    try {
+      await unlink(path)
+    } catch {
+      /* ignore */
+    }
+    db.run(
+      'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+      [
+        generateId(),
+        task.id,
+        'SYSTEM',
+        'subtasks_spawned',
+        JSON.stringify({ child_ids: createdIds, count: createdIds.length }),
+      ],
+    )
+
+    for (const childId of createdIds) {
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(childId) as TaskRow | null
+      if (row) {
+        pubsub.publish(
+          'TASK_UPDATED',
+          row.board_id,
+          mapTask(row) as unknown as Record<string, unknown>,
+        )
+      }
+    }
+  }
+
   // -------------------------------------------------------------------------
   // External API
   // -------------------------------------------------------------------------
@@ -1272,6 +1543,7 @@ export class Orchestrator {
       const runState = this.running.get(taskId)
       if (runState) {
         consola.info(`Redirect received for task ${taskId} — aborting agent`)
+        runState.abortReason = 'REDIRECT'
         runState.abortController.abort()
       }
       if (isRunning) {
@@ -1306,7 +1578,13 @@ export class Orchestrator {
     const runState = this.running.get(taskId)
     if (runState) {
       consola.info(`Cancelling agent for task ${taskId}`)
+      runState.abortReason = 'CANCEL'
       runState.abortController.abort()
+
+      if (runState.timeBoxTimer) {
+        clearTimeout(runState.timeBoxTimer)
+        runState.timeBoxTimer = undefined
+      }
 
       // Wait for the agent process to finish (10s timeout)
       const timeout = 10_000
@@ -1324,6 +1602,47 @@ export class Orchestrator {
     if (retryTimer) {
       clearTimeout(retryTimer)
       this.retryTimers.delete(taskId)
+    }
+  }
+
+  /**
+   * Kill a running task outright: abort the agent, transition to FAILED with
+   * `agent_error='killed by user'`. Does NOT schedule a retry. Safe no-op if
+   * the task isn't running.
+   */
+  async killTask(taskId: string, reason = 'killed by user'): Promise<void> {
+    const runState = this.running.get(taskId)
+    if (runState) {
+      runState.abortReason = 'CANCEL'
+      runState.abortController.abort()
+      if (runState.timeBoxTimer) {
+        clearTimeout(runState.timeBoxTimer)
+        runState.timeBoxTimer = undefined
+      }
+      await Promise.race([runState.done, Bun.sleep(10_000)])
+    }
+    db.run(
+      `UPDATE tasks SET agent_status = 'failed',
+         agent_error = ?,
+         block_reason = NULL,
+         updated_at = datetime('now')
+       WHERE id = ?`,
+      [reason, taskId],
+    )
+    db.run(
+      `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now')
+        WHERE task_id = ? AND status = 'running'`,
+      [reason, taskId],
+    )
+    const row = db
+      .query('SELECT * FROM tasks WHERE id = ?')
+      .get(taskId) as TaskRow | null
+    if (row) {
+      pubsub.publish(
+        'TASK_UPDATED',
+        row.board_id,
+        mapTask(row) as unknown as Record<string, unknown>,
+      )
     }
   }
 

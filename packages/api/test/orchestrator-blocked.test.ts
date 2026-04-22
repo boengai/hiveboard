@@ -98,6 +98,7 @@ function makeConfig() {
     },
     hooks: { timeout_ms: 5_000 },
     polling: { interval_ms: 60_000 },
+    scheduler: { legacy_mode: false },
     verify: { commands: [], enabled: false, max_auto_revises: 1 },
     workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
   }
@@ -210,6 +211,12 @@ describe('Orchestrator – BLOCKED on agent question', () => {
       .get(taskId) as { agent_status: string } | null
     expect(task?.agent_status).toBe('blocked')
 
+    // block_reason is set to 'QUESTION'
+    const row = memDb
+      .query('SELECT block_reason FROM tasks WHERE id = ?')
+      .get(taskId) as { block_reason: string | null } | null
+    expect(row?.block_reason).toBe('QUESTION')
+
     // agent_runs row reflects the blocked state.
     const run = memDb
       .query('SELECT status, finished_at FROM agent_runs WHERE task_id = ?')
@@ -266,6 +273,12 @@ describe('Orchestrator – BLOCKED on agent question', () => {
       .query('SELECT agent_status FROM tasks WHERE id = ?')
       .get(taskId) as { agent_status: string } | null
     expect(task?.agent_status).toBe('blocked')
+
+    // block_reason is set to 'QUESTION'
+    const row = memDb
+      .query('SELECT block_reason FROM tasks WHERE id = ?')
+      .get(taskId) as { block_reason: string | null } | null
+    expect(row?.block_reason).toBe('QUESTION')
 
     // No agent_failed event should have been recorded.
     const failedEvent = memDb

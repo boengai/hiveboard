@@ -1,10 +1,15 @@
 export type {
+  BlockReason,
   Board,
   BoardAction,
   Column,
   SnapshotFileEntry,
   Tag,
   Task,
+  TaskBlockerSummary,
+  TaskMessageSummary,
+  TaskParentSummary,
   TaskProgressEntry,
+  TaskSubtaskSummary,
   WorkspaceSnapshotSummary,
 } from './board'

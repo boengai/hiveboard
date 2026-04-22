@@ -78,6 +78,14 @@ export const ProgressSchema = z.object({
   snapshot_interval_ms: z.number().int().positive().default(15_000),
 })
 
+export const SchedulerSchema = z.object({
+  /**
+   * Fall back to the pre-Plan-E scheduler (ignoring task_dependencies) if
+   * true. Escape hatch for production if the dep-aware SELECT misbehaves.
+   */
+  legacy_mode: z.boolean().default(false),
+})
+
 // ---------------------------------------------------------------------------
 // Root schema
 // ---------------------------------------------------------------------------
@@ -88,6 +96,7 @@ export const ConfigSchema = z.object({
   hooks: objectWithDefaults(HooksSchema),
   polling: objectWithDefaults(PollingSchema),
   progress: objectWithDefaults(ProgressSchema),
+  scheduler: objectWithDefaults(SchedulerSchema),
   verify: objectWithDefaults(VerifySchema),
   workspace: objectWithDefaults(WorkspaceSchema),
 })
@@ -99,5 +108,6 @@ export type ClaudeConfig = z.infer<typeof ClaudeSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
 export type HooksConfig = z.infer<typeof HooksSchema>
 export type ProgressConfig = z.infer<typeof ProgressSchema>
+export type SchedulerConfig = z.infer<typeof SchedulerSchema>
 export type VerifyConfig = z.infer<typeof VerifySchema>
 export type VerifyCommand = z.infer<typeof VerifyCommandSchema>

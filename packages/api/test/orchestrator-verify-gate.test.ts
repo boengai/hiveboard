@@ -112,6 +112,7 @@ function makeConfig(verifyOverrides: Record<string, unknown> = {}) {
     },
     hooks: { timeout_ms: 5_000 },
     polling: { interval_ms: 60_000 },
+    scheduler: { legacy_mode: false },
     verify: {
       commands: [],
       enabled: true,
@@ -216,7 +217,7 @@ function getAgentRun(runId: string) {
   } | null
 }
 
-async function flushMicrotasks(ms = 150) {
+async function _flushMicrotasks(ms = 150) {
   await new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
@@ -356,7 +357,7 @@ describe('Orchestrator verify-gate – scenario 1: all-green on IMPLEMENT', () =
     // Should be in Review column
     const reviewCol = getColumn('Review')
     expect(reviewCol).not.toBeNull()
-    expect(task?.column_id).toBe(reviewCol!.id)
+    expect(task?.column_id).toBe(reviewCol?.id)
 
     // One green verification_run
     const runs = listVerificationRunsForTask(memDb, taskId)
@@ -527,7 +528,7 @@ describe('Orchestrator verify-gate – scenario 5: verify.enabled=false → succ
     expect(task?.agent_status).toBe('success')
 
     const reviewCol = getColumn('Review')
-    expect(task?.column_id).toBe(reviewCol!.id)
+    expect(task?.column_id).toBe(reviewCol?.id)
 
     expect(listVerificationRunsForTask(memDb, taskId)).toHaveLength(0)
   })

@@ -20,6 +20,7 @@ import {
   readQuestion,
   readScratchpad,
   scratchpadPath,
+  subtasksPath,
   sweepOrphanAgentStateDirs,
 } from '../src/workspace/agent-state'
 
@@ -294,5 +295,19 @@ describe('progressPath', () => {
   it('throws on invalid task id', () => {
     const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
     expect(() => progressPath(cfg, '../evil')).toThrow()
+  })
+})
+
+describe('subtasksPath', () => {
+  it('returns subtasks.yaml inside the per-task dir', () => {
+    const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
+    expect(
+      subtasksPath(cfg, VALID_ULID).endsWith(`${VALID_ULID}/subtasks.yaml`),
+    ).toBe(true)
+  })
+
+  it('throws on invalid task id', () => {
+    const cfg = ConfigSchema.parse({ agent: { state_root: '/tmp/hb' } })
+    expect(() => subtasksPath(cfg, '../evil')).toThrow()
   })
 })

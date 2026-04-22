@@ -5,6 +5,7 @@ import {
   progressPath,
   questionPath,
   scratchpadPath,
+  subtasksPath,
 } from '../workspace/agent-state'
 import type { TaskForAgent } from './runner'
 
@@ -101,6 +102,7 @@ export function buildAgentEnv(
       env.HIVEBOARD_INBOX = inboxPath(config, task.id)
       env.HIVEBOARD_QUESTION = questionPath(config, task.id)
       env.HIVEBOARD_PROGRESS = progressPath(config, task.id)
+      env.HIVEBOARD_SUBTASKS = subtasksPath(config, task.id)
     } catch {
       // Invalid ULIDs in fixtures / legacy data: skip silently.
     }

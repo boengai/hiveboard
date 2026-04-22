@@ -139,6 +139,11 @@ export function progressPath(config: Config, taskId: string): string {
   return join(agentStateDir(config, taskId), 'progress.ndjson')
 }
 
+/** Path to `subtasks.yaml` inside the per-task agent state directory. */
+export function subtasksPath(config: Config, taskId: string): string {
+  return join(agentStateDir(config, taskId), 'subtasks.yaml')
+}
+
 /**
  * Read the question file for a task, capped at 32 KB with a truncation suffix.
  * Returns '' on invalid id, missing file, or read error (non-ENOENT errors logged).

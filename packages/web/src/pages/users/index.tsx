@@ -168,22 +168,22 @@ export function UsersPage() {
           <table className="w-full">
             <thead className="bg-surface-raised">
               <tr>
-                <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                   Username
                 </th>
-                <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                   GitHub
                 </th>
-                <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                   Role
                 </th>
-                <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                   Joined
                 </th>
-                <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                   Status
                 </th>
-                <th className="px-4 py-2 text-right text-body-xs font-medium text-text-secondary">
+                <th className="px-4 py-2 text-right font-medium text-body-xs text-text-secondary">
                   Actions
                 </th>
               </tr>
@@ -244,16 +244,16 @@ export function UsersPage() {
             <table className="w-full">
               <thead className="bg-surface-raised">
                 <tr>
-                  <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                  <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                     GitHub Username
                   </th>
-                  <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                  <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                     Created
                   </th>
-                  <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                  <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                     Expires
                   </th>
-                  <th className="px-4 py-2 text-left text-body-xs font-medium text-text-secondary">
+                  <th className="px-4 py-2 text-left font-medium text-body-xs text-text-secondary">
                     Status
                   </th>
                 </tr>

@@ -294,6 +294,12 @@ describe('Mutation.answerQuestion', () => {
     const now = Date.now()
     expect(qa - now).toBeGreaterThan(20_000)
     expect(qa - now).toBeLessThan(40_000)
+
+    // block_reason is cleared
+    const blockRow = db
+      .query('SELECT block_reason FROM tasks WHERE id = ?')
+      .get(taskId) as { block_reason: string | null } | null
+    expect(blockRow?.block_reason).toBeNull()
   })
 
   test('throws TASK_NOT_BLOCKED when task is not BLOCKED', () => {

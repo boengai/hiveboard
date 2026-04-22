@@ -83,6 +83,7 @@ function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
     },
     hooks: { timeout_ms: 5_000 },
     polling: { interval_ms: 60_000 },
+    scheduler: { legacy_mode: false },
     verify: { commands: [], enabled: false, max_auto_revises: 1 },
     workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
   }

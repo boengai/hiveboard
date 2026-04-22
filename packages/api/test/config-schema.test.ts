@@ -50,3 +50,14 @@ describe('ProgressSchema', () => {
     ).toThrow()
   })
 })
+
+describe('SchedulerSchema', () => {
+  it('defaults legacy_mode to false', () => {
+    const cfg = ConfigSchema.parse({})
+    expect(cfg.scheduler.legacy_mode).toBe(false)
+  })
+  it('accepts legacy_mode=true', () => {
+    const cfg = ConfigSchema.parse({ scheduler: { legacy_mode: true } })
+    expect(cfg.scheduler.legacy_mode).toBe(true)
+  })
+})
