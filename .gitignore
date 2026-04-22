@@ -37,9 +37,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 # Generated files
-tmp/**
-!tmp/**/
-!tmp/**/*/.gitkeep
+packages/api/tmp/**
+!packages/api/tmp/**/
+!packages/api/tmp/**/*/.gitkeep
 
 docs/superpowers/**
 packages/web/dist/

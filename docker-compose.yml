@@ -8,9 +8,8 @@ services:
       - NODE_ENV=production
       - API_PORT=8080
     volumes:
-      - ./tmp/database:/app/tmp/database
-      - ./tmp/workspaces:/app/tmp/workspaces
-      - ./tmp/agents/.claude:/home/hiveboard/.claude
+      - ${API_TMP_PATH:-./tmp}:/app/tmp
+      - ${API_TMP_PATH:-./tmp}/agents/.claude:/home/hiveboard/.claude
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1))"]
       interval: 30s
