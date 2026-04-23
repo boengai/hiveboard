@@ -1,13 +1,19 @@
 import type { Database } from 'bun:sqlite'
 import { consola } from 'consola'
 import type { Config } from '../config/schema'
+import { insertCheckpoint } from '../db/checkpoints'
+import { generateId } from '../db/ulid'
+import { publishCheckpointAdded } from '../pubsub'
 import { readScratchpad } from '../workspace/agent-state'
+import { checkpointsSupported } from './capability'
 import { buildAgentEnv } from './env'
+import { NDJSONLineParser } from './ndjson-line-parser'
 import {
   type RunAgentMessage,
   renderPrompt,
   type VerificationFailureForPrompt,
 } from './prompt'
+import { type Checkpoint, summarizeEvent } from './summarize'
 
 export type { RunAgentMessage }
 
@@ -29,6 +35,12 @@ export type AgentResult = {
   error?: string
 }
 
+export type PreviousAttemptReplay = {
+  failure_summary: string
+  turn_count: number
+  checkpoints: Array<{ turn: number; kind: string; summary: string }>
+}
+
 export type RunAgentOptions = {
   task: TaskForAgent
   workspacePath: string
@@ -45,6 +57,9 @@ export type RunAgentOptions = {
   messages?: RunAgentMessage[]
   verificationFailures?: VerificationFailureForPrompt[]
   allowedToolsOverride?: string[] | null
+  /** When set, agent_run_checkpoints rows are inserted under this id. */
+  agentRunId?: string
+  previousAttemptReplay?: PreviousAttemptReplay
 }
 
 /** Build Claude CLI arguments from config. */
@@ -57,8 +72,12 @@ function buildClaudeArgs(
     config.claude.command,
     '--print',
     '--output-format',
-    'json',
+    checkpointsSupported() ? 'stream-json' : 'json',
   ]
+
+  if (checkpointsSupported()) {
+    args.push('--verbose')
+  }
 
   if (config.claude.model) {
     args.push('--model', config.claude.model)
@@ -120,6 +139,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     verificationFailures && verificationFailures.length > 0
       ? { verification_failures: verificationFailures }
       : undefined,
+    options.previousAttemptReplay,
     { db: options.db },
   )
 
@@ -144,34 +164,75 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     })
   }
 
-  // Stream stdout chunks to onLog callback while accumulating full output
   let output = ''
+  let turn = 0
+  const agentRunId = options.agentRunId
+  const captureCheckpoints = Boolean(checkpointsSupported() && agentRunId)
+  const db = options.db
 
-  if (onLog && proc.stdout) {
+  const lineParser = captureCheckpoints
+    ? new NDJSONLineParser(
+        (evt, meta) => {
+          turn += 1
+          const cp: Checkpoint | null = summarizeEvent(evt, turn, {
+            rawBytes: meta.rawBytes,
+          })
+          if (!cp) return
+          const id = generateId()
+          try {
+            insertCheckpoint(db, {
+              agentRunId,
+              id,
+              kind: cp.kind,
+              rawBytes: cp.rawBytes,
+              summary: cp.summary,
+              turn: cp.turn,
+            })
+            publishCheckpointAdded(task.id, {
+              agentRunId,
+              id,
+              kind: cp.kind,
+              occurredAt: new Date().toISOString(),
+              rawBytes: cp.rawBytes,
+              summary: cp.summary,
+              taskId: task.id,
+              turn: cp.turn,
+            })
+          } catch (err) {
+            consola.warn(
+              `checkpoint write for ${agentRunId} turn ${turn}: ${(err as Error).message}`,
+            )
+          }
+        },
+        {
+          onParseError: (err, line) => {
+            consola.warn(
+              `stream-json parse error: ${err.message} | line=${line.slice(0, 120)}`,
+            )
+          },
+        },
+      )
+    : null
+
+  if (proc.stdout) {
     const reader = proc.stdout.getReader()
     const decoder = new TextDecoder()
-    const readChunks = async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          output += chunk
-          onLog(chunk)
-        }
-      } catch {
-        // Stream closed
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        output += chunk
+        onLog?.(chunk)
+        lineParser?.feed(chunk)
       }
+    } catch {
+      // Stream closed.
     }
-    await readChunks()
+    lineParser?.flush()
   }
 
   const exitCode = await proc.exited
-
-  // If no onLog, read stdout the simple way
-  if (!onLog) {
-    output = await new Response(proc.stdout as ReadableStream).text()
-  }
 
   const stderr = await new Response(proc.stderr as ReadableStream).text()
 

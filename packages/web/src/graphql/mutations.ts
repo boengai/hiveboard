@@ -340,6 +340,18 @@ export const KILL_TASK = /* GraphQL */ `
   }
 `
 
+export const CONTINUE_FAILED_TASK = /* GraphQL */ `
+  mutation ContinueFailedTask($taskId: ID!, $instruction: String) {
+    continueFailedTask(taskId: $taskId, instruction: $instruction) {
+      id
+      agentStatus
+      retryCount
+      agentInstruction
+      updatedAt
+    }
+  }
+`
+
 export const CREATE_PLAYBOOK = /* GraphQL */ `
   ${PLAYBOOK_FIELDS}
   mutation CreatePlaybook($input: CreatePlaybookInput!) {

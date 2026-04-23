@@ -66,6 +66,28 @@ Agent Instruction:
 
 {{> scratchpad}}
 
+{{#previous_attempt_replay}}
+## Previous attempt replay
+
+This task previously failed at turn {{ turn_count }} with:
+
+> {{{ failure_summary }}}
+
+Here is a compact log of what you did in the previous attempt. Use it to
+avoid repeating the same dead ends — the workspace still has whatever files
+you committed, so pick up from there rather than restarting from zero.
+
+{{#checkpoints}}
+- [turn {{ turn }}] {{ kind }}: {{{ summary }}}
+{{/checkpoints}}
+
+Continue from the current workspace state. Do not repeat successful work
+unless you must redo it because of the failure. Fix the specific failure
+above, then make forward progress.
+
+---
+
+{{/previous_attempt_replay}}
 {{> progress}}
 
 {{> messages}}

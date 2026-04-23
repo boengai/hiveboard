@@ -1,5 +1,6 @@
 import Mustache from 'mustache'
 import {
+  type PreviousAttemptReplayForPrompt,
   type RunAgentMessage,
   type TaskForPrompt,
   type VerificationFailureForPrompt,
@@ -36,6 +37,28 @@ export function buildPlaybookTemplate(playbookBody: string): string {
     '',
     '{{> scratchpad}}',
     '',
+    '{{#previous_attempt_replay}}',
+    '## Previous attempt replay',
+    '',
+    'This task previously failed at turn {{ turn_count }} with:',
+    '',
+    '> {{{ failure_summary }}}',
+    '',
+    'Here is a compact log of what you did in the previous attempt. Use it to',
+    'avoid repeating the same dead ends — the workspace still has whatever files',
+    'you committed, so pick up from there rather than restarting from zero.',
+    '',
+    '{{#checkpoints}}',
+    '- [turn {{ turn }}] {{ kind }}: {{{ summary }}}',
+    '{{/checkpoints}}',
+    '',
+    'Continue from the current workspace state. Do not repeat successful work',
+    'unless you must redo it because of the failure. Fix the specific failure',
+    'above, then make forward progress.',
+    '',
+    '---',
+    '',
+    '{{/previous_attempt_replay}}',
     '{{> progress}}',
     '',
     '{{> messages}}',
@@ -64,6 +87,7 @@ export type RenderPlaybookPromptInput = {
   scratchpad?: string
   messages?: RunAgentMessage[]
   verificationFailures?: VerificationFailureForPrompt[]
+  previousAttemptReplay?: PreviousAttemptReplayForPrompt
 }
 
 export function renderPlaybookPrompt(input: RenderPlaybookPromptInput): string {
@@ -74,6 +98,7 @@ export function renderPlaybookPrompt(input: RenderPlaybookPromptInput): string {
       (input.verificationFailures?.length ?? 0) > 0,
     has_messages: (input.messages?.length ?? 0) > 0,
     messages: input.messages ?? [],
+    previous_attempt_replay: input.previousAttemptReplay,
     scratchpad: input.scratchpad ?? '',
     task: {
       action: input.task.action ?? '',

@@ -327,3 +327,17 @@ export const MESSAGE_ADDED_SUBSCRIPTION = /* GraphQL */ `
     }
   }
 `
+
+export const CHECKPOINT_ADDED_SUBSCRIPTION = /* GraphQL */ `
+  subscription CheckpointAdded($taskId: ID!) {
+    checkpointAdded(taskId: $taskId) {
+      id
+      agentRunId
+      turn
+      kind
+      summary
+      rawBytes
+      occurredAt
+    }
+  }
+`

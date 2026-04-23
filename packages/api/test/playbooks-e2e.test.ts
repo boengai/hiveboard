@@ -91,6 +91,7 @@ describe('playbooks end-to-end', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       { db },
     )
     expect(prompt1).toContain('V2 BODY') // renderPrompt uses the CURRENT version at render time; audit lives on agent_runs
@@ -123,6 +124,7 @@ describe('playbooks end-to-end', () => {
         targetRepo: 'acme/app',
         title: 't',
       },
+      undefined,
       undefined,
       undefined,
       undefined,

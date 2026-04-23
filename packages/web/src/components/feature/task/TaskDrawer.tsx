@@ -22,6 +22,7 @@ import { GitHubIcon } from '@/components/common/icon'
 import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
+  CONTINUE_FAILED_TASK,
   CREATE_TAG,
   CREATE_TASK,
   GET_BOARD,
@@ -46,6 +47,7 @@ import type {
   ViewModeProps,
 } from '@/types'
 import { hashToColor, tv } from '@/utils'
+import { AgentRunLog } from '../agent/AgentRunLog'
 import { TaskComments } from './TaskComments'
 import { TaskDependencies } from './TaskDependencies'
 import { TaskEventHistory, timeAgo } from './TaskEventHistory'
@@ -315,7 +317,21 @@ const ViewMode = ({
   loading,
   onInterruptAgent,
   onUpdateAction,
+  onContinueTask,
 }: ViewModeProps) => {
+  const [continueInstruction, setContinueInstruction] = useState('')
+  const [continuing, setContinuing] = useState(false)
+
+  const handleContinue = async () => {
+    setContinuing(true)
+    try {
+      await onContinueTask(continueInstruction.trim() || null)
+      setContinueInstruction('')
+    } finally {
+      setContinuing(false)
+    }
+  }
+
   return (
     <div className="flex grow flex-col gap-6">
       {/* Header area */}
@@ -403,6 +419,28 @@ const ViewMode = ({
         />
       )}
 
+      {/* Continue from failure */}
+      {task.agentStatus === 'FAILED' && (
+        <div className="flex flex-col gap-2 rounded-md border border-border-default bg-surface-2 p-3">
+          <SectionLabel>Continue from failure</SectionLabel>
+          <textarea
+            className="rounded border border-border-default bg-surface-1 p-2 font-mono text-body-xs"
+            onChange={(e) => setContinueInstruction(e.target.value)}
+            placeholder="Optional: extra guidance for the next attempt"
+            rows={2}
+            value={continueInstruction}
+          />
+          <button
+            className="self-start rounded bg-accent px-3 py-1 text-body-xs text-surface-1 disabled:opacity-50"
+            disabled={continuing || loading}
+            onClick={handleContinue}
+            type="button"
+          >
+            {continuing ? 'Continuing…' : 'Continue'}
+          </button>
+        </div>
+      )}
+
       {/* Body */}
 
       {task.body ? (
@@ -460,6 +498,10 @@ const ViewMode = ({
           initialContent={task.scratchpad ?? ''}
           taskId={task.id}
         />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Run Log</SectionLabel>
+        <AgentRunLog agentRuns={task.agentRuns ?? []} taskId={task.id} />
       </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
         <SectionLabel>Messages</SectionLabel>
@@ -1026,6 +1068,23 @@ export const TaskDrawer = () => {
     })
   }
 
+  const handleContinueTask = async (instruction: string | null) => {
+    if (!task) return
+    try {
+      const data = await graphqlClient.request<{ continueFailedTask: Partial<Task> }>(
+        CONTINUE_FAILED_TASK,
+        {
+          instruction,
+          taskId: task.id,
+        },
+      )
+      setTask({ ...task, ...data.continueFailedTask })
+      await refetchBoard()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const enterEdit = () => {
     if (!task) return
     setIsEditing(true)
@@ -1130,6 +1189,7 @@ export const TaskDrawer = () => {
         <ViewMode
           loading={isPending}
           onArchive={handleArchive}
+          onContinueTask={handleContinueTask}
           onEdit={enterEdit}
           onInterruptAgent={handleInterruptAgent}
           onUpdateAction={handleUpdateAction}

@@ -65,3 +65,45 @@ describe('renderPlaybookPrompt', () => {
     expect(out).toContain('<script>alert(1)</script>')
   })
 })
+
+describe('renderPlaybookPrompt with previous_attempt_replay', () => {
+  const baseInput = {
+    playbookBody: 'Do the playbook thing.',
+    scratchpad: '',
+    messages: [],
+    task: {
+      action: 'playbook:xyz',
+      agentInstruction: null,
+      body: 't',
+      id: '01HYX3KPQR000000000000000A',
+      prUrl: null,
+      targetBranch: 'main',
+      targetRepo: 'org/repo',
+      title: 't',
+    },
+  }
+
+  it('renders the replay block when replay is provided', () => {
+    const out = renderPlaybookPrompt({
+      ...baseInput,
+      previousAttemptReplay: {
+        failure_summary: 'exit code 1',
+        turn_count: 3,
+        checkpoints: [
+          { turn: 1, kind: 'assistant', summary: 'first note' },
+          { turn: 2, kind: 'error', summary: '[error] fatal' },
+        ],
+      },
+    } as never)
+    expect(out).toContain('Previous attempt replay')
+    expect(out).toContain('failed at turn 3')
+    expect(out).toContain('exit code 1')
+    expect(out).toContain('[turn 1] assistant: first note')
+    expect(out).toContain('[turn 2] error: [error] fatal')
+  })
+
+  it('omits the replay block when no replay is provided', () => {
+    const out = renderPlaybookPrompt(baseInput as never)
+    expect(out).not.toContain('Previous attempt replay')
+  })
+})

@@ -1,7 +1,11 @@
 import type { Database } from 'bun:sqlite'
 import { readFile, rename, unlink } from 'node:fs/promises'
 import { consola } from 'consola'
+import { GraphQLError } from 'graphql'
 import { runAgent } from '../agent/runner'
+import type { PreviousAttemptReplay } from '../agent/runner'
+import { selectCheckpointsForReplay } from '../agent/checkpoint-replay'
+import { countTurnsForRun, listCheckpointsForRun } from '../db/checkpoints'
 import { listFailingRunsForAgentRun } from '../db/verification-runs'
 import { subtasksPath } from '../workspace/agent-state'
 import { cascadeDependencyFailure } from './dependencies'
@@ -325,6 +329,129 @@ export function insertAgentRun(input: InsertAgentRunInput): void {
 /** Test-only re-export to avoid importing private class internals. */
 export function insertAgentRunForTest(input: InsertAgentRunInput): void {
   insertAgentRun(input)
+}
+
+// ---------------------------------------------------------------------------
+// Checkpoint replay builder (exported for test + orchestrator dispatch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Given a task id, find the most recent FAILED agent_run that occurred AFTER
+ * the most recent SUCCESS run (if any), then build a PreviousAttemptReplay
+ * bundle from its checkpoints.
+ *
+ * Rationale: only replay the immediate prior attempt in the current retry
+ * cycle. If the task previously succeeded then later failed, we want the
+ * recently-failed run, not some ancient failed run from before the success.
+ */
+export function buildPreviousAttemptReplay(
+  db: Database,
+  taskId: string,
+): PreviousAttemptReplay | null {
+  const latestSuccess = db
+    .query(
+      `SELECT id, started_at FROM agent_runs
+       WHERE task_id = ? AND status = 'success'
+       ORDER BY started_at DESC
+       LIMIT 1`,
+    )
+    .get(taskId) as { id: string; started_at: string } | null
+
+  const failedRow = (latestSuccess
+    ? db
+        .query(
+          `SELECT id, error FROM agent_runs
+           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
+             AND (started_at > ? OR (started_at = ? AND id > ?))
+           ORDER BY started_at DESC
+           LIMIT 1`,
+        )
+        .get(taskId, latestSuccess.started_at, latestSuccess.started_at, latestSuccess.id)
+    : db
+        .query(
+          `SELECT id, error FROM agent_runs
+           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
+           ORDER BY started_at DESC
+           LIMIT 1`,
+        )
+        .get(taskId)) as { id: string; error: string | null } | null
+
+  if (!failedRow) return null
+
+  const all = listCheckpointsForRun(db, failedRow.id)
+  if (all.length === 0) {
+    return {
+      checkpoints: [],
+      failure_summary:
+        failedRow.error ?? 'previous attempt failed (no checkpoints available)',
+      turn_count: 0,
+    }
+  }
+  const selected = selectCheckpointsForReplay(all)
+  return {
+    checkpoints: selected.map((cp) => ({
+      kind: cp.kind,
+      summary: cp.summary,
+      turn: cp.turn,
+    })),
+    failure_summary: failedRow.error ?? 'previous attempt failed',
+    turn_count: countTurnsForRun(db, failedRow.id),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Continue Failed Task
+// ---------------------------------------------------------------------------
+
+/**
+ * Transitions a task from 'failed' → 'queued', incrementing retry_count.
+ * Optionally appends an instruction to the existing agent_instruction.
+ * Named `continueFailedTaskDb` to avoid collision with the resolver method.
+ */
+export function continueFailedTaskDb(
+  db: Database,
+  taskId: string,
+  instruction?: string,
+): void {
+  const row = db
+    .query(
+      'SELECT agent_status, retry_count, agent_instruction FROM tasks WHERE id = ?',
+    )
+    .get(taskId) as
+    | {
+        agent_status: string
+        retry_count: number
+        agent_instruction: string | null
+      }
+    | null
+  if (!row) {
+    throw new GraphQLError('NOT_FOUND: Task not found', {
+      extensions: { code: 'NOT_FOUND' },
+    })
+  }
+  if (row.agent_status !== 'failed') {
+    throw new GraphQLError('TASK_NOT_FAILED: Task is not in FAILED state', {
+      extensions: { code: 'TASK_NOT_FAILED' },
+    })
+  }
+  const nextRetry = (row.retry_count ?? 0) + 1
+  let nextInstruction = row.agent_instruction
+  if (instruction && instruction.trim().length > 0) {
+    nextInstruction =
+      nextInstruction && nextInstruction.trim().length > 0
+        ? `${nextInstruction}, ${instruction.trim()}`
+        : instruction.trim()
+  }
+  db.run(
+    `UPDATE tasks
+     SET agent_status = 'queued',
+         retry_count = ?,
+         agent_instruction = ?,
+         queue_after = datetime('now', '+2 seconds'),
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [nextRetry, nextInstruction, taskId],
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -795,7 +922,13 @@ export class Orchestrator {
           : undefined
       }
 
+      const previousAttemptReplay =
+        runState.retryAttempt > 0
+          ? buildPreviousAttemptReplay(db, task.id)
+          : null
+
       const result = await runAgent({
+        agentRunId: runId,
         allowedToolsOverride,
         config: this.config,
         db,
@@ -808,6 +941,7 @@ export class Orchestrator {
             timestamp: new Date().toISOString(),
           } as unknown as Record<string, unknown>)
         },
+        previousAttemptReplay: previousAttemptReplay ?? undefined,
         promptTemplate: this.promptTemplate,
         retryAttempt: runState.retryAttempt,
         reviewComments,

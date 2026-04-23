@@ -92,6 +92,27 @@ export type TaskProgressEntry = {
   status: 'IN_PROGRESS' | 'DONE' | 'FAILED'
 }
 
+export type AgentRunCheckpoint = {
+  id: string
+  agentRunId: string
+  turn: number
+  kind: string
+  summary: string
+  rawBytes: number
+  occurredAt: string
+}
+
+export type AgentRun = {
+  id: string
+  action: string | null
+  status: string
+  turnCount: number
+  checkpoints: AgentRunCheckpoint[]
+  startedAt: string | null
+  finishedAt: string | null
+  error: string | null
+}
+
 export type Task = {
   id: string
   title: string
@@ -143,4 +164,6 @@ export type Task = {
   subtasks?: TaskSubtaskSummary[]
   blockers?: TaskBlockerSummary[]
   dependents?: TaskBlockerSummary[]
+  // Plan G — checkpoint/resume
+  agentRuns?: AgentRun[]
 }

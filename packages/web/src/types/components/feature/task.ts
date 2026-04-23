@@ -43,6 +43,7 @@ export type ViewModeProps = {
   onArchive: () => void
   onInterruptAgent: () => void
   onUpdateAction: (action: string, instruction?: string) => void
+  onContinueTask: (instruction: string | null) => Promise<void>
   loading: boolean
 }
 

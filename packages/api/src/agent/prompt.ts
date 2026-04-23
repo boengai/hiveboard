@@ -34,6 +34,12 @@ export type VerificationFailureForPrompt = {
   output: string
 }
 
+export type PreviousAttemptReplayForPrompt = {
+  failure_summary: string
+  turn_count: number
+  checkpoints: Array<{ turn: number; kind: string; summary: string }>
+}
+
 export type PromptContext = {
   task: {
     id: string
@@ -54,6 +60,7 @@ export type PromptContext = {
   has_messages?: boolean
   auto_revise_from_verification?: boolean
   verification_failures?: VerificationFailureForPrompt[]
+  previous_attempt_replay?: PreviousAttemptReplayForPrompt
 }
 
 export type RenderPromptResolver = {
@@ -69,6 +76,7 @@ export function renderPrompt(
   scratchpad?: string,
   messages?: RunAgentMessage[],
   verification?: { verification_failures: VerificationFailureForPrompt[] },
+  previousAttemptReplay?: PreviousAttemptReplayForPrompt,
   resolver?: RenderPromptResolver,
 ): string {
   // Playbook dispatch path
@@ -84,6 +92,7 @@ export function renderPrompt(
     const input: RenderPlaybookPromptInput = {
       messages,
       playbookBody: pb.currentVersion.promptTemplate,
+      previousAttemptReplay,
       scratchpad,
       task,
       verificationFailures: verification?.verification_failures,
@@ -101,6 +110,7 @@ export function renderPrompt(
     has_messages: (messages?.length ?? 0) > 0,
     has_review_comments: !!reviewComments,
     messages: messages ?? [],
+    previous_attempt_replay: previousAttemptReplay,
     review_comments: reviewComments,
     scratchpad: scratchpad ?? '',
     task: {

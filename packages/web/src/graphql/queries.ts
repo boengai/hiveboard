@@ -285,6 +285,24 @@ export const GET_TASK = /* GraphQL */ `
       timeBoxMs
       timeBoxStartedAt
       timeBoxRemainingMs
+      agentRuns {
+        id
+        action
+        status
+        turnCount
+        checkpoints {
+          id
+          agentRunId
+          turn
+          kind
+          summary
+          rawBytes
+          occurredAt
+        }
+        startedAt
+        finishedAt
+        error
+      }
     }
   }
 `
@@ -345,6 +363,15 @@ export const GET_AGENT_RUNS = /* GraphQL */ `
       error
       startedAt
       finishedAt
+      turnCount
+      checkpoints {
+        id
+        turn
+        kind
+        summary
+        rawBytes
+        occurredAt
+      }
     }
   }
 `

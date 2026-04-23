@@ -53,6 +53,8 @@ export const typeDefs = /* GraphQL */ `
 
     generateInvitation(githubUsername: String!): Invitation!
     revokeUser(userId: ID!): User!
+
+    continueFailedTask(taskId: ID!, instruction: String): Task!
   }
 
   type Subscription {
@@ -66,6 +68,7 @@ export const typeDefs = /* GraphQL */ `
     verificationRunAdded(taskId: ID!): VerificationRun!
     taskProgressAdded(taskId: ID!): TaskProgress!
     workspaceSnapshotAdded(taskId: ID!): WorkspaceSnapshot!
+    checkpointAdded(taskId: ID!): AgentRunCheckpoint!
   }
 
   type User {
@@ -258,12 +261,24 @@ export const typeDefs = /* GraphQL */ `
     error: String
     startedAt: String!
     finishedAt: String
+    checkpoints: [AgentRunCheckpoint!]!
+    turnCount: Int!
   }
 
   type AgentLogChunk {
     taskId: ID!
     chunk: String!
     timestamp: String!
+  }
+
+  type AgentRunCheckpoint {
+    id: ID!
+    agentRunId: ID!
+    turn: Int!
+    kind: String!
+    summary: String!
+    rawBytes: Int!
+    occurredAt: String!
   }
 
   type ScratchpadChunk {

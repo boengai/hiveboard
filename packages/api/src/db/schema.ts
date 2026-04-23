@@ -128,6 +128,19 @@ export function createTables(db: Database): void {
       finished_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS agent_run_checkpoints (
+      id           TEXT PRIMARY KEY,
+      agent_run_id TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+      turn         INTEGER NOT NULL,
+      kind         TEXT NOT NULL,
+      summary      TEXT NOT NULL,
+      raw_bytes    INTEGER NOT NULL,
+      occurred_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_checkpoints_run
+      ON agent_run_checkpoints(agent_run_id, turn);
+
     CREATE TABLE IF NOT EXISTS verification_runs (
       id            TEXT PRIMARY KEY,
       task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,

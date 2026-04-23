@@ -66,6 +66,7 @@ describe('renderPrompt dispatch', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       { db },
     )
     expect(out).toContain('PLAYBOOK BODY — target lodash')
@@ -89,6 +90,7 @@ describe('renderPrompt dispatch', () => {
           targetRepo: 'acme/app',
           title: 't',
         },
+        undefined,
         undefined,
         undefined,
         undefined,

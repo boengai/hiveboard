@@ -224,6 +224,12 @@ export function TaskCard({ task, column }: TaskCardProps) {
               {latestProgress.step}/{latestProgress.total}
             </span>
           )}
+          {task.agentStatus === 'QUEUED' && (task.retryCount ?? 0) > 0 && (
+            <span className="text-body-xs text-text-tertiary">retrying…</span>
+          )}
+          {task.agentStatus === 'FAILED' && (
+            <span className="text-body-xs text-accent">continue?</span>
+          )}
         </div>
       )}
 

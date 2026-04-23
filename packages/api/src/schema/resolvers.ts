@@ -28,6 +28,7 @@ import {
   listMessagesForTask,
   type TaskMessageRow,
 } from '../db/task-messages'
+import { listCheckpointsForRun, countTurnsForRun } from '../db/checkpoints'
 import { listVerificationRunsForTask } from '../db/verification-runs'
 import {
   getSnapshotById,
@@ -35,6 +36,7 @@ import {
   listSnapshotsForTask,
 } from '../db/workspace-snapshots'
 import { getOrchestrator } from '../orchestrator'
+import { continueFailedTaskDb } from '../orchestrator/orchestrator'
 import { wouldCreateCycle } from '../orchestrator/dependencies'
 import {
   archivePlaybook,
@@ -548,6 +550,15 @@ export const resolvers = {
     },
     replies(comment: ReturnType<typeof mapComment>) {
       return getRepliesForComment(comment.id)
+    },
+  },
+
+  AgentRun: {
+    checkpoints(parent: { id: string }) {
+      return listCheckpointsForRun(db, parent.id)
+    },
+    turnCount(parent: { id: string }) {
+      return countTurnsForRun(db, parent.id)
     },
   },
 
@@ -1649,6 +1660,23 @@ export const resolvers = {
       return message
     },
 
+    continueFailedTask(
+      _: unknown,
+      { taskId, instruction }: { taskId: string; instruction?: string | null },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      requireTaskAccess(taskId, authUser)
+      continueFailedTaskDb(db, taskId, instruction ?? undefined)
+      const row = db
+        .query('SELECT * FROM tasks WHERE id = ?')
+        .get(taskId) as TaskRow | null
+      if (!row) throw new GraphQLError('Task not found', { extensions: { code: 'NOT_FOUND' } })
+      const task = mapTask(row)
+      publishTaskUpdated(task)
+      return task
+    },
+
     setTaskTags(
       _: unknown,
       { taskId, tagIds }: { taskId: string; tagIds: string[] },
@@ -2393,6 +2421,21 @@ export const resolvers = {
         const authUser = requireAuth(ctx)
         requireTaskAccess(taskId, authUser)
         return pubsub.subscribe('TASK_MESSAGE', taskId)
+      },
+    },
+
+    checkpointAdded: {
+      resolve(payload: Record<string, unknown>) {
+        return payload
+      },
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const authUser = requireAuth(ctx)
+        requireTaskAccess(taskId, authUser)
+        return pubsub.subscribe('AGENT_CHECKPOINT', taskId)
       },
     },
 

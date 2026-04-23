@@ -11,6 +11,7 @@ export const pubsub = createPubSub<{
   VERIFICATION_RUN: [taskId: string, payload: Record<string, unknown>]
   WORKSPACE_SNAPSHOT: [taskId: string, payload: Record<string, unknown>]
   TASK_PROGRESS: [taskId: string, payload: Record<string, unknown>]
+  AGENT_CHECKPOINT: [taskId: string, payload: Record<string, unknown>]
 }>()
 
 export function publishTaskUpdated(boardId: string, task: unknown) {
@@ -113,5 +114,25 @@ export function publishTaskProgress(
     'TASK_PROGRESS',
     taskId,
     entry as unknown as Record<string, unknown>,
+  )
+}
+
+export function publishCheckpointAdded(
+  taskId: string,
+  payload: {
+    id: string
+    agentRunId: string
+    taskId: string
+    turn: number
+    kind: string
+    summary: string
+    rawBytes: number
+    occurredAt: string
+  },
+): void {
+  pubsub.publish(
+    'AGENT_CHECKPOINT',
+    taskId,
+    payload as unknown as Record<string, unknown>,
   )
 }

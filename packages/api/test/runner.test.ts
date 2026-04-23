@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { Database } from 'bun:sqlite'
 import { buildAgentEnv } from '../src/agent/env'
-import type { TaskForAgent } from '../src/agent/runner'
+import { _setCheckpointSupportForTest } from '../src/agent/capability'
+import { buildClaudeArgsForTest, type TaskForAgent } from '../src/agent/runner'
 import { ConfigSchema } from '../src/config/schema'
+import { createTables } from '../src/db/schema'
+import { insertCheckpoint, listCheckpointsForRun } from '../src/db/checkpoints'
+import { generateId } from '../src/db/ulid'
+import { NDJSONLineParser } from '../src/agent/ndjson-line-parser'
+import { summarizeEvent } from '../src/agent/summarize'
 
 const TASK: TaskForAgent = {
   action: 'implement',
@@ -165,5 +172,137 @@ describe('HIVEBOARD_PROGRESS env var', () => {
   it('is skipped silently for non-ULID task ids', () => {
     const env = buildAgentEnv(TASK, WORKSPACE, undefined, undefined, testConfig)
     expect(env.HIVEBOARD_PROGRESS).toBeUndefined()
+  })
+})
+
+describe('buildClaudeArgs with checkpoint capture', () => {
+  const MIN_CONFIG = ConfigSchema.parse({
+    claude: {
+      allowed_tools: ['Bash'],
+      command: 'claude',
+      max_turns: 10,
+      model: 'opus',
+    },
+  })
+
+  afterEach(() => {
+    _setCheckpointSupportForTest(undefined)
+  })
+
+  it('uses stream-json + --verbose when checkpoints are supported', () => {
+    _setCheckpointSupportForTest(true)
+    const args = buildClaudeArgsForTest(MIN_CONFIG, 'hello', null)
+    const fmtIdx = args.indexOf('--output-format')
+    expect(fmtIdx).toBeGreaterThan(-1)
+    expect(args[fmtIdx + 1]).toBe('stream-json')
+    expect(args).toContain('--verbose')
+  })
+
+  it('falls back to json (no --verbose) when checkpoints are unsupported', () => {
+    _setCheckpointSupportForTest(false)
+    const args = buildClaudeArgsForTest(MIN_CONFIG, 'hello', null)
+    const fmtIdx = args.indexOf('--output-format')
+    expect(fmtIdx).toBeGreaterThan(-1)
+    expect(args[fmtIdx + 1]).toBe('json')
+    expect(args).not.toContain('--verbose')
+  })
+})
+
+describe('checkpoint capture: parser feed → DB insert', () => {
+  // Tests the composition: NDJSONLineParser feed → summarizeEvent → insertCheckpoint.
+  // Does NOT go through runAgent (which is module-mocked in orchestrator tests);
+  // this directly exercises the closure that runAgent wires up.
+  let db: Database
+  const VALID_ULID = '01HYX3KPQR000000000000000A'
+  const AGENT_RUN_ID = 'run-e2e-1'
+
+  beforeEach(() => {
+    db = new Database(':memory:')
+    db.exec('PRAGMA foreign_keys = ON')
+    createTables(db)
+    db.run(
+      `INSERT INTO users (id, username, display_name)
+       VALUES ('sys', 'sys', 'System')`,
+    )
+    db.run(
+      `INSERT INTO boards (id, name, created_by)
+       VALUES ('b1', 'B', 'sys')`,
+    )
+    db.run(
+      `INSERT INTO columns (id, board_id, name, position)
+       VALUES ('c1', 'b1', 'Todo', 0)`,
+    )
+    db.run(
+      `INSERT INTO tasks (id, board_id, column_id, title, body, position, created_by, updated_by)
+       VALUES (?, 'b1', 'c1', 't', '', 0, 'sys', 'sys')`,
+      [VALID_ULID],
+    )
+    db.run(
+      `INSERT INTO agent_runs (id, task_id, action, status)
+       VALUES (?, ?, 'implement', 'queued')`,
+      [AGENT_RUN_ID, VALID_ULID],
+    )
+  })
+
+  it('feeds NDJSON through the summarizer and inserts checkpoint rows', () => {
+    const events = [
+      JSON.stringify({
+        type: 'assistant',
+        message: { content: [{ type: 'text', text: 'hello' }] },
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'tool_use', name: 'Read', input: { file_path: '/a/b.txt' } },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'x',
+              name: 'Read',
+              is_error: false,
+              content: 'file content here',
+            },
+          ],
+        },
+      }),
+    ]
+
+    let turn = 0
+    const parser = new NDJSONLineParser((evt, meta) => {
+      turn += 1
+      const cp = summarizeEvent(evt, turn, { rawBytes: meta.rawBytes })
+      if (!cp) return
+      insertCheckpoint(db, {
+        agentRunId: AGENT_RUN_ID,
+        id: generateId(),
+        kind: cp.kind,
+        rawBytes: cp.rawBytes,
+        summary: cp.summary,
+        turn: cp.turn,
+      })
+    })
+
+    // Feed all events as a single NDJSON chunk (newline-separated).
+    parser.feed(events.join('\n') + '\n')
+    parser.flush()
+
+    const rows = listCheckpointsForRun(db, AGENT_RUN_ID)
+    expect(rows.length).toBe(3)
+    expect(rows[0].kind).toBe('assistant')
+    expect(rows[0].summary).toContain('hello')
+    expect(rows[1].kind).toBe('tool_use')
+    expect(rows[1].summary).toContain('[tool Read] /a/b.txt')
+    expect(rows[2].kind).toBe('tool_result')
+    expect(rows[2].summary).toContain('[result for Read]')
+    expect(rows[2].summary).not.toContain('file content here')
+    // Turns should be sequential.
+    expect(rows.map((r) => r.turn)).toEqual([1, 2, 3])
   })
 })

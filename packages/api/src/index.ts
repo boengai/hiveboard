@@ -19,6 +19,7 @@ import {
 } from './auth/oauth-state'
 import { setPeerIP } from './auth/peer-ip'
 import { cleanExpiredSessions } from './auth/session'
+import { detectCheckpointSupport } from './agent/capability'
 import { loadWorkflow, setConfig } from './config'
 import { db, migrate } from './db'
 import { GitHubClient } from './github/client'
@@ -62,6 +63,7 @@ setInterval(cleanExpiredSessions, 60 * 60 * 1000)
 
 // Boot orchestrator (best-effort — API runs even without WORKFLOW.md)
 async function startOrchestrator() {
+  await detectCheckpointSupport()
   try {
     const { config, promptTemplate } = await loadWorkflow()
     setConfig(config)
