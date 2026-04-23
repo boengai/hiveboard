@@ -14,6 +14,7 @@ export const typeDefs = /* GraphQL */ `
     users: [User!]!
     invitations: [Invitation!]!
     authConfig: AuthConfig!
+    playbooks: [Playbook!]!
   }
 
   type Mutation {
@@ -31,7 +32,11 @@ export const typeDefs = /* GraphQL */ `
     deleteTag(id: ID!, boardId: ID!): Boolean!
     setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!
     cancelAgent(taskId: ID!): Task!
-    runAgent(taskId: ID!, action: BoardAction!, instruction: String): Task!
+    runAgent(taskId: ID!, action: String!, instruction: String): Task!
+    createPlaybook(input: CreatePlaybookInput!): Playbook!
+    updatePlaybook(id: ID!, input: UpdatePlaybookInput!): Playbook!
+    archivePlaybook(id: ID!): Playbook!
+    unarchivePlaybook(id: ID!): Playbook!
 
     sendHint(taskId: ID!, body: String!): TaskMessage!
     sendRedirect(taskId: ID!, body: String!): TaskMessage!
@@ -111,7 +116,7 @@ export const typeDefs = /* GraphQL */ `
     body: String!
     column: Column!
     position: Float!
-    action: BoardAction
+    action: String
     agentInstruction: String
     targetRepo: String
     targetBranch: String
@@ -149,6 +154,45 @@ export const typeDefs = /* GraphQL */ `
     color: String!
   }
 
+  type Playbook {
+    id: ID!
+    name: String!
+    displayName: String!
+    description: String!
+    currentVersion: PlaybookVersion!
+    versions: [PlaybookVersion!]!
+    archived: Boolean!
+    createdBy: User!
+    createdAt: String!
+  }
+
+  type PlaybookVersion {
+    id: ID!
+    versionNumber: Int!
+    promptTemplate: String!
+    defaultsJson: String!
+    allowedToolsOverride: [String!]
+    createdBy: User!
+    createdAt: String!
+  }
+
+  input CreatePlaybookInput {
+    name: String!
+    displayName: String!
+    description: String!
+    promptTemplate: String!
+    defaultsJson: String
+    allowedToolsOverride: [String!]
+  }
+
+  input UpdatePlaybookInput {
+    displayName: String
+    description: String
+    promptTemplate: String
+    defaultsJson: String
+    allowedToolsOverride: [String!]
+  }
+
   enum AgentStatus {
     IDLE
     QUEUED
@@ -156,12 +200,6 @@ export const typeDefs = /* GraphQL */ `
     BLOCKED
     SUCCESS
     FAILED
-  }
-
-  enum BoardAction {
-    PLAN
-    IMPLEMENT
-    REVISE
   }
 
   enum MessageKind {

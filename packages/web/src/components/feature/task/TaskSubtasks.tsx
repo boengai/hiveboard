@@ -22,16 +22,16 @@ function StatusDot({ status }: { status: TaskSubtaskSummary['agentStatus'] }) {
 function ActionBadge({ action }: { action: TaskSubtaskSummary['action'] }) {
   if (!action) return null
   const tone =
-    action === 'IMPLEMENT'
+    action === 'implement'
       ? 'bg-success-400/15 text-success-400'
-      : action === 'PLAN'
+      : action === 'plan'
         ? 'bg-info-400/15 text-info-400'
         : 'bg-warning-400/15 text-warning-400'
   return (
     <span
       className={`rounded-full px-1.5 py-0.5 font-medium text-[10px] uppercase tracking-wide ${tone}`}
     >
-      {action.toLowerCase()}
+      {action}
     </span>
   )
 }

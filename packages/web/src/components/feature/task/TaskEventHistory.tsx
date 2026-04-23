@@ -148,6 +148,49 @@ function eventDescription(
   }
 }
 
+/**
+ * Pill rendered for actions that reference a playbook (value like
+ * `playbook:<name>`). Surfaces playbook-driven runs visually in the timeline.
+ */
+function PlaybookChip({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-honey-600/15 px-1.5 py-px font-medium text-[11px] text-honey-600">
+      <span aria-hidden>▶</span>
+      <code className="font-mono">{name}</code>
+    </span>
+  )
+}
+
+/**
+ * Like `eventDescription` but returns a ReactNode so playbook actions can
+ * render as a chip instead of the raw `playbook:<name>` string.
+ */
+function renderEventDescription(
+  eventType: string,
+  data: string | null | undefined,
+): ReactNode {
+  const d = parseData(data)
+  const action = typeof d.action === 'string' ? d.action : null
+  if (eventType === 'agent_started' && action?.startsWith('playbook:')) {
+    const retry = Number(d.retry ?? 0)
+    return (
+      <>
+        agent started (
+        <PlaybookChip name={action.slice('playbook:'.length)} />, attempt #
+        {retry + 1})
+      </>
+    )
+  }
+  if (eventType === 'action_set' && action?.startsWith('playbook:')) {
+    return (
+      <>
+        set action to <PlaybookChip name={action.slice('playbook:'.length)} />
+      </>
+    )
+  }
+  return eventDescription(eventType, data)
+}
+
 /** Key used to determine if consecutive events are "the same" and can be grouped. */
 function eventGroupKey(entry: TimelineEntry): string {
   const desc = eventDescription(entry.eventType ?? '', entry.data)
@@ -216,7 +259,7 @@ const VISIBLE_TAIL = 6
 
 function EventRow({ entry }: { entry: TimelineEntry }) {
   const icon = eventIcon(entry.eventType ?? '')
-  const description = eventDescription(entry.eventType ?? '', entry.data)
+  const description = renderEventDescription(entry.eventType ?? '', entry.data)
 
   return (
     <div className="flex items-center gap-2.5 py-1.5">
@@ -249,10 +292,11 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
 
 function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
   const [expanded, setExpanded] = useState(false)
-  const { entries, description, eventType } = group
+  const { entries, eventType } = group
   const first = entries[0] as TimelineEntry
   const last = entries[entries.length - 1] as TimelineEntry
   const icon = eventIcon(eventType)
+  const description = renderEventDescription(first.eventType ?? '', first.data)
 
   return (
     <div>
@@ -305,7 +349,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
                 <Avatar name={entry.actor.username} size="sm" />
               ) : null}
               <span className="flex-1 text-body-xs text-text-tertiary">
-                {eventDescription(entry.eventType ?? '', entry.data)}
+                {renderEventDescription(entry.eventType ?? '', entry.data)}
               </span>
               <span className="shrink-0 text-body-xs text-text-tertiary">
                 {timeAgo(entry.createdAt)}

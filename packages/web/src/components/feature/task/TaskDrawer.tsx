@@ -32,6 +32,7 @@ import {
   UPDATE_TASK,
 } from '@/graphql'
 import { useImageUpload } from '@/hooks/useImageUpload'
+import { usePlaybooks } from '@/hooks/usePlaybooks'
 import type { TaskFormValues } from '@/schemas/task'
 import { taskFormSchema } from '@/schemas/task'
 import { useBoardStore } from '@/store'
@@ -69,10 +70,10 @@ const agentDot = tv({
   },
 })
 
-const ACTION_OPTIONS = [
-  { label: 'Plan', value: 'PLAN' },
-  { label: 'Implement', value: 'IMPLEMENT' },
-  { label: 'Revise', value: 'REVISE' },
+const BUILT_IN_ACTION_OPTIONS = [
+  { label: 'Plan', value: 'plan' },
+  { label: 'Implement', value: 'implement' },
+  { label: 'Revise', value: 'revise' },
 ]
 
 function agentStatusColor(status: string): ActionColor {
@@ -515,10 +516,28 @@ const AgentPanel = ({
   const isAgentActive =
     task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
   const [instruction, setInstruction] = useState(task.agentInstruction ?? '')
+  const { playbooks } = usePlaybooks()
 
   useEffect(() => {
     setInstruction(task.agentInstruction ?? '')
   }, [task.agentInstruction])
+
+  const actionGroups = useMemo(() => {
+    const groups = [
+      { label: 'Built-in actions', options: BUILT_IN_ACTION_OPTIONS },
+    ]
+    const activePlaybooks = (playbooks ?? []).filter((p) => !p.archived)
+    if (activePlaybooks.length > 0) {
+      groups.push({
+        label: 'Playbooks',
+        options: activePlaybooks.map((pb) => ({
+          label: `${pb.displayName} · v${pb.currentVersion.versionNumber}`,
+          value: `playbook:${pb.name}`,
+        })),
+      })
+    }
+    return groups
+  }, [playbooks])
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-surface-overlay/40 p-4">
@@ -580,10 +599,10 @@ const AgentPanel = ({
         <div className="flex-1">
           <SelectInput
             disabled={isAgentActive || loading}
+            groups={actionGroups}
             onValueChange={(action) =>
               onUpdateAction(action, instruction || undefined)
             }
-            options={ACTION_OPTIONS}
             placeholder="Select action…"
             value={task.action || undefined}
           />

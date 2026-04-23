@@ -25,6 +25,7 @@ import {
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/agent/runner'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -75,6 +76,7 @@ let mockRunAgentImpl: (...args: unknown[]) => Promise<unknown> = async () => ({
 })
 
 mock.module('../src/agent/runner', () => ({
+  buildClaudeArgsForTest: realBuildClaudeArgsForTest,
   runAgent: (...args: unknown[]) => mockRunAgentImpl(...args),
 }))
 

@@ -20,8 +20,6 @@ export type Tag = {
   color: string
 }
 
-export type BoardAction = 'PLAN' | 'IMPLEMENT' | 'REVISE'
-
 export type AgentStatus =
   | 'IDLE'
   | 'QUEUED'
@@ -44,7 +42,7 @@ export type TaskSubtaskSummary = {
   title: string
   agentStatus: AgentStatus
   blockReason: BlockReason | null
-  action: BoardAction | null
+  action: string | null
   createdAt: string
 }
 
@@ -99,7 +97,7 @@ export type Task = {
   title: string
   body: string
   position: number
-  action: BoardAction | null
+  action: string | null
   agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null

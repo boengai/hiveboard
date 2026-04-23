@@ -1,3 +1,5 @@
+import { PLAYBOOK_FIELDS } from './playbook-fragments'
+
 export const CREATE_TASK = /* GraphQL */ `
   mutation CreateTask($input: CreateTaskInput!) {
     createTask(input: $input) {
@@ -168,7 +170,7 @@ export const CANCEL_AGENT = /* GraphQL */ `
 `
 
 export const RUN_AGENT = /* GraphQL */ `
-  mutation RunAgent($taskId: ID!, $action: BoardAction!, $instruction: String) {
+  mutation RunAgent($taskId: ID!, $action: String!, $instruction: String) {
     runAgent(taskId: $taskId, action: $action, instruction: $instruction) {
       id
       action
@@ -335,5 +337,33 @@ export const KILL_TASK = /* GraphQL */ `
       id
       agentStatus
     }
+  }
+`
+
+export const CREATE_PLAYBOOK = /* GraphQL */ `
+  ${PLAYBOOK_FIELDS}
+  mutation CreatePlaybook($input: CreatePlaybookInput!) {
+    createPlaybook(input: $input) { ...PlaybookFields }
+  }
+`
+
+export const UPDATE_PLAYBOOK = /* GraphQL */ `
+  ${PLAYBOOK_FIELDS}
+  mutation UpdatePlaybook($id: ID!, $input: UpdatePlaybookInput!) {
+    updatePlaybook(id: $id, input: $input) { ...PlaybookFields }
+  }
+`
+
+export const ARCHIVE_PLAYBOOK = /* GraphQL */ `
+  ${PLAYBOOK_FIELDS}
+  mutation ArchivePlaybook($id: ID!) {
+    archivePlaybook(id: $id) { ...PlaybookFields }
+  }
+`
+
+export const UNARCHIVE_PLAYBOOK = /* GraphQL */ `
+  ${PLAYBOOK_FIELDS}
+  mutation UnarchivePlaybook($id: ID!) {
+    unarchivePlaybook(id: $id) { ...PlaybookFields }
   }
 `

@@ -1,0 +1,28 @@
+## Messages from the human (auto-loaded)
+
+{{#has_messages}}
+The following messages arrived before this run started. They are ordered from
+oldest to newest.
+
+{{#messages}}
+- **[{{ kind }}]** {{ body }}
+{{/messages}}
+
+---
+{{/has_messages}}
+{{^has_messages}}
+(No pending messages.)
+{{/has_messages}}
+
+## Mid-run communication
+
+During your work, the human may send you additional messages. To check for
+them, read the inbox file at natural stopping points:
+
+```bash
+cat "$HIVEBOARD_INBOX" 2>/dev/null || true
+```
+
+Check at least: (a) before making a significant decision, (b) before running
+destructive commands (migrations, force-push), (c) after completing a major
+step. The inbox is append-only; messages accumulate until the run ends.

@@ -27,10 +27,18 @@ export type SelectOption = {
   label: string
 }
 
+export type SelectOptionGroup = {
+  label: string
+  options: SelectOption[]
+}
+
 export type SelectInputProps = {
   value?: string
   onValueChange?: (value: string) => void
-  options: SelectOption[]
+  /** Flat list of options. Ignored when `groups` is provided. */
+  options?: SelectOption[]
+  /** Grouped options rendered as labelled sections. Takes precedence over `options`. */
+  groups?: SelectOptionGroup[]
   placeholder?: string
   disabled?: boolean
   id?: string

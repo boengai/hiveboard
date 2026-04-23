@@ -13,6 +13,7 @@
 
 import { Database } from 'bun:sqlite'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/agent/runner'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -55,6 +56,7 @@ let mockRunAgentImpl: (opts: unknown) => Promise<unknown> = async (opts) => {
 }
 
 mock.module('../src/agent/runner', () => ({
+  buildClaudeArgsForTest: realBuildClaudeArgsForTest,
   runAgent: (opts: unknown) => mockRunAgentImpl(opts),
 }))
 

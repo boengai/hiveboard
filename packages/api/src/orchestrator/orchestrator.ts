@@ -19,6 +19,7 @@ import {
   markMessagesDelivered,
 } from '../db/task-messages'
 import type { GitHubClient, ReviewComment } from '../github/client'
+import { getPlaybookByName } from '../playbooks'
 import {
   publishAgentLog,
   publishMessageAdded,
@@ -94,7 +95,7 @@ function mapTask(row: TaskRow) {
     _columnId: row.column_id,
     _createdBy: row.created_by,
     _updatedBy: row.updated_by,
-    action: row.action ? row.action.toUpperCase() : null,
+    action: row.action,
     agentError: row.agent_error,
     agentInstruction: row.agent_instruction,
     agentOutput: row.agent_output,
@@ -284,6 +285,49 @@ export function selectSchedulableTasks(
 }
 
 // ---------------------------------------------------------------------------
+// Agent-run insert helper (exported for test)
+// ---------------------------------------------------------------------------
+
+export type InsertAgentRunInput = {
+  db: Database
+  runId: string
+  taskId: string
+  action: string
+}
+
+/**
+ * Insert a row into `agent_runs` for a dispatch. Looks up the playbook
+ * version if the action is `playbook:<name>` and records it as
+ * `playbook_version_id` for audit. Missing playbooks degrade to NULL
+ * (logged) — the dispatcher will separately reject the action at resolver
+ * time, so this path is defensive.
+ */
+export function insertAgentRun(input: InsertAgentRunInput): void {
+  let playbookVersionId: string | null = null
+  if (input.action.startsWith('playbook:')) {
+    const name = input.action.slice('playbook:'.length)
+    const pb = getPlaybookByName(input.db, name)
+    if (pb) {
+      playbookVersionId = pb.currentVersion.id
+    } else {
+      consola.warn(
+        `insertAgentRun: playbook "${name}" not found; recording NULL playbook_version_id`,
+      )
+    }
+  }
+
+  input.db.run(
+    `INSERT INTO agent_runs (id, task_id, action, status, started_at, playbook_version_id) VALUES (?, ?, ?, 'running', datetime('now'), ?)`,
+    [input.runId, input.taskId, input.action, playbookVersionId],
+  )
+}
+
+/** Test-only re-export to avoid importing private class internals. */
+export function insertAgentRunForTest(input: InsertAgentRunInput): void {
+  insertAgentRun(input)
+}
+
+// ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
 
@@ -446,10 +490,12 @@ export class Orchestrator {
 
       // 2. INSERT agent_runs: status='running'
       runId = generateId()
-      db.run(
-        `INSERT INTO agent_runs (id, task_id, action, status, started_at) VALUES (?, ?, ?, 'running', datetime('now'))`,
-        [runId, task.id, task.action ?? ''],
-      )
+      insertAgentRun({
+        action: task.action ?? '',
+        db,
+        runId,
+        taskId: task.id,
+      })
 
       // 4. Move to "In Progress" (skip for plan)
       if (task.action !== 'plan') {
@@ -736,8 +782,23 @@ export class Orchestrator {
         )
       }
 
+      // For playbook dispatches, resolve the current version's
+      // allowedToolsOverride so the spawned Claude CLI has its tool allowlist
+      // clamped per the playbook. Missing playbooks degrade to undefined and
+      // the runner falls back to the global config allow-list.
+      let allowedToolsOverride: string[] | null | undefined
+      if (task.action?.startsWith('playbook:')) {
+        const name = task.action.slice('playbook:'.length)
+        const pb = getPlaybookByName(db, name)
+        allowedToolsOverride = pb
+          ? pb.currentVersion.allowedToolsOverride
+          : undefined
+      }
+
       const result = await runAgent({
+        allowedToolsOverride,
         config: this.config,
+        db,
         gitIdentity,
         messages: messagesForPrompt,
         onLog: (chunk) => {

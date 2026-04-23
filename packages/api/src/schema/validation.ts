@@ -1,4 +1,5 @@
 import { GraphQLError } from 'graphql'
+import Mustache from 'mustache'
 import { z } from 'zod/v4'
 
 export const HexColorSchema = z
@@ -45,5 +46,68 @@ export function validateTargetBranch(value: string | null | undefined): void {
       `Invalid targetBranch "${value}". Branch names may contain letters, digits, '_', '-', '.', and '/', with no leading/trailing '/' or '.'.`,
       { extensions: { code: 'BAD_USER_INPUT' } },
     )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Playbook validation
+// ---------------------------------------------------------------------------
+
+export const PLAYBOOK_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+export const VALID_TOOL_NAMES = new Set([
+  'Bash',
+  'Read',
+  'Write',
+  'Edit',
+  'Glob',
+  'Grep',
+  'WebFetch',
+  'WebSearch',
+])
+
+export type PlaybookInput = {
+  name: string
+  displayName: string
+  description: string
+  promptTemplate: string
+  defaultsJson: string
+  allowedToolsOverride: string[] | null
+}
+
+/**
+ * Validate a playbook create/update payload. Name regex, reserved prefix,
+ * template Mustache syntax, defaults JSON shape, and tool allowlist.
+ */
+export function validatePlaybookInput(input: PlaybookInput): void {
+  if (!PLAYBOOK_NAME_REGEX.test(input.name)) {
+    throw new Error(
+      `Playbook name must match /^[a-z0-9]+(-[a-z0-9]+)*$/: got "${input.name}"`,
+    )
+  }
+  if (input.name.startsWith('playbook:')) {
+    throw new Error(
+      `Playbook name must not start with the reserved prefix "playbook:"`,
+    )
+  }
+  try {
+    Mustache.parse(input.promptTemplate)
+  } catch (e) {
+    throw new Error(`Invalid Mustache template: ${(e as Error).message}`)
+  }
+  try {
+    const parsed = JSON.parse(input.defaultsJson)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('defaultsJson must parse to a JSON object')
+    }
+  } catch (e) {
+    throw new Error(`Invalid defaultsJson: ${(e as Error).message}`)
+  }
+  if (input.allowedToolsOverride) {
+    for (const tool of input.allowedToolsOverride) {
+      if (!VALID_TOOL_NAMES.has(tool)) {
+        throw new Error(`Unknown tool in allowedToolsOverride: ${tool}`)
+      }
+    }
   }
 }

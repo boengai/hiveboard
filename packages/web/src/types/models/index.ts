@@ -1,7 +1,6 @@
 export type {
   BlockReason,
   Board,
-  BoardAction,
   Column,
   SnapshotFileEntry,
   Tag,
@@ -13,3 +12,4 @@ export type {
   TaskSubtaskSummary,
   WorkspaceSnapshotSummary,
 } from './board'
+export type { Playbook, PlaybookVersion } from './playbook'

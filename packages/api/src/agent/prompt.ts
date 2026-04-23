@@ -1,4 +1,11 @@
+import type { Database } from 'bun:sqlite'
 import Mustache from 'mustache'
+import { getPlaybookByName } from '../playbooks'
+import {
+  type RenderPlaybookPromptInput,
+  renderPlaybookPrompt,
+} from '../playbooks/render'
+import { loadPromptPartials } from './prompt-partials'
 
 /** Disable Mustache's default HTML escaping — we output plain text. */
 Mustache.escape = (text: string) => text
@@ -49,6 +56,10 @@ export type PromptContext = {
   verification_failures?: VerificationFailureForPrompt[]
 }
 
+export type RenderPromptResolver = {
+  db: Database
+}
+
 /** Render a Mustache template with task context. */
 export function renderPrompt(
   template: string,
@@ -58,7 +69,29 @@ export function renderPrompt(
   scratchpad?: string,
   messages?: RunAgentMessage[],
   verification?: { verification_failures: VerificationFailureForPrompt[] },
+  resolver?: RenderPromptResolver,
 ): string {
+  // Playbook dispatch path
+  if (task.action?.startsWith('playbook:')) {
+    if (!resolver) {
+      throw new Error(
+        'renderPrompt: playbook action requires a resolver with { db }',
+      )
+    }
+    const name = task.action.slice('playbook:'.length)
+    const pb = getPlaybookByName(resolver.db, name)
+    if (!pb) throw new Error(`Playbook not found: ${name}`)
+    const input: RenderPlaybookPromptInput = {
+      messages,
+      playbookBody: pb.currentVersion.promptTemplate,
+      scratchpad,
+      task,
+      verificationFailures: verification?.verification_failures,
+    }
+    return renderPlaybookPrompt(input)
+  }
+
+  // Existing WORKFLOW.md path — unchanged
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
   const context: PromptContext = {
@@ -84,7 +117,7 @@ export function renderPrompt(
     verification_failures: verification?.verification_failures ?? [],
   }
 
-  return Mustache.render(template, context)
+  return Mustache.render(template, context, loadPromptPartials())
 }
 
 /** Continuation prompt for retry turns. */

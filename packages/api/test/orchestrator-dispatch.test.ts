@@ -27,6 +27,7 @@ import {
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/agent/runner'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
@@ -66,6 +67,7 @@ mock.module('../src/pubsub', () => ({
 }))
 
 mock.module('../src/agent/runner', () => ({
+  buildClaudeArgsForTest: realBuildClaudeArgsForTest,
   runAgent: async () => ({ output: 'ok', success: true, taskId: '' }),
 }))
 

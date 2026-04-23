@@ -19,11 +19,11 @@ const parseActionLabel = (
       return 'In Queue'
     case 'SUCCESS':
       switch (action) {
-        case 'IMPLEMENT':
+        case 'implement':
           return 'Implemented'
-        case 'PLAN':
+        case 'plan':
           return 'Planned'
-        case 'REVISE':
+        case 'revise':
           return 'Revised'
         default:
           return 'Completed'
@@ -34,22 +34,22 @@ const parseActionLabel = (
       return 'Waiting on you'
     case 'RUNNING':
       switch (action) {
-        case 'IMPLEMENT':
+        case 'implement':
           return 'Implementing'
-        case 'PLAN':
+        case 'plan':
           return 'Planning'
-        case 'REVISE':
+        case 'revise':
           return 'Revising'
         default:
           return 'Unknown'
       }
     default:
       switch (action) {
-        case 'IMPLEMENT':
+        case 'implement':
           return 'Implement'
-        case 'PLAN':
+        case 'plan':
           return 'Plan'
-        case 'REVISE':
+        case 'revise':
           return 'Revise'
         default:
           return 'Unknown'
@@ -62,9 +62,9 @@ const actionBadge = tv({
   base: 'flex items-center justify-center gap-1 self-start rounded-full px-1.5 py-0.5 font-medium text-body-xs',
   variants: {
     action: {
-      IMPLEMENT: 'bg-success-400/15 text-success-400',
-      PLAN: 'bg-info-400/15 text-info-400',
-      REVISE: 'bg-warning-400/15 text-warning-400',
+      implement: 'bg-success-400/15 text-success-400',
+      plan: 'bg-info-400/15 text-info-400',
+      revise: 'bg-warning-400/15 text-warning-400',
     } as Record<string, string>,
   },
 })

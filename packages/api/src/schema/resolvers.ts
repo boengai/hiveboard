@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GraphQLError } from 'graphql'
+import Mustache from 'mustache'
 import { z } from 'zod/v4'
 import type { AuthContext } from '../auth'
 import {
@@ -36,6 +37,20 @@ import {
 import { getOrchestrator } from '../orchestrator'
 import { wouldCreateCycle } from '../orchestrator/dependencies'
 import {
+  archivePlaybook,
+  createPlaybook,
+  getPlaybookByName,
+  listPlaybookVersions,
+  listPlaybooks,
+  type Playbook as PlaybookModel,
+  PlaybookArchivedError,
+  PlaybookNameTakenError,
+  PlaybookNotFoundError,
+  unarchivePlaybook,
+  updatePlaybook,
+} from '../playbooks'
+import { mergePlaybookDefaultsIntoTask } from '../playbooks/merge-defaults'
+import {
   publishMessageAdded,
   publishScratchpadUpdated,
   pubsub,
@@ -47,6 +62,9 @@ import { parseProgressLines } from '../workspace/progress-watcher'
 import { watchScratchpad } from '../workspace/scratchpad-watcher'
 import {
   HexColorSchema,
+  PLAYBOOK_NAME_REGEX,
+  VALID_TOOL_NAMES,
+  validatePlaybookInput,
   validateTargetBranch,
   validateTargetRepo,
 } from './validation'
@@ -109,18 +127,6 @@ type TaskRow = {
   time_box_ms: number | null
   time_box_started_at: string | null
   block_reason: string | null
-}
-
-/** Convert a lowercase DB action value to uppercase GraphQL enum value. */
-function actionToEnum(action: string | null): string | null {
-  if (!action) return null
-  return action.toUpperCase()
-}
-
-/** Convert an uppercase GraphQL enum value to lowercase DB action value. */
-function enumToAction(enumVal: string | null): string | null {
-  if (!enumVal) return null
-  return enumVal.toLowerCase()
 }
 
 type CommentRow = {
@@ -195,7 +201,7 @@ function mapTask(row: TaskRow) {
     _columnId: row.column_id,
     _createdBy: row.created_by,
     _updatedBy: row.updated_by,
-    action: actionToEnum(row.action),
+    action: row.action,
     agentInstruction: row.agent_instruction,
     agentStatus: row.agent_status.toUpperCase(),
     archived: Boolean(row.archived),
@@ -210,6 +216,40 @@ function mapTask(row: TaskRow) {
     timeBoxMs: row.time_box_ms,
     timeBoxStartedAt: row.time_box_started_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function mapPlaybookVersion(v: {
+  id: string
+  versionNumber: number
+  promptTemplate: string
+  defaultsJson: string
+  allowedToolsOverride: string[] | null
+  createdBy: string
+  createdAt: string
+}) {
+  return {
+    _createdBy: v.createdBy,
+    allowedToolsOverride: v.allowedToolsOverride,
+    createdAt: v.createdAt,
+    defaultsJson: v.defaultsJson,
+    id: v.id,
+    promptTemplate: v.promptTemplate,
+    versionNumber: v.versionNumber,
+  }
+}
+
+function mapPlaybook(pb: PlaybookModel) {
+  return {
+    _createdBy: pb.currentVersion.createdBy,
+    archived: pb.archived,
+    createdAt: pb.createdAt,
+    currentVersion: mapPlaybookVersion(pb.currentVersion),
+    description: pb.description,
+    displayName: pb.displayName,
+    id: pb.id,
+    name: pb.name,
+    playbookId: pb.id,
   }
 }
 
@@ -699,6 +739,24 @@ export const resolvers = {
       return message
     },
 
+    async archivePlaybook(
+      _: unknown,
+      { id }: { id: string },
+      ctx: ResolverContext,
+    ) {
+      requireAuth(ctx)
+      try {
+        return mapPlaybook(archivePlaybook(db, id))
+      } catch (e) {
+        if (e instanceof PlaybookNotFoundError) {
+          throw new GraphQLError(e.message, {
+            extensions: { code: 'PLAYBOOK_NOT_FOUND' },
+          })
+        }
+        throw e
+      }
+    },
+
     archiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(id, authUser)
@@ -864,6 +922,48 @@ export const resolvers = {
       )
       const row = db.query('SELECT * FROM tags WHERE id = ?').get(id) as TagRow
       return mapTag(row)
+    },
+
+    async createPlaybook(
+      _: unknown,
+      {
+        input,
+      }: {
+        input: {
+          name: string
+          displayName: string
+          description: string
+          promptTemplate: string
+          defaultsJson?: string | null
+          allowedToolsOverride?: string[] | null
+        }
+      },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      const normalized = {
+        allowedToolsOverride: input.allowedToolsOverride ?? null,
+        defaultsJson: input.defaultsJson ?? '{}',
+        description: input.description,
+        displayName: input.displayName,
+        name: input.name,
+        promptTemplate: input.promptTemplate,
+      }
+      validatePlaybookInput(normalized)
+      try {
+        const pb = createPlaybook(db, {
+          ...normalized,
+          createdBy: authUser.id,
+        })
+        return mapPlaybook(pb)
+      } catch (e) {
+        if (e instanceof PlaybookNameTakenError) {
+          throw new GraphQLError(e.message, {
+            extensions: { code: 'PLAYBOOK_NAME_TAKEN' },
+          })
+        }
+        throw e
+      }
     },
 
     async createTask(
@@ -1378,7 +1478,32 @@ export const resolvers = {
         )
       }
 
-      const dbAction = enumToAction(action)
+      const dbAction = action
+
+      let appliedPlaybookVersionId: string | null = null
+      if (dbAction.startsWith('playbook:')) {
+        const name = dbAction.slice('playbook:'.length)
+        if (!PLAYBOOK_NAME_REGEX.test(name)) {
+          throw new GraphQLError(`Invalid playbook name: ${name}`, {
+            extensions: { code: 'BAD_USER_INPUT' },
+          })
+        }
+        const pb = getPlaybookByName(db, name)
+        if (!pb) {
+          throw new GraphQLError(`Playbook not found: ${name}`, {
+            extensions: { code: 'PLAYBOOK_NOT_FOUND' },
+          })
+        }
+        if (pb.archived) {
+          throw new GraphQLError(`Playbook is archived: ${name}`, {
+            extensions: { code: 'PLAYBOOK_ARCHIVED' },
+          })
+        }
+        appliedPlaybookVersionId = pb.currentVersion.id
+        // Merge defaults BEFORE the UPDATE so the resolved values land on the task row.
+        mergePlaybookDefaultsIntoTask(db, taskId, pb.currentVersion)
+      }
+
       const events: Array<[string, string, string | null]> = []
 
       const setClauses: string[] = [
@@ -1419,6 +1544,10 @@ export const resolvers = {
           )
         }
       })()
+      // `appliedPlaybookVersionId` is resolved by the orchestrator (insertAgentRun
+      // looks it up again when the run row is created); we retain it here for
+      // clarity/future use.
+      void appliedPlaybookVersionId
 
       const task = getTaskById(taskId)
       if (!task) throw new Error(`Task ${taskId} not found`)
@@ -1669,6 +1798,24 @@ export const resolvers = {
       return task
     },
 
+    async unarchivePlaybook(
+      _: unknown,
+      { id }: { id: string },
+      ctx: ResolverContext,
+    ) {
+      requireAuth(ctx)
+      try {
+        return mapPlaybook(unarchivePlaybook(db, id))
+      } catch (e) {
+        if (e instanceof PlaybookNotFoundError) {
+          throw new GraphQLError(e.message, {
+            extensions: { code: 'PLAYBOOK_NOT_FOUND' },
+          })
+        }
+        throw e
+      }
+    },
+
     unarchiveTask(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(id, authUser)
@@ -1742,6 +1889,79 @@ export const resolvers = {
       )
 
       return comment
+    },
+
+    async updatePlaybook(
+      _: unknown,
+      {
+        id,
+        input,
+      }: {
+        id: string
+        input: {
+          displayName?: string | null
+          description?: string | null
+          promptTemplate?: string | null
+          defaultsJson?: string | null
+          allowedToolsOverride?: string[] | null
+        }
+      },
+      ctx: ResolverContext,
+    ) {
+      const authUser = requireAuth(ctx)
+      // Validate the effective resulting version shape (use existing values for unset fields)
+      try {
+        if (input.promptTemplate != null) {
+          Mustache.parse(input.promptTemplate)
+        }
+        if (input.defaultsJson != null) {
+          const parsed = JSON.parse(input.defaultsJson)
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error('defaultsJson must parse to a JSON object')
+          }
+        }
+        if (input.allowedToolsOverride) {
+          for (const tool of input.allowedToolsOverride) {
+            if (!VALID_TOOL_NAMES.has(tool)) {
+              throw new Error(`Unknown tool: ${tool}`)
+            }
+          }
+        }
+      } catch (e) {
+        throw new GraphQLError((e as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        })
+      }
+      try {
+        // Explicit-null semantics: if the client passed `allowedToolsOverride: null`,
+        // we want to CLEAR the previous override, not preserve it. `??` would
+        // coerce null to undefined (= preserve), which is wrong. Use the `in`
+        // check to distinguish "field omitted" from "field set to null".
+        const pb = updatePlaybook(db, id, {
+          allowedToolsOverride:
+            'allowedToolsOverride' in input
+              ? (input.allowedToolsOverride ?? null)
+              : undefined,
+          createdBy: authUser.id,
+          defaultsJson: input.defaultsJson ?? undefined,
+          description: input.description ?? undefined,
+          displayName: input.displayName ?? undefined,
+          promptTemplate: input.promptTemplate ?? undefined,
+        })
+        return mapPlaybook(pb)
+      } catch (e) {
+        if (e instanceof PlaybookNotFoundError) {
+          throw new GraphQLError(e.message, {
+            extensions: { code: 'PLAYBOOK_NOT_FOUND' },
+          })
+        }
+        if (e instanceof PlaybookArchivedError) {
+          throw new GraphQLError(e.message, {
+            extensions: { code: 'PLAYBOOK_ARCHIVED' },
+          })
+        }
+        throw e
+      }
     },
 
     async updateTask(
@@ -1994,6 +2214,11 @@ export const resolvers = {
         role: authUser.role,
         username: authUser.username,
       }
+    },
+
+    playbooks(_: unknown, __: unknown, ctx: ResolverContext) {
+      requireAuth(ctx)
+      return listPlaybooks(db).map(mapPlaybook)
     },
 
     tags(_: unknown, { boardId }: { boardId: string }, ctx: ResolverContext) {
@@ -2433,4 +2658,27 @@ export const resolvers = {
       return getUserById(message._createdBy)
     },
   },
+
+  Playbook: {
+    createdBy: (parent: { _createdBy: string }) => {
+      const row = db
+        .query('SELECT * FROM users WHERE id = ?')
+        .get(parent._createdBy) as UserRow
+      return mapUser(row)
+    },
+    versions: (parent: { id: string }) =>
+      listPlaybookVersions(db, parent.id).map(mapPlaybookVersion),
+  },
+
+  PlaybookVersion: {
+    createdBy: (parent: { _createdBy: string }) => {
+      const row = db
+        .query('SELECT * FROM users WHERE id = ?')
+        .get(parent._createdBy) as UserRow
+      return mapUser(row)
+    },
+  },
 }
+
+// Test-only — re-export the mapper so unit tests don't reach into module internals.
+export { mapTask as mapTaskForTest }

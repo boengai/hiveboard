@@ -1,0 +1,50 @@
+## Spawning subtasks
+
+If, during your work, you discover that this task is best split into multiple
+independent pieces of work, you may declare them as subtasks. HiveBoard will
+create them as child tasks with their own runs.
+
+Write a YAML manifest to `$HIVEBOARD_SUBTASKS` describing each subtask.
+Schema:
+
+```yaml
+subtasks:
+  - title: "Short descriptive title"
+    body: "Optional multi-line body"
+    action: implement         # or: plan, revise; defaults to implement
+    target_branch: main       # defaults to this task's target_branch
+    tags: []                  # optional tag names (must exist on the board)
+    depends_on_siblings: []   # 0-based indices of siblings that must finish first
+```
+
+Cap: 20 subtasks per manifest. Each subtask is created with a fresh
+scratchpad (no inherited context) and inherits this task's board, target
+repo, target branch, and tags.
+
+**Write rules (same as scratchpad):**
+- Use shell append (`>>` or `cat > EOF`) — NEVER use the `Write` tool on this
+  file. An invalid manifest (malformed YAML, invalid tag, out-of-range
+  `depends_on_siblings` index, or >20 subtasks) is logged and the subtasks
+  are silently not created; the parent run's normal post-exit flow
+  continues.
+- Example:
+
+```bash
+cat <<'EOF' >> "$HIVEBOARD_SUBTASKS"
+subtasks:
+  - title: "Update DB schema"
+    body: "Add subscriptions table + indices"
+    action: implement
+    tags: ["db"]
+  - title: "Add GraphQL subscription types"
+    body: "Wire resolvers into the new table"
+    action: implement
+    depends_on_siblings: [0]
+EOF
+```
+
+Use subtasks SPARINGLY — prefer doing the work yourself when it fits. Only
+split when:
+- The pieces are truly independent and benefit from parallel agents.
+- The total scope exceeds what you can finish in your turn budget.
+- The task description explicitly implies separable work.

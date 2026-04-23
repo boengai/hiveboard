@@ -1,3 +1,5 @@
+import { PLAYBOOK_FIELDS } from './playbook-fragments'
+
 export const GET_BOARDS = /* GraphQL */ `
   query GetBoards {
     boards {
@@ -420,5 +422,12 @@ export const GET_INVITATIONS = /* GraphQL */ `
         displayName
       }
     }
+  }
+`
+
+export const GET_PLAYBOOKS = /* GraphQL */ `
+  ${PLAYBOOK_FIELDS}
+  query GetPlaybooks {
+    playbooks { ...PlaybookFields }
   }
 `

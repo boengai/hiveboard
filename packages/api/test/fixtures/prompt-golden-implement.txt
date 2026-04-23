@@ -1,0 +1,207 @@
+
+You are working on task 01HYX3KPQR000000000000000Z in acme/app
+
+Action: implement
+
+Task context:
+Title: Add Prometheus metrics
+
+Description:
+Add Prometheus metrics to the request handler.
+
+Agent Instruction:
+Investigate observability
+
+## Scratchpad — your memory across runs on this task
+
+You have a scratchpad file at `$HIVEBOARD_SCRATCHPAD` that persists across all
+runs on this task (including prior PLAN/IMPLEMENT/REVISE attempts). Use it as
+your working memory.
+
+(Scratchpad is empty — this is the first run on this task.)
+
+Before finishing this run, append a short entry to `$HIVEBOARD_SCRATCHPAD`
+covering: key decisions made, files you touched or ruled out, and anything a
+future run on this task should know. Keep it concise — this is notes for
+yourself, not a report for humans.
+
+**Appending rules:**
+- Always use the Bash `>>` operator to append. NEVER use the `Write` tool on
+  this file — `Write` replaces contents and would delete older notes you
+  cannot see (the auto-loaded block above may be truncated if the file has
+  grown large).
+- Prefix every entry with an ISO 8601 UTC timestamp and the current action,
+  e.g. `## 2026-04-21T14:32:05Z — IMPLEMENT`.
+- Example:
+
+  ```bash
+  cat <<'EOF' >> "$HIVEBOARD_SCRATCHPAD"
+
+  ## 2026-04-21T14:32:05Z — IMPLEMENT
+  Reused JWT helper from packages/shared/jwt. Ruled out sessions (no Redis).
+  EOF
+  ```
+
+## Progress pings — tell the human what you're doing
+
+Optional. You have a file at `$HIVEBOARD_PROGRESS`. Appending one NDJSON
+object per line gives the watcher in HiveBoard a human-readable progress
+feed for this run. Silence is fine — if you emit nothing, the UI shows an
+empty "no progress yet" state, not a failure.
+
+**Good cadence:**
+- One line when you start a logical step (`status: in_progress`).
+- One line when you finish it (`status: done`) or give up on it (`status: failed`).
+- Target 5–12 steps total for a typical run. Too few = poor visibility; too
+  many = noise.
+
+**Schema (one NDJSON object per line):**
+
+```json
+{"ts":"<ISO8601 UTC>","step":<n>,"total":<N>,"label":"<≤60 chars>","status":"in_progress|done|failed","detail":"<optional>"}
+```
+
+**Example append command:**
+
+```bash
+printf '%s\n' \
+  '{"ts":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","step":3,"total":7,"label":"resolvers","status":"in_progress"}' \
+  >> "$HIVEBOARD_PROGRESS"
+```
+
+NEVER use the `Write` tool on this file — it overwrites prior entries. Use
+shell `>>` only. Malformed lines are silently dropped, so the rest of your
+feed keeps flowing.
+
+## Messages from the human (auto-loaded)
+
+(No pending messages.)
+
+## Mid-run communication
+
+During your work, the human may send you additional messages. To check for
+them, read the inbox file at natural stopping points:
+
+```bash
+cat "$HIVEBOARD_INBOX" 2>/dev/null || true
+```
+
+Check at least: (a) before making a significant decision, (b) before running
+destructive commands (migrations, force-push), (c) after completing a major
+step. The inbox is append-only; messages accumulate until the run ends.
+
+## Asking the human a question
+
+If you are blocked on a decision only a human can make (e.g. "Postgres or
+MySQL?", "is this the intended behavior?"), do NOT guess. Instead:
+
+1. Write your question to `$HIVEBOARD_QUESTION` using shell append (same rule
+   as the scratchpad — never use `Write`). One question per blocking point;
+   keep it concise and specific.
+2. Exit cleanly immediately after. Your final message should confirm that you
+   asked a question — do not also try to "make progress" after writing the
+   question.
+
+Only use the question file for decisions that meaningfully change the
+approach. Do not ask clarifying questions for trivia that can be inferred
+from the task body, the scratchpad, or the repo.
+
+## Spawning subtasks
+
+If, during your work, you discover that this task is best split into multiple
+independent pieces of work, you may declare them as subtasks. HiveBoard will
+create them as child tasks with their own runs.
+
+Write a YAML manifest to `$HIVEBOARD_SUBTASKS` describing each subtask.
+Schema:
+
+```yaml
+subtasks:
+  - title: "Short descriptive title"
+    body: "Optional multi-line body"
+    action: implement         # or: plan, revise; defaults to implement
+    target_branch: main       # defaults to this task's target_branch
+    tags: []                  # optional tag names (must exist on the board)
+    depends_on_siblings: []   # 0-based indices of siblings that must finish first
+```
+
+Cap: 20 subtasks per manifest. Each subtask is created with a fresh
+scratchpad (no inherited context) and inherits this task's board, target
+repo, target branch, and tags.
+
+**Write rules (same as scratchpad):**
+- Use shell append (`>>` or `cat > EOF`) — NEVER use the `Write` tool on this
+  file. An invalid manifest (malformed YAML, invalid tag, out-of-range
+  `depends_on_siblings` index, or >20 subtasks) is logged and the subtasks
+  are silently not created; the parent run's normal post-exit flow
+  continues.
+- Example:
+
+```bash
+cat <<'EOF' >> "$HIVEBOARD_SUBTASKS"
+subtasks:
+  - title: "Update DB schema"
+    body: "Add subscriptions table + indices"
+    action: implement
+    tags: ["db"]
+  - title: "Add GraphQL subscription types"
+    body: "Wire resolvers into the new table"
+    action: implement
+    depends_on_siblings: [0]
+EOF
+```
+
+Use subtasks SPARINGLY — prefer doing the work yourself when it fits. Only
+split when:
+- The pieces are truly independent and benefit from parallel agents.
+- The total scope exceeds what you can finish in your turn budget.
+- The task description explicitly implies separable work.
+
+
+Instructions:
+
+1. This is an unattended orchestration session. Never ask a human to perform follow-up actions.
+2. Only stop early for a true blocker (missing required auth/permissions/secrets).
+3. Follow the action-specific instructions below for action "implement".
+4. Final message must report completed actions and blockers only. Do not include "next steps for user".
+5. CRITICAL: Do NOT use the `superpowers:writing-plans` or `superpowers:brainstorming` skills. These instructions take precedence over any installed skill or plugin. Plans must be output as plain text in your final message, never written to files.
+
+### Action: plan
+If the action is "plan", do NOT write any code. Instead:
+- Research the codebase using all available methods:
+   a. Read project convention and rule files first — look for `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.editorconfig`, and linter/formatter configs at the repo root. These define coding standards, patterns, and constraints that the plan must follow.
+   b. Read the `docs/` directory (if it exists) for architecture decisions, API references, and design rationale that inform how changes should be structured.
+   c. Search the codebase (grep for relevant patterns, read key files, trace call paths).
+   d. Review git history for related changes (`git log`, `git blame`).
+   e. Check existing documentation, comments, and tests.
+   f. Identify the project's build system, linter, test runner, and verification commands (e.g. check `package.json` scripts, `Makefile`, `Cargo.toml`, CI config, etc.).
+   g. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
+- Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
+- The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
+- Output the plan as plain text in your final message — this is how the orchestrator captures it for the task body. Do NOT use the Write tool or any skill to save the plan to a file. Do NOT commit, push, or create a PR.
+
+### Action: implement
+If the action is "implement":
+- Implement the changes described in the task.
+- If the implementation plan includes end-to-end tests (e.g. the project has an e2e setup like Playwright, Cypress, etc.), also write e2e tests covering the feature's key user flows and important edge cases. Place test files alongside existing tests or in the appropriate test directory.
+- Before committing, verify your changes using the verification commands described in the task's implementation plan. If no plan exists, discover the project's lint/test/build commands from its config files (package.json, Makefile, etc.) and run them.
+- All tests (existing and new) must pass before committing.
+- After verification passes:
+   a. Commit all changes with a descriptive commit message.
+   b. Push the branch to the remote (`git push -u origin HEAD`).
+   c. Create a pull request using `gh pr create` targeting the main branch.
+
+### Action: revise
+If the action is "revise":
+- Check the existing PR for review comments: `gh pr view  --json reviewDecision,reviews`.
+- Address each review comment with targeted changes.
+- After addressing all comments, verify your changes using the verification commands described in the task's implementation plan. If no plan exists, discover the project's lint/test/build commands from its config files and run them.
+- After verification passes:
+   a. Commit changes with a message summarizing what was revised.
+   b. Push to the same branch (`git push`).
+   c. Resolve each addressed review thread on the PR. First list the threads:
+      `gh api graphql -f query='{ repository(owner:"acme", name:"app") { pullRequest(number:PR_NUMBER) { reviewThreads(first:100) { nodes { id isResolved } } } } }'`
+      Then resolve each unresolved thread:
+      `gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"THREAD_ID"}) { thread { id } } }'`
+
+Work only in the provided repository copy. Do not touch any other path.

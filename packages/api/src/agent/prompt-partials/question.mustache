@@ -1,0 +1,15 @@
+## Asking the human a question
+
+If you are blocked on a decision only a human can make (e.g. "Postgres or
+MySQL?", "is this the intended behavior?"), do NOT guess. Instead:
+
+1. Write your question to `$HIVEBOARD_QUESTION` using shell append (same rule
+   as the scratchpad — never use `Write`). One question per blocking point;
+   keep it concise and specific.
+2. Exit cleanly immediately after. Your final message should confirm that you
+   asked a question — do not also try to "make progress" after writing the
+   question.
+
+Only use the question file for decisions that meaningfully change the
+approach. Do not ask clarifying questions for trivia that can be inferred
+from the task body, the scratchpad, or the repo.

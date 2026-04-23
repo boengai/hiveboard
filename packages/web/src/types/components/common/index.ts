@@ -8,6 +8,7 @@ export type {
   ComboboxOption,
   SelectInputProps,
   SelectOption,
+  SelectOptionGroup,
   SwitchInputProps,
   TextAreaInputProps,
   TextInputProps,

@@ -4,6 +4,7 @@ import {
   Avatar,
   Button,
   ConnectionIndicator,
+  FileTextIcon,
   RightFromBracketIcon,
   UsersIcon,
 } from '@/components'
@@ -21,6 +22,14 @@ function HeaderUserMenu() {
   return (
     <div className="flex items-center gap-3">
       <ConnectionIndicator />
+      <Button
+        onClick={() => router.navigate({ to: '/playbooks' })}
+        size="icon"
+        type="button"
+        variant="ghost"
+      >
+        <FileTextIcon />
+      </Button>
       {user.role === 'super-admin' && (
         <Button
           onClick={() => router.navigate({ to: '/users' })}

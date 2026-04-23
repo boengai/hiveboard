@@ -166,6 +166,28 @@ export function createTables(db: Database): void {
       PRIMARY KEY (task_id, tag_id)
     );
 
+    CREATE TABLE IF NOT EXISTS playbooks (
+      id                 TEXT PRIMARY KEY,
+      name               TEXT NOT NULL UNIQUE,
+      display_name       TEXT NOT NULL,
+      description        TEXT NOT NULL,
+      current_version_id TEXT,
+      created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+      archived           INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS playbook_versions (
+      id                      TEXT PRIMARY KEY,
+      playbook_id             TEXT NOT NULL REFERENCES playbooks(id) ON DELETE CASCADE,
+      version_number          INTEGER NOT NULL,
+      prompt_template         TEXT NOT NULL,
+      defaults_json           TEXT NOT NULL DEFAULT '{}',
+      allowed_tools_override  TEXT,
+      created_by              TEXT NOT NULL REFERENCES users(id),
+      created_at              TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (playbook_id, version_number)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_board_column ON tasks(board_id, column_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_status);
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, created_at);
@@ -183,6 +205,8 @@ export function createTables(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_task ON task_tags(task_id);
     CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_playbook_versions_playbook
+      ON playbook_versions(playbook_id, version_number);
     CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
@@ -207,6 +231,8 @@ export function createTables(db: Database): void {
   addColumnIfMissing(db, 'tasks', 'time_box_ms', 'INTEGER')
   addColumnIfMissing(db, 'tasks', 'time_box_started_at', 'TEXT')
   addColumnIfMissing(db, 'tasks', 'block_reason', 'TEXT')
+
+  addColumnIfMissing(db, 'agent_runs', 'playbook_version_id', 'TEXT')
 
   // Backfill Plan B BLOCKED rows (written before block_reason existed) to
   // block_reason='QUESTION'. Safe to run on every startup: only touches rows
