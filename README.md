@@ -7,6 +7,19 @@ Inspired by [OpenAI Symphony](https://github.com/openai/symphony) and [Stripe Mi
 > [!WARNING]
 > HiveBoard is an engineering preview for testing in trusted environments.
 
+## Feature highlights
+
+- **Persistent agent memory** — each task has a scratchpad that survives across PLAN → IMPLEMENT → REVISE runs.
+- **Two-way agent ↔ human channel** — agents can pause with a question; humans can send hints, redirects, or answers mid-run.
+- **Auto-verify before PR** — failing lint / typecheck / tests trigger an auto-REVISE instead of shipping a broken PR.
+- **Progress visibility** — structured step pings plus a scrubbable diff timeline of the workspace.
+- **Task graphs** — per-task dependencies, agent-spawned subtasks, and per-task time-boxes.
+- **Playbooks** — named, versioned prompt recipes beyond the built-in PLAN/IMPLEMENT/REVISE actions.
+- **Turn-by-turn retry replay** — a failed run's trace is distilled and injected into the next run's prompt, so retries don't start from zero.
+- **Encrypted per-task secrets** — declare required env vars per task; values are encrypted at rest, scrubbed from captured output, and only decrypted at spawn time.
+
+See [CHANGELOG.md](CHANGELOG.md) for the release-by-release breakdown.
+
 ## Architecture
 
 ```
@@ -20,7 +33,7 @@ Inspired by [OpenAI Symphony](https://github.com/openai/symphony) and [Stripe Mi
 ┌─────────────▼────────────────────────────────────────┐
 │  API Server (localhost:8080)                         │
 │  Bun + GraphQL Yoga                                  │
-│  Resolvers │ Orchestrator │ GitHub Client            │
+│  Resolvers │ Orchestrator │ GitHub Client │ Secrets  │
 │                │                                     │
 │  ┌─────────────▼──────────────┐                      │
 │  │  Bun SQLite (local)        │                      │
@@ -40,9 +53,14 @@ hiveboard/
 │   └── web/                  # React 19 + Vite + TanStack Router frontend
 ├── tmp/
 │   ├── database/             # SQLite database (git-ignored)
-│   └── workspaces/           # Per-task agent workspaces (git-ignored)
+│   ├── workspaces/           # Per-task agent workspaces (git-ignored)
+│   └── agent-state/          # Per-task scratchpad, inbox, question,
+│                             # progress, subtask manifests (git-ignored)
 └── docs/
-    └── architecture.md       # Architecture decisions and design rationale
+    ├── architecture.md       # Design rationale and internals
+    ├── api-reference.md      # GraphQL surface reference
+    ├── maintainer-guide.md   # Operational runbook + internals
+    └── conventions.md        # Coding conventions
 ```
 
 ## Quick Start
@@ -91,6 +109,12 @@ GITHUB_TOKEN=ghp_your_token_here
 # Dev default: http://localhost:$WEB_PORT + http://localhost:$API_PORT.
 # In production (NODE_ENV=production) the API refuses to start unless set.
 # CORS_ALLOWED_ORIGINS=https://hiveboard.example.com
+
+# ── Per-task secrets (required if any task declares required_secrets) ─
+# 32-byte key, base64-encoded. Generate with: openssl rand -base64 32
+# When absent, the secrets feature is disabled; tasks with declared
+# required_secrets are held in MISSING_SECRETS until the key is set.
+# HIVEBOARD_SECRETS_KEY=base64-encoded-32-bytes
 
 # ── Optional ──────────────────────────────────────────
 # API_PORT=8080
@@ -152,55 +176,112 @@ docker compose logs -f       # follow logs
 docker compose down          # stop
 ```
 
-The compose file mounts `tmp/database`, `tmp/workspaces`, and agent Claude config as volumes so data persists across container restarts. You can pin the Claude Code version via `CLAUDE_CODE_VERSION` in `.env`.
+The compose file mounts `tmp/database`, `tmp/workspaces`, `tmp/agent-state`, and agent Claude config as volumes so data persists across container restarts. You can pin the Claude Code version via `CLAUDE_CODE_VERSION` in `.env`.
 
 ## How Agents Work
 
-1. Create a task on the board — set the target repository and branch
-2. Select an action (`PLAN`, `IMPLEMENT`, or `REVISE`) and dispatch via the `runAgent` mutation
-3. The orchestrator polls every 30 seconds for queued tasks (respecting `max_concurrent_agents`)
-4. HiveBoard clones the repo into an isolated workspace under `tmp/workspaces/`
-5. Claude CLI runs against the task with the prompt template from `packages/api/WORKFLOW.md`
-6. Agent output streams in real time via GraphQL subscriptions (SSE) to the board UI
-7. On success: task body is updated (plan) or a PR is opened (implement/revise)
-8. On failure: task is retried with exponential backoff + jitter (max 5 min)
+1. **Create a task** on the board — set the target repository and branch.
+2. **Dispatch** an action via the `runAgent` mutation. Built-in actions: `plan` / `implement` / `revise`. Custom actions: `playbook:<name>` (see [Playbooks](#playbooks)).
+3. **Scheduler** polls queued tasks, respecting `max_concurrent_agents`, dependency blockers (see [Task dependencies](#task-dependencies)), and secret availability.
+4. **Pre-spawn resolution.** If the task declares `required_secrets` and they aren't all available, the task moves to `MISSING_SECRETS` until they're provided. Otherwise the orchestrator decrypts and injects them into the agent's env under their declared names.
+5. **Spawn.** HiveBoard clones the repo into a workspace under `tmp/workspaces/{task-id}/`, renders the prompt from `packages/api/WORKFLOW.md` (including the auto-loaded scratchpad + any pending human messages + a replay of the last failing attempt if this is a retry), and starts the Claude CLI with a per-task env (`HIVEBOARD_SCRATCHPAD`, `HIVEBOARD_INBOX`, `HIVEBOARD_QUESTION`, `HIVEBOARD_PROGRESS`, `HIVEBOARD_SUBTASKS`, plus resolved secrets).
+6. **Stream.** Agent output flows in real time to the board UI via GraphQL subscriptions (SSE). If Claude CLI supports `--output-format stream-json`, each turn is also parsed into a structured checkpoint row for the run log.
+7. **Post-exit pipeline, in order:**
+   1. If `$HIVEBOARD_QUESTION` is non-empty → task moves to `BLOCKED` with the question visible in the drawer.
+   2. Else if `$HIVEBOARD_SUBTASKS` contains a manifest → create child tasks (up to 20) inheriting board/repo/branch/tags.
+   3. Else if action was `implement` / `revise` → run verification commands (`lint`, `tsc`, `test`). On red, auto-dispatch `revise` with the failure output injected into the prompt (bounded by `verify.max_auto_revises`).
+   4. Else → push branch and `gh pr create`.
+8. **On failure** — task is retried with exponential backoff + jitter (max 5 min). Retries include a compact replay of the previous attempt in the prompt.
 
-Each agent run is recorded in the `agent_runs` table, and all state transitions are logged as task events for auditability.
+Each agent run is recorded in `agent_runs`, per-turn checkpoints in `agent_run_checkpoints`, verification outputs in `verification_runs`, workspace diff snapshots in `workspace_snapshots`, messages in `task_messages`, and all state transitions as task events.
 
 ### Actions
 
 | Action | What it does | Creates PR? |
 |--------|-------------|-------------|
-| `PLAN` | Researches the codebase and outputs an implementation plan into the task body | No |
-| `IMPLEMENT` | Implements the task, including e2e tests if the project has a test setup | Yes |
-| `REVISE` | Addresses PR review comments with targeted changes | Yes (pushes to existing PR) |
+| `plan` | Researches the codebase and outputs an implementation plan into the task body | No |
+| `implement` | Implements the task, verifies locally, and opens a PR. Auto-REVISEs on verification failure (bounded). | Yes |
+| `revise` | Addresses PR review comments (or verification output) with targeted changes | Yes (pushes to existing PR) |
+| `playbook:<name>` | Runs a named, versioned recipe. Ships with `bump-dep`, `add-tests`, `triage-flake`, `security-review`; custom playbooks authorable via the UI. | Depends on the playbook |
 
 ### Task State Machine
 
 ```
-IDLE → QUEUED → RUNNING → SUCCESS
-                       ↘ FAILED (→ retry with backoff → QUEUED)
+                                         ┌──────────┐
+                                         │ BLOCKED  │◀── agent wrote $HIVEBOARD_QUESTION
+                                         │ (reason: │◀── time-box expired (TIMEOUT)
+                                         │ Q/T/D)   │◀── blocker FAILED (DEPENDENCY_FAILED)
+                                         └────┬─────┘
+                                              │ answerQuestion / extendTimeBox /
+                                              │ remove dependency / retry
+                                              ▼
+  ┌──────┐     ┌─────────────────┐    ┌────────┐     ┌─────────┐    ┌─────────┐
+  │ IDLE ├───▶ │ MISSING_SECRETS │    │ QUEUED ├───▶ │ RUNNING ├───▶│ SUCCESS │
+  └──┬───┘     │  (set secret to │ ◀─▶└────┬───┘     └────┬────┘    └─────────┘
+     │         │   auto-unblock) │         │              │
+     │         └─────────────────┘         │              ▼
+     │                                     │         ┌─────────┐
+     └────── runAgent / continueFailed ────┘         │ FAILED  │───▶ auto-retry
+                                                     └─────────┘     or continueFailedTask
 ```
+
+Block reasons (`block_reason` column): `QUESTION` (agent asked), `TIMEOUT` (time-box expired), `DEPENDENCY_FAILED` (a blocker task failed).
 
 ### Human Gates
 
-Not everything is automated — certain transitions require a human to act:
+Humans steer the board at several points. Most gates are optional — the agent can make progress alone — but some are baked into the workflow.
 
-| Step | Who acts | What happens |
-|------|----------|-------------|
-| Create task & set target repo | Human | Task starts in `IDLE` on the board |
-| Dispatch agent | Human | Calls `runAgent` mutation with an action — task moves to `QUEUED` |
-| Review the plan | Human | After `PLAN` succeeds, the task body is updated — human reviews before dispatching `IMPLEMENT` |
-| Review the PR | Human | After `IMPLEMENT` succeeds, task moves to the "Review" column — human reviews the PR on GitHub |
-| Dispatch revise | Human | After leaving PR review comments, human dispatches `REVISE` to address them |
-| Merge the PR | Human | HiveBoard does not auto-merge — the human merges on GitHub |
+| Gate | What the human does | Effect |
+|---|---|---|
+| Create task, set target repo | Sets the scope | Task starts in `IDLE` |
+| Dispatch agent | `runAgent(action, instruction?)` | Task → `QUEUED` |
+| Review the plan | Reads the PLAN output | Human decides to dispatch IMPLEMENT |
+| Review the PR | Leaves comments on GitHub | Dispatch REVISE to address them |
+| Send a hint | `sendHint(taskId, body)` | Agent polls `$HIVEBOARD_INBOX` and may pick up the hint |
+| Send a redirect | `sendRedirect(taskId, body)` | Running agent aborted; message prepended to the next prompt |
+| Answer a blocked task | `answerQuestion(taskId, body)` | Task → `QUEUED` with a 30s grace window for follow-up |
+| Continue a failed task | `continueFailedTask(taskId, instruction?)` | `FAILED` → `QUEUED` with a retry that includes last-attempt replay |
+| Add dependencies | `addTaskDependency(taskId, blockerId)` | Task waits until blocker reaches `SUCCESS` |
+| Set a time box | `setTimeBox(taskId, ms)` / `extendTimeBox` / `killTask` | Bounds how long a single run may consume |
+| Manage secrets | Board Secrets UI / `setBoardSecret` / `setTaskSecret` | Required secrets injected at spawn time |
+| Author or edit a playbook | `/playbooks` UI | Reusable recipe available under `action: "playbook:<name>"` |
+| Merge the PR | Clicks merge on GitHub | HiveBoard does not auto-merge |
+
+## Playbooks
+
+Playbooks are named, versioned prompt recipes that augment the built-in PLAN/IMPLEMENT/REVISE actions. Editing a playbook creates a new immutable version; each `agent_runs` row records which version it dispatched.
+
+Seeded on first install:
+
+| Playbook | What it does |
+|---|---|
+| `bump-dep` | Bump a dependency and fix breakages |
+| `add-tests` | Add missing tests for a file or directory |
+| `triage-flake` | Investigate a flaky test; run 10x, analyze, propose fix |
+| `security-review` | Read-only security review of a PR; posts findings as review comments (no code changes allowed) |
+
+Dispatch via `runAgent(taskId, "playbook:bump-dep", instruction)` or through the drawer's dispatch menu. Manage playbooks at `/playbooks`.
+
+## Task dependencies
+
+Tasks can declare `blockedBy: [taskIds]` via `addTaskDependency`. The scheduler refuses to spawn a task until every blocker is `SUCCESS`. Cycles are rejected at mutation time with `DEPENDENCY_CYCLE`. Cross-board dependencies are rejected with `DEPENDENCY_CROSS_BOARD`.
+
+If a blocker moves to `FAILED`, its dependents auto-move to `BLOCKED` with `block_reason='DEPENDENCY_FAILED'` so a human can decide whether to remove the edge or retry the blocker.
+
+Agents can split their work by writing a YAML subtask manifest to `$HIVEBOARD_SUBTASKS` before exit; the orchestrator materializes each entry as a child task (up to 20 per manifest) with optional sibling dependencies.
+
+## Per-task secrets
+
+Tasks declare `required_secrets` (a JSON array of `UPPER_SNAKE_CASE` names). At spawn time the orchestrator resolves each name (task override → board default → missing), decrypts the value, and injects it into the agent subprocess env under its declared name. Captured output is scrubbed (literal match → `[redacted:NAME]`) before being written to `agent_runs.output`.
+
+Values are encrypted with AES-256-GCM using a key derived from `HIVEBOARD_SECRETS_KEY` (HKDF-SHA256, `info="hiveboard:secrets:v1"`). Plaintext values NEVER appear in GraphQL responses — only names and metadata.
 
 ## Authentication
 
 HiveBoard supports two access modes:
 
-- **Local mode** — when accessing via `localhost`, automatically authenticates as the admin user (no login required)
-- **Remote mode** — requires GitHub OAuth; users must be invited by an admin before they can log in
+- **Local mode** — when accessing via `localhost`, automatically authenticates as the admin user (no login required).
+- **Remote mode** — requires GitHub OAuth; users must be invited by an admin before they can log in.
 
 ### Invitations
 
@@ -215,16 +296,29 @@ Admins can generate invitation tokens for specific GitHub usernames. Invited use
 | `polling.interval_ms` | `30000` | Orchestrator polling interval |
 | `workspace.root` | `./tmp/workspaces` | Directory for per-task workspaces |
 | `workspace.ttl_ms` | `259200000` | Stale workspace TTL (72 hours; 0 = never) |
+| `agent.state_root` | `./tmp/agent-state` | Per-task agent-owned files (scratchpad, inbox, question, progress, subtasks) |
+| `agent.max_concurrent_agents` | `5` | Concurrency limit |
+| `agent.max_retry_backoff_ms` | `300000` | Max retry backoff (5 min) |
 | `claude.command` | `claude` | Claude CLI binary name |
 | `claude.model` | `opus` | Claude model to use |
 | `claude.max_turns` | `200` | Max agent turns per run |
 | `claude.permission_mode` | `bypassPermissions` | Claude CLI permission mode |
-| `agent.max_concurrent_agents` | `5` | Concurrency limit |
-| `agent.max_retry_backoff_ms` | `300000` | Max retry backoff (5 min) |
+| `verify.enabled` | `true` | Run verification commands after IMPLEMENT / REVISE |
+| `verify.max_auto_revises` | `1` | Cap on auto-REVISE attempts before surfacing FAILED |
+| `verify.commands` | *(see WORKFLOW.md)* | Array of `{label, run, timeout_ms}` — lint / tsc / test |
+| `progress.enabled` | `true` | Capture progress pings + diff snapshots during RUNNING |
+| `progress.snapshot_interval_ms` | `15000` | How often to snapshot `git diff` |
+| `progress.snapshot_disk_budget_mb` | `10` | Per-task patch storage budget |
+| `scheduler.legacy_mode` | `false` | Fall back to pre-dependency scheduler (feature flag) |
+
+See `packages/api/WORKFLOW.md` itself for the full set of fields and the embedded prompt template.
 
 ## Contributing
 
-See [docs/architecture.md](docs/architecture.md) for architecture decisions and design rationale.
+- [docs/architecture.md](docs/architecture.md) — design rationale and internals
+- [docs/api-reference.md](docs/api-reference.md) — GraphQL surface
+- [docs/maintainer-guide.md](docs/maintainer-guide.md) — operational runbooks + internals for maintainers
+- [docs/conventions.md](docs/conventions.md) — coding conventions
 
 ## License
 

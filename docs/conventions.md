@@ -219,6 +219,14 @@ Subscriptions use **Server-Sent Events** via the `graphql-sse` library (not
 WebSockets). The Vite dev server proxies `/graphql` to the API with SSE
 pass-through headers (`cache-control: no-cache`, `x-accel-buffering: no`).
 
+### Resolver auth
+
+Every resolver that reads or writes task-scoped data must go through
+`requireAuth` and, when keyed on a task id, `requireTaskAccess`. This applies
+uniformly to queries, mutations, **and subscriptions** — there is no "read-only
+stream" exemption. New subscription resolvers that forget `requireTaskAccess`
+are treated as a bug, not a style issue.
+
 ---
 
 ## 7. Database
@@ -231,6 +239,12 @@ SQLite via Bun's built-in `bun:sqlite` driver. Single-file, local-first.
 
 All primary keys are **ULID** strings stored as `TEXT`. ULIDs are
 lexicographically sortable by creation time.
+
+Any filesystem operation keyed on a task id (reading, writing, appending, or
+resolving a path under `{agent.state_root}/{task-id}/`) must validate the id
+against `/^[0-9A-HJKMNP-TV-Z]{26}$/` **before** touching the fs. Use the shared
+`assertValidTaskId` helper in `packages/api/src/agent/agent-state.ts`. Never
+interpolate an unvalidated id into a path.
 
 ### Timestamps
 
@@ -263,3 +277,40 @@ Composite and single-column indexes exist on high-query paths:
 - `idx_task_events_task` — `(task_id, created_at)`
 - `idx_task_comments_task` — `(task_id)`
 - `idx_agent_runs_task` — `(task_id)`
+
+---
+
+## 8. Runtime Singletons & Agent State
+
+### Config access
+
+The API supports a **dual config pattern**:
+
+- **Resolvers** read config via the `getConfig()` singleton at
+  [`packages/api/src/config/singleton.ts`](../packages/api/src/config/singleton.ts),
+  mirroring the existing `orchestrator/singleton.ts`. Resolvers should not
+  receive `config` through their context or arguments.
+- **Orchestrator and runner code** continue to accept `config: Config`
+  explicitly as a parameter, because they are constructed once at startup and
+  benefit from explicit dependency injection for testability.
+
+When adding a new module, match the pattern of its neighbors: resolver-adjacent
+code uses the singleton; orchestrator-adjacent code takes config as an argument.
+
+### Per-task files
+
+All agent-owned per-task files (transcripts, scratchpads, tool logs, etc.) live
+under `{agent.state_root}/{task-id}/` on disk and **never** in the workspace
+tree. They are written **append-only via shell `>>`**, never via the `Write`
+tool — this is enforced through prompt discipline codified in
+[`docs/WORKFLOW.md`](./WORKFLOW.md) and the per-task prompt blocks. New
+per-task artifacts must follow this layout and append-only rule.
+
+### Secret handling
+
+Plaintext secret values must never appear in GraphQL responses, log output, or
+field resolvers — only names and non-sensitive metadata are returned. As
+defense-in-depth, `agent_runs.output` is scrubbed by a post-run literal-match
+pass against known secret values before persistence. When introducing a new
+secret-bearing surface, add it to both the exclusion list for resolvers and the
+post-run scrubbing pass.
