@@ -32,6 +32,8 @@ const parseActionLabel = (
       return 'Failed'
     case 'BLOCKED':
       return 'Waiting on you'
+    case 'MISSING_SECRETS':
+      return 'Missing secrets'
     case 'RUNNING':
       switch (action) {
         case 'implement':
@@ -72,10 +74,22 @@ const actionBadge = tv({
 function AgentStatusDot({
   status,
   verifyAttemptCount,
+  missingNames,
 }: {
   status: Task['agentStatus']
   verifyAttemptCount: number
+  missingNames?: string[]
 }) {
+  if (status === 'MISSING_SECRETS') {
+    return (
+      <span
+        className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-400/20 font-bold text-warning-400 text-xs"
+        title={missingNames?.length ? `Missing secrets: ${missingNames.join(', ')}` : 'Missing secrets'}
+      >
+        🔒
+      </span>
+    )
+  }
   if (status === 'IDLE') {
     return (
       <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-600" />
@@ -210,6 +224,7 @@ export function TaskCard({ task, column }: TaskCardProps) {
             <AgentStatusDot
               status={task.agentStatus}
               verifyAttemptCount={task.verifyAttemptCount ?? 0}
+              missingNames={task.missingSecrets}
             />
           )}
           {/* Action badge */}

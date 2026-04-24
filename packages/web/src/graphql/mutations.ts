@@ -352,6 +352,42 @@ export const CONTINUE_FAILED_TASK = /* GraphQL */ `
   }
 `
 
+export const SET_BOARD_SECRET = /* GraphQL */ `
+  mutation SetBoardSecret($boardId: ID!, $name: String!, $value: String!, $description: String) {
+    setBoardSecret(boardId: $boardId, name: $name, value: $value, description: $description) {
+      id name description createdAt updatedAt
+    }
+  }
+`
+
+export const DELETE_BOARD_SECRET = /* GraphQL */ `
+  mutation DeleteBoardSecret($boardId: ID!, $name: String!) {
+    deleteBoardSecret(boardId: $boardId, name: $name)
+  }
+`
+
+export const SET_TASK_SECRET = /* GraphQL */ `
+  mutation SetTaskSecret($taskId: ID!, $name: String!, $value: String!) {
+    setTaskSecret(taskId: $taskId, name: $name, value: $value) {
+      id name createdAt updatedAt
+    }
+  }
+`
+
+export const DELETE_TASK_SECRET = /* GraphQL */ `
+  mutation DeleteTaskSecret($taskId: ID!, $name: String!) {
+    deleteTaskSecret(taskId: $taskId, name: $name)
+  }
+`
+
+export const SET_TASK_REQUIRED_SECRETS = /* GraphQL */ `
+  mutation SetTaskRequiredSecrets($taskId: ID!, $names: [String!]!) {
+    setTaskRequiredSecrets(taskId: $taskId, names: $names) {
+      id requiredSecrets missingSecrets agentStatus
+    }
+  }
+`
+
 export const CREATE_PLAYBOOK = /* GraphQL */ `
   ${PLAYBOOK_FIELDS}
   mutation CreatePlaybook($input: CreatePlaybookInput!) {

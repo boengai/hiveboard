@@ -1,6 +1,7 @@
 export type {
   BlockReason,
   Board,
+  BoardSecretSummary,
   Column,
   SnapshotFileEntry,
   Tag,

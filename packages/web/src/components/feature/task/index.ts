@@ -1,4 +1,5 @@
 export { TaskComments } from './TaskComments'
+export { TaskSecrets } from './TaskSecrets'
 export { TaskDependencies } from './TaskDependencies'
 export { TaskDrawer } from './TaskDrawer'
 export { TaskEventHistory, timeAgo } from './TaskEventHistory'

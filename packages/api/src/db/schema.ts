@@ -74,6 +74,7 @@ export function createTables(db: Database): void {
       block_reason                      TEXT,
       archived                          INTEGER NOT NULL DEFAULT 0,
       archived_at    TEXT,
+      required_secrets TEXT NOT NULL DEFAULT '[]',
       created_by     TEXT NOT NULL REFERENCES users(id),
       updated_by     TEXT NOT NULL REFERENCES users(id),
       created_at     TEXT NOT NULL DEFAULT (datetime('now')),
@@ -201,6 +202,32 @@ export function createTables(db: Database): void {
       UNIQUE (playbook_id, version_number)
     );
 
+    CREATE TABLE IF NOT EXISTS board_secrets (
+      id              TEXT NOT NULL PRIMARY KEY,
+      board_id        TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+      name            TEXT NOT NULL,
+      encrypted_value BLOB NOT NULL,
+      description     TEXT,
+      created_by      TEXT NOT NULL REFERENCES users(id),
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (board_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS task_secrets (
+      id              TEXT PRIMARY KEY,
+      task_id         TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      name            TEXT NOT NULL,
+      encrypted_value BLOB NOT NULL,
+      created_by      TEXT NOT NULL REFERENCES users(id),
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (task_id, name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_board_secrets_board ON board_secrets(board_id);
+    CREATE INDEX IF NOT EXISTS idx_task_secrets_task  ON task_secrets(task_id);
+
     CREATE INDEX IF NOT EXISTS idx_tasks_board_column ON tasks(board_id, column_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_status);
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, created_at);
@@ -246,6 +273,13 @@ export function createTables(db: Database): void {
   addColumnIfMissing(db, 'tasks', 'block_reason', 'TEXT')
 
   addColumnIfMissing(db, 'agent_runs', 'playbook_version_id', 'TEXT')
+
+  addColumnIfMissing(
+    db,
+    'tasks',
+    'required_secrets',
+    `TEXT NOT NULL DEFAULT '[]'`,
+  )
 
   // Backfill Plan B BLOCKED rows (written before block_reason existed) to
   // block_reason='QUESTION'. Safe to run on every startup: only touches rows

@@ -55,6 +55,12 @@ export const typeDefs = /* GraphQL */ `
     revokeUser(userId: ID!): User!
 
     continueFailedTask(taskId: ID!, instruction: String): Task!
+
+    setBoardSecret(boardId: ID!, name: String!, value: String!, description: String): BoardSecret!
+    deleteBoardSecret(boardId: ID!, name: String!): Boolean!
+    setTaskSecret(taskId: ID!, name: String!, value: String!): TaskSecret!
+    deleteTaskSecret(taskId: ID!, name: String!): Boolean!
+    setTaskRequiredSecrets(taskId: ID!, names: [String!]!): Task!
   }
 
   type Subscription {
@@ -69,6 +75,7 @@ export const typeDefs = /* GraphQL */ `
     taskProgressAdded(taskId: ID!): TaskProgress!
     workspaceSnapshotAdded(taskId: ID!): WorkspaceSnapshot!
     checkpointAdded(taskId: ID!): AgentRunCheckpoint!
+    taskMissingSecretsChanged(taskId: ID!): [String!]!
   }
 
   type User {
@@ -104,6 +111,7 @@ export const typeDefs = /* GraphQL */ `
     tags: [Tag!]!
     createdBy: User!
     createdAt: String!
+    secrets: [BoardSecret!]!
   }
 
   type Column {
@@ -149,6 +157,9 @@ export const typeDefs = /* GraphQL */ `
     timeBoxRemainingMs: Int
     createdAt: String!
     updatedAt: String!
+    requiredSecrets: [String!]!
+    missingSecrets: [String!]!
+    taskSecrets: [TaskSecret!]!
   }
 
   type Tag {
@@ -201,6 +212,7 @@ export const typeDefs = /* GraphQL */ `
     QUEUED
     RUNNING
     BLOCKED
+    MISSING_SECRETS
     SUCCESS
     FAILED
   }
@@ -242,6 +254,23 @@ export const typeDefs = /* GraphQL */ `
     deliveredAt: String
     createdBy: User
     createdAt: String!
+  }
+
+  type BoardSecret {
+    id: ID!
+    name: String!
+    description: String
+    createdBy: User!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type TaskSecret {
+    id: ID!
+    name: String!
+    createdBy: User!
+    createdAt: String!
+    updatedAt: String!
   }
 
   type TaskEvent {

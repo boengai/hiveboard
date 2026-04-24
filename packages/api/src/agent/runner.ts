@@ -4,6 +4,7 @@ import type { Config } from '../config/schema'
 import { insertCheckpoint } from '../db/checkpoints'
 import { generateId } from '../db/ulid'
 import { publishCheckpointAdded } from '../pubsub'
+import { scrubSecrets, type SecretPair } from '../secrets/scrubber'
 import { readScratchpad } from '../workspace/agent-state'
 import { checkpointsSupported } from './capability'
 import { buildAgentEnv } from './env'
@@ -60,6 +61,36 @@ export type RunAgentOptions = {
   /** When set, agent_run_checkpoints rows are inserted under this id. */
   agentRunId?: string
   previousAttemptReplay?: PreviousAttemptReplay
+  /** Decrypted secret values to inject into the subprocess env, bypassing ALLOWED_ENV_VARS. */
+  secretsEnv?: Record<string, string>
+  /** Flat list of plaintext values to scrub from the final AgentResult.output / .error. */
+  secretValues?: string[]
+  /** Names and optional descriptions of required secrets, for prompt context. */
+  requiredSecrets?: Array<{ name: string; description?: string | null }>
+}
+
+/** Build the list of SecretPairs to scrub from agent output. */
+export function buildScrubPairs(
+  secretsEnv?: Record<string, string>,
+  secretValues?: string[],
+): SecretPair[] {
+  const pairs: SecretPair[] = []
+  const seenValues = new Set<string>()
+  if (secretsEnv) {
+    for (const [name, value] of Object.entries(secretsEnv)) {
+      if (value && !seenValues.has(value)) {
+        pairs.push({ name, value })
+        seenValues.add(value)
+      }
+    }
+  }
+  for (const v of secretValues ?? []) {
+    if (v && !seenValues.has(v)) {
+      pairs.push({ name: 'REDACTED', value: v })
+      seenValues.add(v)
+    }
+  }
+  return pairs
 }
 
 /** Build Claude CLI arguments from config. */
@@ -141,6 +172,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
       : undefined,
     options.previousAttemptReplay,
     { db: options.db },
+    options.requiredSecrets,
   )
 
   const args = buildClaudeArgs(config, prompt, options.allowedToolsOverride)
@@ -149,9 +181,12 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     `Starting Claude CLI for task ${task.id} (action: ${task.action})`,
   )
 
+  const baseEnv = buildAgentEnv(task, workspacePath, gitIdentity, tokenDir, config)
+  const env = { ...baseEnv, ...(options.secretsEnv ?? {}) }
+
   const proc = Bun.spawn(args, {
     cwd: workspacePath,
-    env: buildAgentEnv(task, workspacePath, gitIdentity, tokenDir, config),
+    env,
     stderr: 'pipe',
     stdout: 'pipe',
   })
@@ -223,6 +258,10 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
         if (done) break
         const chunk = decoder.decode(value, { stream: true })
         output += chunk
+        // NOTE: live-stream chunks (onLog) are NOT scrubbed — only the final
+        // AgentResult.output/.error are scrubbed before return. Subscribers may
+        // briefly see raw secret values in flight. Live-stream scrubbing is
+        // deferred to a follow-up; see Plan H "Out of Scope" section.
         onLog?.(chunk)
         lineParser?.feed(chunk)
       }
@@ -236,13 +275,15 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   const stderr = await new Response(proc.stderr as ReadableStream).text()
 
+  const scrubPairs = buildScrubPairs(options.secretsEnv, options.secretValues)
+
   if (exitCode !== 0) {
     consola.error(
       `Claude CLI failed for task ${task.id} (exit ${exitCode}): ${stderr.slice(0, 200)}`,
     )
     return {
-      error: stderr || `Exit code ${exitCode}`,
-      output,
+      error: scrubSecrets(stderr || `Exit code ${exitCode}`, scrubPairs),
+      output: scrubSecrets(output, scrubPairs),
       success: false,
       taskId: task.id,
     }
@@ -250,7 +291,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
 
   consola.info(`Claude CLI completed for task ${task.id}`)
   return {
-    output,
+    output: scrubSecrets(output, scrubPairs),
     success: true,
     taskId: task.id,
   }

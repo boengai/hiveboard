@@ -12,6 +12,8 @@ import { cascadeDependencyFailure } from './dependencies'
 import { escapeMustacheSyntax } from './mustache-escape'
 import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
 import { formatVerificationFailureForAgent, verifyAndGate } from './verify'
+import { parseRequiredSecrets, resolveSecretsForTask } from '../secrets/store'
+import { publishTaskMissingSecretsChanged } from '../pubsub'
 
 export { escapeMustacheSyntax } from './mustache-escape'
 
@@ -927,6 +929,45 @@ export class Orchestrator {
           ? buildPreviousAttemptReplay(db, task.id)
           : null
 
+      // --- Pre-spawn secrets resolution gate (Plan H Task 13) ---
+      const secretsResolution = resolveSecretsForTask(db, task.id)
+      if (!secretsResolution.ok) {
+        const missingNames = secretsResolution.missing
+        db.run(
+          `UPDATE tasks
+             SET agent_status = 'missing_secrets',
+                 agent_error = ?,
+                 updated_at = datetime('now')
+           WHERE id = ?`,
+          [`Missing required secrets: ${missingNames.join(', ')}`, task.id],
+        )
+        db.run(
+          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
+          [`Missing required secrets: ${missingNames.join(', ')}`, runId],
+        )
+        publishTaskMissingSecretsChanged(task.id, missingNames)
+        const updatedRow = db
+          .query('SELECT * FROM tasks WHERE id = ?')
+          .get(task.id) as TaskRow | null
+        if (updatedRow) publishTaskUpdated(updatedRow.board_id, mapTask(updatedRow))
+        return
+      }
+      // --- end secrets gate ---
+
+      // Build required-secrets list for prompt context (names + descriptions from board scope)
+      const declaredNames = (() => {
+        const taskSecretRow = db
+          .query('SELECT required_secrets FROM tasks WHERE id = ?')
+          .get(task.id) as { required_secrets: string | null } | null
+        return parseRequiredSecrets(taskSecretRow?.required_secrets ?? null)
+      })()
+      const requiredSecretsForPrompt = declaredNames.map((name) => {
+        const boardRow = db
+          .query('SELECT description FROM board_secrets WHERE board_id = ? AND name = ?')
+          .get(task.board_id, name) as { description: string | null } | null
+        return { name, description: boardRow?.description ?? null }
+      })
+
       const result = await runAgent({
         agentRunId: runId,
         allowedToolsOverride,
@@ -959,6 +1000,9 @@ export class Orchestrator {
         tokenDir: this.github.getTokenDir(),
         verificationFailures,
         workspacePath: runState.workspacePath,
+        secretsEnv: secretsResolution.env,
+        secretValues: secretsResolution.values,
+        requiredSecrets: requiredSecretsForPrompt,
       })
 
       // Plan D teardown: stop the progress watcher + snapshot loop as soon

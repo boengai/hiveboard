@@ -54,6 +54,7 @@ import { TaskEventHistory, timeAgo } from './TaskEventHistory'
 import { TaskMessages } from './TaskMessages'
 import { TaskProgress } from './TaskProgress'
 import { TaskScratchpad } from './TaskScratchpad'
+import { TaskSecrets } from './TaskSecrets'
 import { TaskSubtasks } from './TaskSubtasks'
 import { TaskTimeBox } from './TaskTimeBox'
 import { TaskTimeline } from './TaskTimeline'
@@ -318,6 +319,7 @@ const ViewMode = ({
   onInterruptAgent,
   onUpdateAction,
   onContinueTask,
+  boardSecrets,
 }: ViewModeProps) => {
   const [continueInstruction, setContinueInstruction] = useState('')
   const [continuing, setContinuing] = useState(false)
@@ -490,6 +492,13 @@ const ViewMode = ({
           timeBoxMs={task.timeBoxMs ?? null}
           timeBoxRemainingMs={task.timeBoxRemainingMs ?? null}
           timeBoxStartedAt={task.timeBoxStartedAt ?? null}
+        />
+      </div>
+      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
+        <SectionLabel>Secrets</SectionLabel>
+        <TaskSecrets
+          boardSecrets={boardSecrets}
+          task={task}
         />
       </div>
       <div className="flex flex-col gap-3 border-border-default border-t pt-5">
@@ -1187,6 +1196,7 @@ export const TaskDrawer = () => {
       )}
       {drawerMode === 'view' && task && !isEditing && (
         <ViewMode
+          boardSecrets={board?.secrets ?? []}
           loading={isPending}
           onArchive={handleArchive}
           onContinueTask={handleContinueTask}

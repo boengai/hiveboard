@@ -66,6 +66,23 @@ Agent Instruction:
 
 {{> scratchpad}}
 
+{{#has_required_secrets}}
+## Secrets available for this task
+
+The following environment variables are available in your shell and contain
+sensitive values. Use them directly via shell expansion (e.g. `$DATABASE_URL`).
+**Never** echo them, `cat` them, print them, write them to any file (including
+the scratchpad, progress file, commits, PR bodies, or pull-request comments),
+or include them in any tool invocation that may log its arguments.
+
+{{#required_secrets_list}}
+- `{{ name }}`{{#description}} — {{ description }}{{/description}}
+{{/required_secrets_list}}
+
+If a command fails because a required secret is empty, stop and report via
+`$HIVEBOARD_QUESTION`; do NOT re-invoke the command with a hard-coded value.
+{{/has_required_secrets}}
+
 {{#previous_attempt_replay}}
 ## Previous attempt replay
 

@@ -42,6 +42,15 @@ const playbooksRoute = createRoute({
   path: '/playbooks',
 })
 
+const boardSettingsRoute = createRoute({
+  component: lazyRouteComponent(
+    () => import('@/pages/board/BoardSettings'),
+    'BoardSettings',
+  ),
+  getParentRoute: () => rootRoute,
+  path: '/boards/$boardId/settings',
+})
+
 export const router = createRouter({
   defaultPreload: 'intent',
   routeTree: rootRoute.addChildren([
@@ -49,5 +58,6 @@ export const router = createRouter({
     authCallbackRoute,
     usersRoute,
     playbooksRoute,
+    boardSettingsRoute,
   ]),
 })

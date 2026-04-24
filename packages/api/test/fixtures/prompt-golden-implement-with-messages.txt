@@ -47,6 +47,7 @@ yourself, not a report for humans.
   EOF
   ```
 
+
 ## Progress pings — tell the human what you're doing
 
 Optional. You have a file at `$HIVEBOARD_PROGRESS`. Appending one NDJSON

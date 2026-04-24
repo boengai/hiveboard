@@ -64,6 +64,7 @@ export const GET_BOARDS = /* GraphQL */ `
               color
             }
           }
+          missingSecrets
         }
       }
     }
@@ -85,6 +86,18 @@ export const GET_BOARD = /* GraphQL */ `
         id
         name
         color
+      }
+      secrets {
+        id
+        name
+        description
+        createdBy {
+          id
+          username
+          displayName
+        }
+        createdAt
+        updatedAt
       }
       columns {
         id
@@ -138,6 +151,7 @@ export const GET_BOARD = /* GraphQL */ `
               color
             }
           }
+          missingSecrets
         }
       }
     }
@@ -282,6 +296,19 @@ export const GET_TASK = /* GraphQL */ `
         blockReason
       }
       blockReason
+      requiredSecrets
+      missingSecrets
+      taskSecrets {
+        id
+        name
+        createdBy {
+          id
+          username
+          displayName
+        }
+        createdAt
+        updatedAt
+      }
       timeBoxMs
       timeBoxStartedAt
       timeBoxRemainingMs

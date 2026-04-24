@@ -1,6 +1,7 @@
 import type { TaskFormValues } from '@/schemas/task'
 import type {
   BlockReason,
+  BoardSecretSummary,
   Task,
   TaskBlockerSummary,
   TaskProgressEntry,
@@ -45,6 +46,7 @@ export type ViewModeProps = {
   onUpdateAction: (action: string, instruction?: string) => void
   onContinueTask: (instruction: string | null) => Promise<void>
   loading: boolean
+  boardSecrets: BoardSecretSummary[]
 }
 
 export type AgentPanelProps = {

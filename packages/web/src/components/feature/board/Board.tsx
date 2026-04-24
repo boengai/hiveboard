@@ -10,6 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { useEffect, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import {
   GET_BOARDS,
   graphqlClient,
@@ -253,6 +254,17 @@ export function Board() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
+      {/* Board header */}
+      <div className="flex items-center justify-between border-border-default border-b px-4 py-2.5">
+        <span className="font-medium text-body-sm text-text-primary">{board.name}</span>
+        <Link
+          className="text-body-xs text-text-tertiary hover:text-text-primary"
+          to="/boards/$boardId/settings"
+          params={{ boardId: board.id }}
+        >
+          Settings
+        </Link>
+      </div>
       {/* Board columns */}
       <DndContext
         collisionDetection={closestCorners}

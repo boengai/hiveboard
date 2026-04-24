@@ -61,6 +61,8 @@ export type PromptContext = {
   auto_revise_from_verification?: boolean
   verification_failures?: VerificationFailureForPrompt[]
   previous_attempt_replay?: PreviousAttemptReplayForPrompt
+  has_required_secrets?: boolean
+  required_secrets_list?: Array<{ name: string; description?: string | null }>
 }
 
 export type RenderPromptResolver = {
@@ -78,6 +80,7 @@ export function renderPrompt(
   verification?: { verification_failures: VerificationFailureForPrompt[] },
   previousAttemptReplay?: PreviousAttemptReplayForPrompt,
   resolver?: RenderPromptResolver,
+  requiredSecrets?: Array<{ name: string; description?: string | null }>,
 ): string {
   // Playbook dispatch path
   if (task.action?.startsWith('playbook:')) {
@@ -108,9 +111,11 @@ export function renderPrompt(
     auto_revise_from_verification:
       (verification?.verification_failures?.length ?? 0) > 0,
     has_messages: (messages?.length ?? 0) > 0,
+    has_required_secrets: (requiredSecrets?.length ?? 0) > 0,
     has_review_comments: !!reviewComments,
     messages: messages ?? [],
     previous_attempt_replay: previousAttemptReplay,
+    required_secrets_list: requiredSecrets ?? [],
     review_comments: reviewComments,
     scratchpad: scratchpad ?? '',
     task: {

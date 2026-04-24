@@ -55,6 +55,7 @@ import { mergePlaybookDefaultsIntoTask } from '../playbooks/merge-defaults'
 import {
   publishMessageAdded,
   publishScratchpadUpdated,
+  publishTaskMissingSecretsChanged,
   pubsub,
 } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
@@ -70,6 +71,18 @@ import {
   validateTargetBranch,
   validateTargetRepo,
 } from './validation'
+import { secretsEnabled } from '../secrets/enabled'
+import {
+  computeMissingSecretNames,
+  deleteBoardSecret as storeDeleteBoardSecret,
+  deleteTaskSecret as storeDeleteTaskSecret,
+  listBoardSecrets,
+  listTaskSecrets,
+  NAME_REGEX,
+  parseRequiredSecrets,
+  setBoardSecret as storeSetBoardSecret,
+  setTaskSecret as storeSetTaskSecret,
+} from '../secrets/store'
 
 // ---------------------------------------------------------------------------
 // Row types (snake_case from SQLite)
@@ -456,6 +469,39 @@ function requireBoardAccess(
   if (row.created_by !== user.id) throw notFound('Board', boardId)
 }
 
+function requireSecretsEnabled(): void {
+  if (!secretsEnabled()) {
+    throw new GraphQLError(
+      'Secrets feature is disabled (HIVEBOARD_SECRETS_KEY not set)',
+      { extensions: { code: 'SECRETS_DISABLED' } },
+    )
+  }
+}
+
+function validateSecretName(name: string): void {
+  if (!NAME_REGEX.test(name)) {
+    throw new GraphQLError(
+      `Invalid secret name: "${name}" — must match /^[A-Z_][A-Z0-9_]*$/`,
+      { extensions: { code: 'SECRET_NAME_INVALID' } },
+    )
+  }
+}
+
+function validateSecretValue(value: string): void {
+  if (value.length === 0) {
+    throw new GraphQLError(
+      'Secret value cannot be empty; use delete to remove',
+      { extensions: { code: 'SECRET_VALUE_EMPTY' } },
+    )
+  }
+  if (value.length < 6) {
+    throw new GraphQLError(
+      'Secret value must be at least 6 characters (shorter values would cause heavy collateral redaction of agent output)',
+      { extensions: { code: 'SECRET_VALUE_TOO_SHORT' } },
+    )
+  }
+}
+
 function requireTaskAccess(
   taskId: string,
   user: { id: string; role: string },
@@ -517,6 +563,52 @@ function publishTaskUpdated(task: ReturnType<typeof mapTask>) {
   }
 }
 
+/**
+ * After a secret change, walk every task affected by the changed name, recompute
+ * missingSecrets, publish the change, and (if all now satisfied AND task is in
+ * MISSING_SECRETS) transition to QUEUED with a 5-second grace window.
+ *
+ * Scope: if boardId given, scan every task on that board; if taskIdScope given,
+ * scan only that task. Provide exactly one.
+ */
+function reResolveAfterSecretChange(
+  changedName: string,
+  opts: { boardId?: string; taskIdScope?: string },
+): void {
+  const rows = (opts.boardId
+    ? db
+        .query('SELECT id, required_secrets, agent_status, board_id FROM tasks WHERE board_id = ?')
+        .all(opts.boardId)
+    : db
+        .query('SELECT id, required_secrets, agent_status, board_id FROM tasks WHERE id = ?')
+        .all(opts.taskIdScope as string)
+  ) as Array<{ id: string; required_secrets: string; agent_status: string; board_id: string }>
+
+  for (const row of rows) {
+    const required = parseRequiredSecrets(row.required_secrets)
+    if (!required.includes(changedName)) continue
+
+    const missing = computeMissingSecretNames(db, row.id)
+    publishTaskMissingSecretsChanged(row.id, missing)
+
+    if (row.agent_status === 'missing_secrets' && missing.length === 0) {
+      db.run(
+        `UPDATE tasks
+            SET agent_status = 'queued',
+                agent_error = NULL,
+                queue_after = datetime('now', '+5 seconds'),
+                updated_at = datetime('now')
+          WHERE id = ?`,
+        [row.id],
+      )
+      const updatedRow = db.query('SELECT * FROM tasks WHERE id = ?').get(row.id) as TaskRow | null
+      if (updatedRow) {
+        publishTaskUpdated(mapTask(updatedRow))
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Resolvers
 // ---------------------------------------------------------------------------
@@ -533,8 +625,32 @@ export const resolvers = {
     createdBy(board: ReturnType<typeof mapBoard>) {
       return getUserById(board._createdBy)
     },
+    secrets(parent: { id: string }, _args: unknown, ctx: ResolverContext) {
+      const user = requireAuth(ctx)
+      // Belt-and-braces: Board.secrets must not leak even if a future upstream
+      // resolver exposes a Board without access-checking. requireBoardAccess
+      // throws notFound on non-owner non-super-admin — consistent with the
+      // mutation paths above.
+      requireBoardAccess(parent.id, user)
+      if (!secretsEnabled()) return []
+      const rows = listBoardSecrets(db, parent.id)
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        createdBy: { id: r.createdBy },
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }))
+    },
     tags(board: ReturnType<typeof mapBoard>) {
       return getTagsForBoard(board.id)
+    },
+  },
+
+  BoardSecret: {
+    createdBy(parent: { createdBy: { id: string } }) {
+      return getUserById(parent.createdBy.id)
     },
   },
 
@@ -1801,6 +1917,127 @@ export const resolvers = {
       return mapTask(row)
     },
 
+    setBoardSecret(
+      _: unknown,
+      {
+        boardId,
+        name,
+        value,
+        description,
+      }: {
+        boardId: string
+        name: string
+        value: string
+        description?: string | null
+      },
+      ctx: ResolverContext,
+    ) {
+      const user = requireAuth(ctx)
+      requireSecretsEnabled()
+      requireBoardAccess(boardId, user)
+      validateSecretName(name)
+      validateSecretValue(value)
+      storeSetBoardSecret(db, {
+        boardId,
+        description: description ?? null,
+        name,
+        userId: user.id,
+        value,
+      })
+      reResolveAfterSecretChange(name, { boardId })
+      const row = listBoardSecrets(db, boardId).find((r) => r.name === name)
+      if (!row) {
+        throw new GraphQLError('Internal: board secret row missing after upsert', {
+          extensions: { code: 'INTERNAL_ERROR' },
+        })
+      }
+      return {
+        createdAt: row.createdAt,
+        createdBy: { id: row.createdBy },
+        description: row.description,
+        id: row.id,
+        name: row.name,
+        updatedAt: row.updatedAt,
+      }
+    },
+
+    deleteBoardSecret(
+      _: unknown,
+      { boardId, name }: { boardId: string; name: string },
+      ctx: ResolverContext,
+    ) {
+      const user = requireAuth(ctx)
+      requireSecretsEnabled()
+      requireBoardAccess(boardId, user)
+      validateSecretName(name)
+      storeDeleteBoardSecret(db, boardId, name)
+      reResolveAfterSecretChange(name, { boardId })
+      return true
+    },
+
+    setTaskSecret(
+      _: unknown,
+      { taskId, name, value }: { taskId: string; name: string; value: string },
+      ctx: ResolverContext,
+    ) {
+      const user = requireAuth(ctx)
+      requireSecretsEnabled()
+      requireTaskAccess(taskId, user)
+      validateSecretName(name)
+      validateSecretValue(value)
+      storeSetTaskSecret(db, { taskId, name, value, userId: user.id })
+      reResolveAfterSecretChange(name, { taskIdScope: taskId })
+      const row = listTaskSecrets(db, taskId).find((r) => r.name === name)
+      if (!row) {
+        throw new GraphQLError('Internal: task secret row missing after upsert', {
+          extensions: { code: 'INTERNAL_ERROR' },
+        })
+      }
+      return {
+        id: row.id,
+        name: row.name,
+        createdBy: { id: row.createdBy },
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }
+    },
+
+    deleteTaskSecret(
+      _: unknown,
+      { taskId, name }: { taskId: string; name: string },
+      ctx: ResolverContext,
+    ) {
+      const user = requireAuth(ctx)
+      requireSecretsEnabled()
+      requireTaskAccess(taskId, user)
+      validateSecretName(name)
+      storeDeleteTaskSecret(db, taskId, name)
+      reResolveAfterSecretChange(name, { taskIdScope: taskId })
+      return true
+    },
+
+    setTaskRequiredSecrets(
+      _: unknown,
+      { taskId, names }: { taskId: string; names: string[] },
+      ctx: ResolverContext,
+    ) {
+      const user = requireAuth(ctx)
+      // Intentionally does NOT require secretsEnabled() — declaring requirements
+      // must work when the feature is off so tasks can transition to MISSING_SECRETS.
+      requireTaskAccess(taskId, user)
+      const unique = Array.from(new Set(names))
+      for (const n of unique) validateSecretName(n)
+      db.run(
+        `UPDATE tasks SET required_secrets = ?, updated_at = datetime('now') WHERE id = ?`,
+        [JSON.stringify(unique), taskId],
+      )
+      const row = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow | null
+      if (!row) throw notFound('Task', taskId)
+      const task = mapTask(row)
+      publishTaskUpdated(task)
+      return task
+    },
+
     setTimeBox(
       _: unknown,
       { taskId, timeBoxMs }: { taskId: string; timeBoxMs: number | null },
@@ -2547,6 +2784,21 @@ export const resolvers = {
         return pubsub.subscribe('WORKSPACE_SNAPSHOT', taskId)
       },
     },
+
+    taskMissingSecretsChanged: {
+      subscribe(
+        _: unknown,
+        { taskId }: { taskId: string },
+        ctx: ResolverContext,
+      ) {
+        const user = requireAuth(ctx)
+        requireTaskAccess(taskId, user)
+        return pubsub.subscribe('TASK_MISSING_SECRETS_CHANGED', taskId)
+      },
+      resolve(payload: { taskId: string; missingSecrets: string[] }) {
+        return payload.missingSecrets
+      },
+    },
   },
 
   Task: {
@@ -2682,6 +2934,39 @@ export const resolvers = {
     },
     workspaceSnapshots(parent: { id: string }) {
       return listSnapshotsForTask(db, parent.id).map(mapSnapshotRow)
+    },
+    requiredSecrets(parent: { id: string; required_secrets?: string }, _args: unknown, ctx: ResolverContext): string[] {
+      const user = requireAuth(ctx)
+      requireTaskAccess(parent.id, user)
+      // Prefer raw column if mapTask included it, otherwise fall back to a DB query.
+      const raw = parent.required_secrets ??
+        (db.query('SELECT required_secrets FROM tasks WHERE id = ?').get(parent.id) as { required_secrets: string } | null)?.required_secrets
+      return parseRequiredSecrets(raw)
+    },
+    missingSecrets(parent: { id: string }, _args: unknown, ctx: ResolverContext) {
+      const user = requireAuth(ctx)
+      requireTaskAccess(parent.id, user)
+      return computeMissingSecretNames(db, parent.id)
+    },
+    taskSecrets(parent: { id: string }, _args: unknown, ctx: ResolverContext) {
+      // Belt-and-braces: enforce auth on this sensitive field too.
+      const user = requireAuth(ctx)
+      requireTaskAccess(parent.id, user)
+      if (!secretsEnabled()) return []
+      const rows = listTaskSecrets(db, parent.id)
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        createdBy: { id: r.createdBy },
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }))
+    },
+  },
+
+  TaskSecret: {
+    createdBy(parent: { createdBy: { id: string } }) {
+      return getUserById(parent.createdBy.id)
     },
   },
 

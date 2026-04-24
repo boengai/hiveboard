@@ -341,3 +341,9 @@ export const CHECKPOINT_ADDED_SUBSCRIPTION = /* GraphQL */ `
     }
   }
 `
+
+export const TASK_MISSING_SECRETS_CHANGED_SUBSCRIPTION = /* GraphQL */ `
+  subscription TaskMissingSecretsChanged($taskId: ID!) {
+    taskMissingSecretsChanged(taskId: $taskId)
+  }
+`

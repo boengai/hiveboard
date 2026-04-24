@@ -1,3 +1,12 @@
+export type BoardSecretSummary = {
+  id: string
+  name: string
+  description: string | null
+  createdBy: { id: string; username: string; displayName: string }
+  createdAt: string
+  updatedAt: string
+}
+
 export type Board = {
   id: string
   name: string
@@ -5,6 +14,7 @@ export type Board = {
   tags: Tag[]
   createdBy: { id: string; username: string; displayName: string }
   createdAt: string
+  secrets?: BoardSecretSummary[]
 }
 
 export type Column = {
@@ -25,6 +35,7 @@ export type AgentStatus =
   | 'QUEUED'
   | 'RUNNING'
   | 'BLOCKED'
+  | 'MISSING_SECRETS'
   | 'SUCCESS'
   | 'FAILED'
 
@@ -122,7 +133,7 @@ export type Task = {
   agentInstruction: string | null
   targetRepo: string | null
   targetBranch: string | null
-  agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'BLOCKED' | 'SUCCESS' | 'FAILED'
+  agentStatus: 'IDLE' | 'QUEUED' | 'RUNNING' | 'BLOCKED' | 'MISSING_SECRETS' | 'SUCCESS' | 'FAILED'
   retryCount: number
   prUrl: string | null
   scratchpad: string | null
@@ -166,4 +177,14 @@ export type Task = {
   dependents?: TaskBlockerSummary[]
   // Plan G — checkpoint/resume
   agentRuns?: AgentRun[]
+  // Plan H — per-task secrets
+  requiredSecrets?: string[]
+  missingSecrets?: string[]
+  taskSecrets?: Array<{
+    id: string
+    name: string
+    createdBy: { id: string; username: string; displayName: string }
+    createdAt: string
+    updatedAt: string
+  }>
 }

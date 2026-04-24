@@ -30,6 +30,7 @@ import { resolvers } from './schema/resolvers'
 import { typeDefs } from './schema/typeDefs'
 import { WorkspaceManager } from './workspace'
 import { startCleanupInterval } from './workspace/cleanup'
+import { initSecretsFromEnv } from './secrets/enabled'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const staticDir = isProduction
@@ -56,6 +57,9 @@ const allowedOrigins = (() => {
 
 // Run migrations on startup
 migrate(db)
+
+// Boot secrets feature (no-op warning if HIVEBOARD_SECRETS_KEY is unset)
+initSecretsFromEnv(process.env)
 
 // Clean expired sessions on startup and periodically (every hour)
 cleanExpiredSessions()
