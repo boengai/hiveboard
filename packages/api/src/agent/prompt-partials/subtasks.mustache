@@ -14,7 +14,7 @@ subtasks:
     action: implement         # or: plan, revise; defaults to implement
     target_branch: main       # defaults to this task's target_branch
     tags: []                  # optional tag names (must exist on the board)
-    depends_on_siblings: []   # 0-based indices of siblings that must finish first
+    depends_on_siblings: []   # 0-based indices of EARLIER siblings (must satisfy 0 ≤ d < own index)
 ```
 
 Cap: 20 subtasks per manifest. Each subtask is created with a fresh
