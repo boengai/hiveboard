@@ -3,9 +3,9 @@ import type { IconProps } from '@/types'
 export const PencilIcon = ({ size = '1em' }: IconProps) => (
   <svg
     aria-hidden="true"
+    aria-label="Pencil"
     fill="none"
     height={size}
-    role="presentation"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -14,6 +14,7 @@ export const PencilIcon = ({ size = '1em' }: IconProps) => (
     width={size}
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+    <path d="m15 5 4 4" />
   </svg>
 )

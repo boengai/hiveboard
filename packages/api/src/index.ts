@@ -9,6 +9,7 @@ import {
   type ValidationRule,
   validate,
 } from 'graphql'
+import { useGraphQLSSE } from '@graphql-yoga/plugin-graphql-sse'
 import { createSchema, createYoga } from 'graphql-yoga'
 import { getAuthContext, handleInvitationOAuth, handleLoginOAuth } from './auth'
 import {
@@ -243,6 +244,12 @@ const yoga = createYoga({
         ]
       : []),
     useMutationRateLimit(),
+    // Adds graphql-sse single-connection protocol support (PUT to reserve,
+    // GET to stream, POST to subscribe). Without this plugin yoga only
+    // serves the per-subscription distinct mode, which the client used to
+    // hit the browser's HTTP/1.1 6-conn-per-host limit when a task drawer
+    // was open.
+    useGraphQLSSE(),
   ],
   schema: createSchema({ resolvers, typeDefs }),
 })

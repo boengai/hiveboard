@@ -24,7 +24,6 @@ import {
 } from '../db/task-dependencies'
 import {
   getCurrentQuestion,
-  insertMessage,
   listMessagesForTask,
   type TaskMessageRow,
 } from '../db/task-messages'
@@ -35,9 +34,12 @@ import {
   getSnapshotPatch,
   listSnapshotsForTask,
 } from '../db/workspace-snapshots'
+import { transition as taskLifecycleTransition } from '../lifecycle'
 import { getOrchestrator } from '../orchestrator'
 import { continueFailedTaskDb } from '../orchestrator/orchestrator'
 import { wouldCreateCycle } from '../orchestrator/dependencies'
+import * as commentService from '../services/comment-service'
+import * as messageService from '../services/message-service'
 import {
   archivePlaybook,
   createPlaybook,
@@ -53,7 +55,6 @@ import {
 } from '../playbooks'
 import { mergePlaybookDefaultsIntoTask } from '../playbooks/merge-defaults'
 import {
-  publishMessageAdded,
   publishScratchpadUpdated,
   publishTaskMissingSecretsChanged,
   pubsub,
@@ -324,30 +325,6 @@ function mapSnapshotRow(
   }
 }
 
-/** Fetch a task_messages row by id and return the mapped GraphQL shape. */
-function fetchMessage(id: string) {
-  const row = db.query('SELECT * FROM task_messages WHERE id = ?').get(id) as {
-    id: string
-    task_id: string
-    author_type: 'human' | 'agent'
-    kind: 'hint' | 'redirect' | 'question' | 'answer'
-    body: string
-    delivered_at: string | null
-    created_by: string | null
-    created_at: string
-  }
-  return mapTaskMessage({
-    authorType: row.author_type,
-    body: row.body,
-    createdAt: row.created_at,
-    createdBy: row.created_by,
-    deliveredAt: row.delivered_at,
-    id: row.id,
-    kind: row.kind,
-    taskId: row.task_id,
-  })
-}
-
 function mapColumn(row: ColumnRow) {
   return {
     _boardId: row.board_id,
@@ -592,19 +569,17 @@ function reResolveAfterSecretChange(
     publishTaskMissingSecretsChanged(row.id, missing)
 
     if (row.agent_status === 'missing_secrets' && missing.length === 0) {
-      db.run(
-        `UPDATE tasks
-            SET agent_status = 'queued',
-                agent_error = NULL,
-                queue_after = datetime('now', '+5 seconds'),
-                updated_at = datetime('now')
-          WHERE id = ?`,
-        [row.id],
-      )
-      const updatedRow = db.query('SELECT * FROM tasks WHERE id = ?').get(row.id) as TaskRow | null
-      if (updatedRow) {
-        publishTaskUpdated(mapTask(updatedRow))
-      }
+      taskLifecycleTransition({
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE tasks SET agent_error = NULL, queue_after = datetime('now', '+5 seconds') WHERE id = ?`,
+            [row.id],
+          )
+        },
+        from: 'missing_secrets',
+        taskId: row.id,
+        to: 'queued',
+      })
     }
   }
 }
@@ -700,72 +675,22 @@ export const resolvers = {
     ) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
-      const user = { id: authUser.id }
-
-      if (parentId) {
-        const parent = db
-          .query('SELECT parent_id FROM task_comments WHERE id = ?')
-          .get(parentId) as { parent_id: string | null } | null
-        if (!parent) throw new Error(`Parent comment ${parentId} not found`)
-        if (parent.parent_id !== null) {
-          throw new Error('Cannot nest replies more than 1 level deep')
+      try {
+        return commentService.addComment({
+          actorId: authUser.id,
+          body,
+          parentId,
+          taskId,
+        })
+      } catch (e) {
+        if (e instanceof commentService.CommentNotFoundError) {
+          throw new Error(e.message)
         }
+        if (e instanceof commentService.CommentDepthError) {
+          throw new Error(e.message)
+        }
+        throw e
       }
-
-      const id = generateId()
-
-      db.transaction(() => {
-        db.run(
-          'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
-          [id, taskId, parentId ?? null, body, user.id],
-        )
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            taskId,
-            user.id,
-            'comment_added',
-            JSON.stringify({ comment_id: id }),
-          ],
-        )
-      })()
-
-      const row = db
-        .query('SELECT * FROM task_comments WHERE id = ?')
-        .get(id) as CommentRow
-      const comment = mapComment(row)
-
-      pubsub.publish(
-        'COMMENT_ADDED',
-        taskId,
-        comment as unknown as Record<string, unknown>,
-      )
-
-      // Publish TASK_EVENT for the 'comment_added' event
-      const commentEvent = db
-        .query(
-          `SELECT * FROM task_events WHERE task_id = ? AND type = 'comment_added' ORDER BY created_at DESC LIMIT 1`,
-        )
-        .get(taskId) as {
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      } | null
-      if (commentEvent) {
-        pubsub.publish('TASK_EVENT', taskId, {
-          _actor: commentEvent.actor,
-          createdAt: commentEvent.created_at,
-          data: commentEvent.data,
-          id: commentEvent.id,
-          isSystem: false,
-          type: commentEvent.type,
-        } as unknown as Record<string, unknown>)
-      }
-
-      return comment
     },
 
     addTaskDependency(
@@ -811,59 +736,11 @@ export const resolvers = {
     ) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
-
-      const trimmed = body.trim()
-      if (trimmed.length === 0) {
-        throw new GraphQLError('Answer body cannot be empty', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-      if (trimmed.length > 8 * 1024) {
-        throw new GraphQLError('Message body too long (max 8 KB)', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-
-      const task = db
-        .query('SELECT agent_status FROM tasks WHERE id = ?')
-        .get(taskId) as { agent_status: string } | null
-      if (!task) throw notFound('Task', taskId)
-      if (task.agent_status !== 'blocked') {
-        throw new GraphQLError('Task is not BLOCKED — no question to answer', {
-          extensions: { code: 'TASK_NOT_BLOCKED' },
-        })
-      }
-
-      const id = insertMessage(db, {
-        authorType: 'human',
-        body: trimmed,
-        createdBy: authUser.id,
-        kind: 'answer',
+      return messageService.answerQuestion({
+        actorId: authUser.id,
+        body,
         taskId,
       })
-      db.run(
-        `UPDATE tasks SET agent_status = 'queued',
-           queue_after = datetime('now', '+30 seconds'),
-           verify_attempt_count = 0,
-           pending_auto_revise_source_run_id = NULL,
-           block_reason = NULL,
-           updated_at = datetime('now')
-         WHERE id = ?`,
-        [taskId],
-      )
-
-      const message = fetchMessage(id)
-      publishMessageAdded(taskId, message)
-
-      // Broadcast the queued status change so the board re-renders.
-      const taskRow = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(taskId) as TaskRow | null
-      if (taskRow) {
-        publishTaskUpdated(mapTask(taskRow))
-      }
-
-      return message
     },
 
     async archivePlaybook(
@@ -946,59 +823,38 @@ export const resolvers = {
         await orchestrator.cancelTask(taskId)
       }
 
-      // Atomic update: only cancel if the task is currently in a cancellable state.
-      // This prevents a race where a poll re-queues the agent between a read and write.
-      const result = db.run(
-        `UPDATE tasks SET agent_status = 'idle', action = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ? AND agent_status IN ('running', 'queued', 'failed')`,
-        [user.id, taskId],
-      )
-
-      if (result.changes === 0) {
-        // Task was not in a cancellable state (already idle/failed/etc.) — return current state
+      // Only cancel if currently in a cancellable state. The orchestrator
+      // already aborted any running agent above; the lifecycle transition
+      // serializes with the poll loop's transactions on the SQLite write
+      // lock, so a race-free read happens inside `transition`.
+      const current = db
+        .query('SELECT agent_status FROM tasks WHERE id = ?')
+        .get(taskId) as { agent_status: string } | null
+      if (!current) throw new Error(`Task ${taskId} not found`)
+      if (!['running', 'queued', 'failed'].includes(current.agent_status)) {
         const task = getTaskById(taskId)
         if (!task) throw new Error(`Task ${taskId} not found`)
         return task
       }
 
-      // Record the status_changed event — we know the previous status was 'running' or 'queued'
-      db.run(
-        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-        [
-          generateId(),
-          taskId,
-          user.id,
-          'status_changed',
-          JSON.stringify({ from: 'cancelled', to: 'idle' }),
-        ],
-      )
+      taskLifecycleTransition({
+        event: {
+          actor: user.id,
+          data: { from: 'cancelled', to: 'idle' },
+          type: 'status_changed',
+        },
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE tasks SET action = NULL, updated_by = ? WHERE id = ?`,
+            [user.id, taskId],
+          )
+        },
+        taskId,
+        to: 'idle',
+      })
 
       const task = getTaskById(taskId)
       if (!task) throw new Error(`Task ${taskId} not found`)
-      publishTaskUpdated(task)
-
-      // Publish TASK_EVENT for the 'status_changed' event (cancel → idle)
-      const cancelEvent = db
-        .query(
-          `SELECT * FROM task_events WHERE task_id = ? AND type = 'status_changed' ORDER BY created_at DESC LIMIT 1`,
-        )
-        .get(taskId) as {
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      } | null
-      if (cancelEvent) {
-        pubsub.publish('TASK_EVENT', taskId, {
-          _actor: cancelEvent.actor,
-          createdAt: cancelEvent.created_at,
-          data: cancelEvent.data,
-          id: cancelEvent.id,
-          isSystem: false,
-          type: cancelEvent.type,
-        } as unknown as Record<string, unknown>)
-      }
-
       return task
     },
 
@@ -1259,52 +1115,14 @@ export const resolvers = {
     deleteComment(_: unknown, { id }: { id: string }, ctx: ResolverContext) {
       const authUser = requireAuth(ctx)
       requireCommentAccess(id, authUser)
-      const user = { id: authUser.id }
-
-      // Fetch comment before deletion for task_id
-      const existing = db
-        .query('SELECT * FROM task_comments WHERE id = ?')
-        .get(id) as CommentRow | null
-      if (!existing) throw new Error(`Comment ${id} not found`)
-
-      const eventId = generateId()
-
-      db.transaction(() => {
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            eventId,
-            existing.task_id,
-            user.id,
-            'comment_deleted',
-            JSON.stringify({ comment_id: id }),
-          ],
-        )
-        db.run('DELETE FROM task_comments WHERE id = ?', [id])
-      })()
-
-      // Publish TASK_EVENT for the deletion
-      const ev = db
-        .query('SELECT * FROM task_events WHERE id = ?')
-        .get(eventId) as {
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      } | null
-      if (ev) {
-        pubsub.publish('TASK_EVENT', existing.task_id, {
-          _actor: ev.actor,
-          createdAt: ev.created_at,
-          data: ev.data,
-          id: ev.id,
-          isSystem: false,
-          type: ev.type,
-        } as unknown as Record<string, unknown>)
+      try {
+        return commentService.deleteComment({ actorId: authUser.id, id })
+      } catch (e) {
+        if (e instanceof commentService.CommentNotFoundError) {
+          throw new Error(e.message)
+        }
+        throw e
       }
-
-      return true
     },
 
     deleteTag(
@@ -1343,22 +1161,26 @@ export const resolvers = {
         )
       }
       const newBudget = (row.time_box_ms ?? 0) + additionalMs
-      db.run(
-        `UPDATE tasks SET agent_status = 'queued',
-           queue_after = datetime('now', '+5 seconds'),
-           time_box_ms = ?,
-           time_box_started_at = NULL,
-           block_reason = NULL,
-           updated_at = datetime('now')
-         WHERE id = ?`,
-        [newBudget, taskId],
-      )
+      taskLifecycleTransition({
+        blockReason: null,
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE tasks SET
+               queue_after = datetime('now', '+5 seconds'),
+               time_box_ms = ?,
+               time_box_started_at = NULL
+             WHERE id = ?`,
+            [newBudget, taskId],
+          )
+        },
+        from: 'blocked',
+        taskId,
+        to: 'queued',
+      })
       const updated = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(taskId) as TaskRow
-      const task = mapTask(updated)
-      publishTaskUpdated(task)
-      return task
+      return mapTask(updated)
     },
 
     generateInvitation(
@@ -1632,18 +1454,6 @@ export const resolvers = {
       }
 
       const events: Array<[string, string, string | null]> = []
-
-      const setClauses: string[] = [
-        'action = ?',
-        "agent_status = 'queued'",
-        "queue_after = datetime('now', '+15 seconds')",
-        'verify_attempt_count = 0',
-        'pending_auto_revise_source_run_id = NULL',
-        'updated_by = ?',
-        "updated_at = datetime('now')",
-      ]
-      const values: (string | number | null)[] = [dbAction, user.id]
-
       events.push([
         generateId(),
         'action_set',
@@ -1655,6 +1465,15 @@ export const resolvers = {
         JSON.stringify({ from: existing.agent_status, to: 'queued' }),
       ])
 
+      const setClauses: string[] = [
+        'action = ?',
+        "queue_after = datetime('now', '+15 seconds')",
+        'verify_attempt_count = 0',
+        'pending_auto_revise_source_run_id = NULL',
+        'updated_by = ?',
+      ]
+      const values: (string | number | null)[] = [dbAction, user.id]
+
       if (instruction !== undefined && instruction !== null) {
         setClauses.push('agent_instruction = ?')
         values.push(instruction)
@@ -1662,15 +1481,22 @@ export const resolvers = {
 
       values.push(taskId)
 
-      db.transaction(() => {
-        db.run(`UPDATE tasks SET ${setClauses.join(', ')} WHERE id = ?`, values)
-        for (const [eventId, type, data] of events) {
-          db.run(
-            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-            [eventId, taskId, user.id, type, data],
+      taskLifecycleTransition({
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = ?`,
+            values,
           )
-        }
-      })()
+          for (const [eventId, type, data] of events) {
+            txDb.run(
+              'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+              [eventId, taskId, user.id, type, data],
+            )
+          }
+        },
+        taskId,
+        to: 'queued',
+      })
       // `appliedPlaybookVersionId` is resolved by the orchestrator (insertAgentRun
       // looks it up again when the run row is created); we retain it here for
       // clarity/future use.
@@ -1678,7 +1504,6 @@ export const resolvers = {
 
       const task = getTaskById(taskId)
       if (!task) throw new Error(`Task ${taskId} not found`)
-      publishTaskUpdated(task)
 
       // Publish task events
       for (const [eventId, type, data] of events) {
@@ -1702,31 +1527,7 @@ export const resolvers = {
     ) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
-
-      const trimmed = body.trim()
-      if (trimmed.length === 0) {
-        throw new GraphQLError('Hint body cannot be empty', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-      if (trimmed.length > 8 * 1024) {
-        throw new GraphQLError('Message body too long (max 8 KB)', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-
-      const id = insertMessage(db, {
-        authorType: 'human',
-        body: trimmed,
-        createdBy: authUser.id,
-        kind: 'hint',
-        taskId,
-      })
-      await getOrchestrator()?.dispatchHumanMessage(taskId, 'hint', trimmed, id)
-
-      const message = fetchMessage(id)
-      publishMessageAdded(taskId, message)
-      return message
+      return messageService.sendHint({ actorId: authUser.id, body, taskId })
     },
 
     async sendRedirect(
@@ -1736,44 +1537,11 @@ export const resolvers = {
     ) {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
-
-      const trimmed = body.trim()
-      if (trimmed.length === 0) {
-        throw new GraphQLError('Redirect body cannot be empty', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-      if (trimmed.length > 8 * 1024) {
-        throw new GraphQLError('Message body too long (max 8 KB)', {
-          extensions: { code: 'BAD_USER_INPUT' },
-        })
-      }
-
-      const id = insertMessage(db, {
-        authorType: 'human',
-        body: trimmed,
-        createdBy: authUser.id,
-        kind: 'redirect',
+      return messageService.sendRedirect({
+        actorId: authUser.id,
+        body,
         taskId,
       })
-      await getOrchestrator()?.dispatchHumanMessage(
-        taskId,
-        'redirect',
-        trimmed,
-        id,
-      )
-
-      const message = fetchMessage(id)
-      publishMessageAdded(taskId, message)
-
-      // A redirect may have flipped agent_status; broadcast so UI updates.
-      const taskRow = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(taskId) as TaskRow | null
-      if (taskRow) {
-        publishTaskUpdated(mapTask(taskRow))
-      }
-      return message
     },
 
     continueFailedTask(
@@ -2138,22 +1906,7 @@ export const resolvers = {
       if (authUser.role !== 'super-admin' && authorId !== authUser.id) {
         throw notFound('Comment', id)
       }
-      db.run(
-        `UPDATE task_comments SET body = ?, updated_at = datetime('now') WHERE id = ?`,
-        [body, id],
-      )
-      const row = db
-        .query('SELECT * FROM task_comments WHERE id = ?')
-        .get(id) as CommentRow
-      const comment = mapComment(row)
-
-      pubsub.publish(
-        'COMMENT_UPDATED',
-        row.task_id,
-        comment as unknown as Record<string, unknown>,
-      )
-
-      return comment
+      return commentService.updateComment({ body, id })
     },
 
     async updatePlaybook(
@@ -2802,6 +2555,22 @@ export const resolvers = {
   },
 
   Task: {
+    agentRuns(parent: { id: string }) {
+      const rows = db
+        .query(
+          'SELECT * FROM agent_runs WHERE task_id = ? ORDER BY started_at DESC',
+        )
+        .all(parent.id) as AgentRunRow[]
+      return rows.map((row) => ({
+        action: row.action,
+        error: row.error,
+        finishedAt: row.finished_at,
+        id: row.id,
+        output: row.output,
+        startedAt: row.started_at,
+        status: row.status,
+      }))
+    },
     blockers(parent: { id: string }) {
       const ids = listBlockers(db, parent.id)
       if (ids.length === 0) return []

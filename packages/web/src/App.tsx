@@ -1,13 +1,9 @@
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
-import {
-  AuthProvider,
-  Avatar,
-  Button,
-  ConnectionIndicator,
-  FileTextIcon,
-  RightFromBracketIcon,
-  UsersIcon,
-} from '@/components'
+import { Avatar } from '@/components/common/avatar' // reduce the bundle size
+import { Button } from '@/components/common/button' // reduce the bundle size
+import { ConnectionIndicator } from '@/components/common/connection-indicator' // reduce the bundle size
+import { BookTextIcon, LogOutIcon, UsersIcon } from '@/components/common/icon' // reduce the bundle size
+import { AuthProvider } from '@/components/provider/AuthProvider' // reduce the bundle size
 import { LoginPage } from '@/pages/login'
 import { useAuthStore } from '@/store/authStore'
 
@@ -23,17 +19,21 @@ function HeaderUserMenu() {
     <div className="flex items-center gap-3">
       <ConnectionIndicator />
       <Button
+        aria-label="Playbooks"
         onClick={() => router.navigate({ to: '/playbooks' })}
         size="icon"
+        title="Playbooks"
         type="button"
         variant="ghost"
       >
-        <FileTextIcon />
+        <BookTextIcon />
       </Button>
       {user.role === 'super-admin' && (
         <Button
+          aria-label="Users"
           onClick={() => router.navigate({ to: '/users' })}
           size="icon"
+          title="Users"
           type="button"
           variant="ghost"
         >
@@ -41,8 +41,15 @@ function HeaderUserMenu() {
         </Button>
       )}
       {!isLocal && (
-        <Button onClick={logout} size="icon" type="button" variant="ghost">
-          <RightFromBracketIcon />
+        <Button
+          aria-label="Log out"
+          onClick={logout}
+          size="icon"
+          title="Log out"
+          type="button"
+          variant="ghost"
+        >
+          <LogOutIcon />
         </Button>
       )}
       <Avatar name={user.username} />

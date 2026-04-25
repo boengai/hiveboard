@@ -242,8 +242,8 @@ export function createSubtasksFromManifest(
     .all(parent.board_id) as TagRow[]
   for (const t of allBoardTags) tagNameToId.set(t.name, t.id)
 
-  for (let i = 0; i < manifest.subtasks.length; i++) {
-    for (const name of manifest.subtasks[i]?.tags) {
+  for (const [i, subtask] of manifest.subtasks.entries()) {
+    for (const name of subtask.tags) {
       if (!tagNameToId.has(name)) {
         throw new Error(
           `subtasks[${i}].tags references unknown tag "${name}" on board ${parent.board_id}`,

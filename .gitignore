@@ -37,9 +37,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 # Generated files
-packages/api/tmp/**
-!packages/api/tmp/**/
-!packages/api/tmp/**/*/.gitkeep
+tmp/**
+!tmp/**/
+!tmp/**/*/.gitkeep
 
 docs/superpowers/**
 packages/web/dist/
@@ -47,6 +47,9 @@ packages/web/dist/
 
 # Claude Cli
 .claude/settings.local.json
+
+# Playwright
+.playwright-mcp
 
 # Git worktrees
 .worktrees/

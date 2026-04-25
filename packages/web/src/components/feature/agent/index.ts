@@ -1,2 +1,2 @@
-export { AgentStatusBadge } from './AgentStatusBadge'
-export { AgentRunLog } from './AgentRunLog'
+export * from './AgentRunLog'
+export * from './AgentStatusBadge'

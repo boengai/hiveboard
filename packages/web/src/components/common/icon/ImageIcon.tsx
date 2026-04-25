@@ -3,9 +3,9 @@ import type { IconProps } from '@/types'
 export const ImageIcon = ({ size = '1em' }: IconProps) => (
   <svg
     aria-hidden="true"
+    aria-label="Image"
     fill="none"
     height={size}
-    role="presentation"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"

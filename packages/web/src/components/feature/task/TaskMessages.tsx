@@ -6,9 +6,11 @@ import {
   MESSAGE_ADDED_SUBSCRIPTION,
   SEND_HINT,
   SEND_REDIRECT,
-  subscribe,
 } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type {
+  ComposerMode,
+  ComposerProps,
   MessageAddedPayload,
   TaskMessage,
   TaskMessageKind,
@@ -58,9 +60,13 @@ function MessageBubble({ message }: { message: TaskMessage }) {
   const undelivered = isHuman && message.deliveredAt === null
 
   return (
-    <div className={`flex w-full ${isHuman ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className="flex w-full justify-start data-[author=human]:justify-end"
+      data-author={isHuman ? 'human' : 'agent'}
+    >
       <div
-        className={`flex max-w-[85%] flex-col gap-1 ${isHuman ? 'items-end' : 'items-start'}`}
+        className="group flex max-w-[85%] flex-col items-start gap-1 data-[author=human]:items-end"
+        data-author={isHuman ? 'human' : 'agent'}
       >
         <div className="flex items-center gap-1.5 px-1">
           <KindChip kind={message.kind} />
@@ -71,11 +77,8 @@ function MessageBubble({ message }: { message: TaskMessage }) {
           </span>
         </div>
         <div
-          className={`rounded-lg border px-3 py-2 text-body-sm ${
-            isHuman
-              ? 'border-honey-400/30 bg-honey-400/10 text-text-primary'
-              : 'border-border-default bg-surface-overlay/50 text-text-primary'
-          }`}
+          className="rounded-lg border border-border-default bg-surface-overlay/50 px-3 py-2 text-body-sm text-text-primary data-[author=human]:border-honey-400/30 data-[author=human]:bg-honey-400/10"
+          data-author={isHuman ? 'human' : 'agent'}
         >
           <MarkdownPreview content={message.body} />
         </div>
@@ -92,15 +95,6 @@ function MessageBubble({ message }: { message: TaskMessage }) {
 // ---------------------------------------------------------------------------
 // Composer
 // ---------------------------------------------------------------------------
-
-type ComposerMode = 'ANSWER' | 'HINT_OR_REDIRECT'
-
-type ComposerProps = {
-  taskId: string
-  mode: ComposerMode
-  agentStatus: string
-  currentQuestion: TaskMessagesProps['currentQuestion']
-}
 
 function Composer({
   taskId,
@@ -291,21 +285,18 @@ export function TaskMessages({
     setMessages(initialMessages)
   }, [initialMessages])
 
-  useEffect(() => {
-    const dispose = subscribe<MessageAddedPayload>(
-      MESSAGE_ADDED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const incoming = data.messageAdded
-        if (!incoming || incoming.taskId !== taskId) return
-        setMessages((prev: TaskMessage[]) => {
-          if (prev.some((m: TaskMessage) => m.id === incoming.id)) return prev
-          return [...prev, incoming]
-        })
-      },
-    )
-    return dispose
-  }, [taskId])
+  useTaskSubscription<MessageAddedPayload>(
+    MESSAGE_ADDED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const incoming = data.messageAdded
+      if (!incoming || incoming.taskId !== taskId) return
+      setMessages((prev: TaskMessage[]) => {
+        if (prev.some((m: TaskMessage) => m.id === incoming.id)) return prev
+        return [...prev, incoming]
+      })
+    },
+  )
 
   const sorted = useMemo(
     () =>

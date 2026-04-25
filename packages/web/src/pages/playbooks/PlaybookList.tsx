@@ -1,22 +1,14 @@
 import { useState } from 'react'
 import { Button } from '@/components'
-import type { Playbook } from '@/types'
+import type { PlaybookListProps } from '@/types'
 import { cnMerge } from '@/utils'
 import { PlaybookVersionList } from './PlaybookVersionList'
 
-type Props = {
-  playbooks: Playbook[]
-  onEdit?: (pb: Playbook) => void
-  onRefresh?: () => void
-}
-
-export function PlaybookList({ playbooks, onEdit }: Props) {
+export function PlaybookList({ playbooks, onEdit }: PlaybookListProps) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
   if (playbooks.length === 0) {
-    return (
-      <p className="text-body-sm text-text-secondary">No playbooks yet.</p>
-    )
+    return <p className="text-body-sm text-text-secondary">No playbooks yet.</p>
   }
 
   return (
@@ -25,11 +17,11 @@ export function PlaybookList({ playbooks, onEdit }: Props) {
         const open = expanded === pb.id
         return (
           <div
-            key={pb.id}
             className={cnMerge(
               'rounded-lg border border-border-default p-4',
               pb.archived ? 'opacity-50' : '',
             )}
+            key={pb.id}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
@@ -62,9 +54,7 @@ export function PlaybookList({ playbooks, onEdit }: Props) {
                   type="button"
                   variant="ghost"
                 >
-                  {open
-                    ? 'Hide versions'
-                    : `Versions (${pb.versions.length})`}
+                  {open ? 'Hide versions' : `Versions (${pb.versions.length})`}
                 </Button>
                 {onEdit ? (
                   <Button

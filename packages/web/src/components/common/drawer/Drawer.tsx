@@ -1,5 +1,6 @@
 import { m } from 'motion/react'
 import { Drawer as VaulDrawer } from 'vaul'
+import { XIcon } from '@/components/common/icon'
 import type { DrawerProps } from '@/types'
 import { tv } from '@/utils'
 
@@ -39,10 +40,13 @@ export const Drawer = ({
         <div className="flex w-full shrink-0 items-center gap-3 border-border-default border-b bg-surface-overlay/50 px-5 py-3.5">
           <VaulDrawer.Close asChild>
             <m.button
-              className="size-3 shrink-0 rounded-full bg-error-400"
-              whileHover={{ opacity: 0.8, scale: 1.15 }}
+              aria-label="Close drawer"
+              className="flex size-3 shrink-0 items-center justify-center rounded-full bg-error-400 text-transparent transition-colors hover:text-white/90 focus-visible:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-honey-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
+              title="Close"
+              whileHover={{ opacity: 0.85, scale: 1.15 }}
               whileTap={{ scale: 0.9 }}
             >
+              <XIcon size={8} />
               <span className="sr-only">Close</span>
             </m.button>
           </VaulDrawer.Close>

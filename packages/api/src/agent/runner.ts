@@ -205,12 +205,17 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
   const captureCheckpoints = Boolean(checkpointsSupported() && agentRunId)
   const db = options.db
 
+  const workspaceRoot = options.workspacePath
   const lineParser = captureCheckpoints
     ? new NDJSONLineParser(
         (evt, meta) => {
+          // Narrow for TS — captureCheckpoints already implies agentRunId
+          // is set, but the closure can't see that across const boundaries.
+          if (!agentRunId) return
           turn += 1
           const cp: Checkpoint | null = summarizeEvent(evt, turn, {
             rawBytes: meta.rawBytes,
+            workspaceRoot,
           })
           if (!cp) return
           const id = generateId()

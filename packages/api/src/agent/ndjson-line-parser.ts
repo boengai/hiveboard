@@ -20,8 +20,9 @@ export class NDJSONLineParser {
 
   feed(chunk: string): void {
     this.buffer += chunk
-    let idx: number
-    while ((idx = this.buffer.indexOf('\n')) !== -1) {
+    while (true) {
+      const idx = this.buffer.indexOf('\n')
+      if (idx === -1) break
       let line = this.buffer.slice(0, idx)
       this.buffer = this.buffer.slice(idx + 1)
       if (line.endsWith('\r')) line = line.slice(0, -1)

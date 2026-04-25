@@ -1,5 +1,7 @@
 import type { Database } from 'bun:sqlite'
 
+import { transition as taskLifecycleTransition } from '../lifecycle'
+
 /**
  * Statuses that cascadeDependencyFailure skips: already terminal, already
  * blocked by a prior cascade (idempotency), or currently running (we do not
@@ -75,14 +77,12 @@ export function cascadeDependencyFailure(
     // cascade (idempotency), or currently running (we don't yank an in-flight
     // agent into BLOCKED mid-execution — its own onComplete path will run).
     if (CASCADE_SKIP_STATUSES.has(row.agent_status)) continue
-    db.run(
-      `UPDATE tasks
-          SET agent_status = 'blocked',
-              block_reason = 'DEPENDENCY_FAILED',
-              updated_at = datetime('now')
-        WHERE id = ?`,
-      [task_id],
-    )
+    taskLifecycleTransition({
+      blockReason: 'DEPENDENCY_FAILED',
+      db,
+      taskId: task_id,
+      to: 'blocked',
+    })
     moved.push(task_id)
   }
   return moved

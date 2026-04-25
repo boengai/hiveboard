@@ -28,8 +28,19 @@ class ConnectionStateManager {
 
 export const connectionStateManager = new ConnectionStateManager()
 
+// `singleConnection: true` multiplexes every subscription over one HTTP
+// stream. Without it (graphql-sse default), each subscribe() opens a
+// distinct fetch — with ~10 drawer subscriptions the browser's HTTP/1.1
+// 6-connections-per-host pool saturates and the next page load (e.g.
+// Cmd+R) waits for streams to close before it gets a slot.
+// The dedicated /graphql/stream endpoint is provided server-side by
+// @graphql-yoga/plugin-graphql-sse, which speaks the PUT-reservation
+// protocol that single-connection mode requires.
+// `lazy: true` defers opening the connection until the first subscribe.
 export const sseClient = createClient({
-  url: `${window.location.origin}/graphql`,
+  lazy: true,
+  singleConnection: true,
+  url: `${window.location.origin}/graphql/stream`,
 })
 
 const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000, 16000, 30000]
@@ -48,6 +59,26 @@ if (typeof document !== 'undefined') {
     if (document.visibilityState === 'visible') {
       for (const cb of reconnectCallbacks) cb()
     }
+  })
+}
+
+// Track every active subscription's dispose so we can flush them
+// synchronously on unload. With ~10 subscriptions open (e.g. when a task
+// drawer is mounted) the browser otherwise waits for each SSE stream to
+// finish on its own before letting the next page load — perceived as a
+// multi-second Cmd+R lag.
+const activeDisposers = new Set<() => void>()
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    for (const dispose of activeDisposers) {
+      try {
+        dispose()
+      } catch {
+        /* never throw during unload */
+      }
+    }
+    activeDisposers.clear()
   })
 }
 
@@ -97,19 +128,14 @@ export function subscribe<T>(
 
   const run = async () => {
     try {
-      const subscription = sseClient.iterate(
-        { query, variables },
-        {
-          // Fires once the SSE connection is established, even before any
-          // subscription data arrives.  This correctly resets the indicator
-          // after a reconnect so it doesn't stay stuck on "Reconnecting…".
-          connected() {
-            connectionStateManager.setState('connected')
-            attempt = 0
-          },
-        },
-      )
+      const subscription = sseClient.iterate({ query, variables })
       activeIterator = subscription as AsyncIterableIterator<unknown>
+      // Single-connection mode has no per-iterator `connected` callback;
+      // mark connected once iterate() has returned a working iterator.
+      // If the shared transport is actually down, the for-await below will
+      // throw and the catch will flip us to 'error' / 'reconnecting'.
+      connectionStateManager.setState('connected')
+      attempt = 0
       for await (const result of subscription) {
         if (disposed) break
         if (result.data) onData(result.data as T)
@@ -140,16 +166,20 @@ export function subscribe<T>(
 
   run()
 
-  return () => {
+  const dispose = () => {
+    if (disposed) return
     disposed = true
     clearTimer()
     reconnectCallbacks.delete(forceReconnect)
+    activeDisposers.delete(dispose)
     // Close the SSE connection immediately instead of waiting for the next
     // data event to break the for-await loop.
     if (activeIterator?.return) {
       activeIterator.return(undefined)
     }
   }
+  activeDisposers.add(dispose)
+  return dispose
 }
 
 export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
@@ -160,6 +190,7 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
       body
       position
       action
+      agentInstruction
       targetRepo
       targetBranch
       agentStatus
@@ -188,6 +219,54 @@ export const TASK_UPDATED_SUBSCRIPTION = /* GraphQL */ `
         id
         name
         color
+      }
+      blockReason
+      blockers {
+        id
+        title
+        agentStatus
+        blockReason
+      }
+      parentTask {
+        id
+        title
+        tags {
+          color
+        }
+      }
+      missingSecrets
+      requiredSecrets
+      timeBoxMs
+      timeBoxRemainingMs
+      timeBoxStartedAt
+    }
+  }
+`
+
+export const COMMENT_UPDATED_SUBSCRIPTION = /* GraphQL */ `
+  subscription CommentUpdated($taskId: ID!) {
+    commentUpdated(taskId: $taskId) {
+      id
+      body
+      parentId
+      createdAt
+      updatedAt
+      createdBy {
+        id
+        username
+        displayName
+      }
+      replies {
+        id
+        body
+        parentId
+        createdAt
+        updatedAt
+        createdBy {
+          id
+          username
+          displayName
+        }
       }
     }
   }

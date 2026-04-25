@@ -145,6 +145,22 @@ export type Task = {
   createdAt: string
   updatedAt: string
   column?: { id: string; name: string }
+  comments?: Array<{
+    id: string
+    body: string
+    parentId: string | null
+    createdAt: string
+    updatedAt: string
+    createdBy: { id: string; username: string; displayName: string }
+    replies: Array<{
+      id: string
+      body: string
+      parentId: string | null
+      createdAt: string
+      updatedAt: string
+      createdBy: { id: string; username: string; displayName: string }
+    }>
+  }>
   messages?: TaskMessageSummary[]
   currentQuestion?: { id: string; body: string; createdAt: string } | null
   verificationRuns?: Array<{

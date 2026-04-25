@@ -1,5 +1,1 @@
-export {
-  TaskPicker,
-  type TaskPickerOption,
-  type TaskPickerProps,
-} from './TaskPicker'
+export * from './TaskPicker'

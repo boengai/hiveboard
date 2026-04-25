@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MarkdownPreview } from '@/components/common'
-import { SCRATCHPAD_UPDATED_SUBSCRIPTION, subscribe } from '@/graphql'
+import { SCRATCHPAD_UPDATED_SUBSCRIPTION } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type { ScratchpadUpdatedPayload, TaskScratchpadProps } from '@/types'
 
 export function TaskScratchpad({
@@ -13,18 +14,15 @@ export function TaskScratchpad({
     setContent(initialContent)
   }, [initialContent])
 
-  useEffect(() => {
-    const dispose = subscribe<ScratchpadUpdatedPayload>(
-      SCRATCHPAD_UPDATED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const payload = data.scratchpadUpdated
-        if (!payload || payload.taskId !== taskId) return
-        setContent(payload.content)
-      },
-    )
-    return dispose
-  }, [taskId])
+  useTaskSubscription<ScratchpadUpdatedPayload>(
+    SCRATCHPAD_UPDATED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const payload = data.scratchpadUpdated
+      if (!payload || payload.taskId !== taskId) return
+      setContent(payload.content)
+    },
+  )
 
   if (!content) {
     return (

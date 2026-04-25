@@ -15,8 +15,8 @@ Investigate observability
 ## Scratchpad — your memory across runs on this task
 
 You have a scratchpad file at `$HIVEBOARD_SCRATCHPAD` that persists across all
-runs on this task (including prior PLAN/IMPLEMENT/REVISE attempts). Use it as
-your working memory.
+runs on this task, regardless of action (`plan`, `implement`, `revise`, or any
+`playbook:*` run). Use it as your working memory.
 
 ### What past runs learned (auto-loaded from your scratchpad):
 
@@ -35,14 +35,15 @@ yourself, not a report for humans.
   this file — `Write` replaces contents and would delete older notes you
   cannot see (the auto-loaded block above may be truncated if the file has
   grown large).
-- Prefix every entry with an ISO 8601 UTC timestamp and the current action,
-  e.g. `## 2026-04-21T14:32:05Z — IMPLEMENT`.
+- Prefix every entry with an ISO 8601 UTC timestamp and the current action
+  (use the value shown in the `Action:` header above — e.g. `implement`,
+  `revise`, or `playbook:my-recipe`), e.g. `## 2026-04-21T14:32:05Z — implement`.
 - Example:
 
   ```bash
   cat <<'EOF' >> "$HIVEBOARD_SCRATCHPAD"
 
-  ## 2026-04-21T14:32:05Z — IMPLEMENT
+  ## 2026-04-21T14:32:05Z — implement
   Reused JWT helper from packages/shared/jwt. Ruled out sessions (no Redis).
   EOF
   ```
@@ -134,7 +135,7 @@ subtasks:
     action: implement         # or: plan, revise; defaults to implement
     target_branch: main       # defaults to this task's target_branch
     tags: []                  # optional tag names (must exist on the board)
-    depends_on_siblings: []   # 0-based indices of siblings that must finish first
+    depends_on_siblings: []   # 0-based indices of EARLIER siblings (must satisfy 0 ≤ d < own index)
 ```
 
 Cap: 20 subtasks per manifest. Each subtask is created with a fresh

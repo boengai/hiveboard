@@ -1,6 +1,13 @@
 import { useForm } from '@tanstack/react-form'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react'
 import {
   ArchiveIcon,
   Avatar,
@@ -10,6 +17,8 @@ import {
   ComboboxInput,
   CopyIcon,
   Drawer,
+  FieldError,
+  FieldLabel,
   MarkdownEditor,
   MarkdownPreview,
   PencilIcon,
@@ -18,7 +27,7 @@ import {
   TextAreaInput,
   TextInput,
 } from '@/components/common'
-import { GitHubIcon } from '@/components/common/icon'
+import { ChevronIcon, GitHubIcon } from '@/components/common/icon'
 import {
   ARCHIVE_TASK,
   CANCEL_AGENT,
@@ -27,21 +36,21 @@ import {
   CREATE_TASK,
   GET_BOARD,
   GET_TASK,
+  GET_TASK_TIMELINE,
   graphqlClient,
   RUN_AGENT,
   UNARCHIVE_TASK,
   UPDATE_TASK,
 } from '@/graphql'
-import { useImageUpload } from '@/hooks/useImageUpload'
-import { usePlaybooks } from '@/hooks/usePlaybooks'
-import type { TaskFormValues } from '@/schemas/task'
-import { taskFormSchema } from '@/schemas/task'
+import { useImageUpload, usePlaybooks } from '@/hooks'
+import { type TaskFormValues, taskFormSchema } from '@/schemas'
 import { useBoardStore } from '@/store'
 import type {
   ActionColor,
   AgentPanelProps,
   CreateModeProps,
   EditModeProps,
+  RawTimelineEvent,
   Tag,
   Task,
   ViewModeProps,
@@ -73,12 +82,6 @@ const agentDot = tv({
   },
 })
 
-const BUILT_IN_ACTION_OPTIONS = [
-  { label: 'Plan', value: 'plan' },
-  { label: 'Implement', value: 'implement' },
-  { label: 'Revise', value: 'revise' },
-]
-
 function agentStatusColor(status: string): ActionColor {
   switch (status) {
     case 'QUEUED':
@@ -106,33 +109,67 @@ const SectionLabel = ({ children }: { children: ReactNode }) => (
   </span>
 )
 
-const FieldLabel = ({
-  htmlFor,
-  children,
-  required,
-}: {
-  htmlFor?: string
-  children: ReactNode
-  required?: boolean
-}) => (
-  <label
-    className="font-medium text-body-sm text-text-secondary"
-    htmlFor={htmlFor}
-  >
-    {children}
-    {required && <span className="ml-0.5 text-honey-400">*</span>}
-  </label>
-)
+const DRAWER_SECTION_STORAGE_KEY = 'hiveboard.drawer.collapsed-sections'
 
-const FieldError = ({
-  errors,
+function useSectionOpen(name: string, defaultOpen: boolean) {
+  const [open, setOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return defaultOpen
+    try {
+      const raw = window.localStorage.getItem(DRAWER_SECTION_STORAGE_KEY)
+      if (!raw) return defaultOpen
+      const map = JSON.parse(raw) as Record<string, boolean>
+      return map[name] ?? defaultOpen
+    } catch {
+      return defaultOpen
+    }
+  })
+  const onToggle = useCallback(
+    (next: boolean) => {
+      setOpen(next)
+      try {
+        const raw = window.localStorage.getItem(DRAWER_SECTION_STORAGE_KEY)
+        const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
+        map[name] = next
+        window.localStorage.setItem(
+          DRAWER_SECTION_STORAGE_KEY,
+          JSON.stringify(map),
+        )
+      } catch {
+        /* storage unavailable — non-fatal */
+      }
+    },
+    [name],
+  )
+  return [open, onToggle] as const
+}
+
+function CollapsibleSection({
+  name,
+  label,
+  defaultOpen = false,
+  children,
 }: {
-  errors: Array<string | { message: string } | undefined>
-}) => {
-  const first = errors.find((e) => e != null)
-  if (!first) return null
-  const msg = typeof first === 'string' ? first : first.message
-  return <span className="text-body-xs text-error-400">{msg}</span>
+  name: string
+  label: ReactNode
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useSectionOpen(name, defaultOpen)
+  return (
+    <details
+      className="group flex flex-col gap-3 border-border-default border-t pt-5"
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      open={open}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-text-tertiary marker:hidden hover:text-text-primary">
+        <span className="inline-flex -rotate-90 transition-transform group-open:rotate-0">
+          <ChevronIcon size={10} />
+        </span>
+        <SectionLabel>{label}</SectionLabel>
+      </summary>
+      <div className="flex flex-col gap-3">{children}</div>
+    </details>
+  )
 }
 
 const CreateMode = ({
@@ -319,10 +356,21 @@ const ViewMode = ({
   onInterruptAgent,
   onUpdateAction,
   onContinueTask,
+  onRequiredSecretsChanged,
   boardSecrets,
+  initialTimelineEntries,
 }: ViewModeProps) => {
+  // state
   const [continueInstruction, setContinueInstruction] = useState('')
   const [continuing, setContinuing] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyTaskId = () => {
+    if (!task?.id) return
+    navigator.clipboard.writeText(task.id)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   const handleContinue = async () => {
     setContinuing(true)
@@ -343,6 +391,21 @@ const ViewMode = ({
             {task.title}
           </h2>
           <div className="flex shrink-0 items-center gap-1 pt-0.5">
+            <Button
+              aria-label={copied ? 'Task ID copied' : 'Copy task ID'}
+              onClick={handleCopyTaskId}
+              size="small"
+              title={copied ? 'Copied!' : 'Copy full task ID'}
+              variant="ghost"
+            >
+              {copied ? (
+                <span className="text-success-400">
+                  <CheckIcon size={12} />
+                </span>
+              ) : (
+                <CopyIcon size={12} />
+              )}
+            </Button>
             {task.column?.name !== 'Done' && (
               <Button
                 onClick={onEdit}
@@ -368,7 +431,6 @@ const ViewMode = ({
             </Button>
           </div>
         </div>
-
         {/* Meta row */}
         <div className="flex flex-wrap items-center gap-2">
           {task.targetRepo && (
@@ -465,8 +527,7 @@ const ViewMode = ({
         </span>
       </div>
 
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Dependencies</SectionLabel>
+      <CollapsibleSection defaultOpen label="Dependencies" name="dependencies">
         <TaskDependencies
           agentStatus={task.agentStatus}
           blockers={task.blockers ?? []}
@@ -474,17 +535,15 @@ const ViewMode = ({
           dependents={task.dependents ?? []}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Subtasks</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Subtasks" name="subtasks">
         <TaskSubtasks
           parentTask={task.parentTask ?? null}
           subtasks={task.subtasks ?? []}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Time Box</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Time Box" name="time-box">
         <TaskTimeBox
           agentStatus={task.agentStatus}
           blockReason={task.blockReason ?? null}
@@ -493,66 +552,65 @@ const ViewMode = ({
           timeBoxRemainingMs={task.timeBoxRemainingMs ?? null}
           timeBoxStartedAt={task.timeBoxStartedAt ?? null}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Secrets</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Secrets" name="secrets">
         <TaskSecrets
           boardSecrets={boardSecrets}
+          onRequiredChanged={onRequiredSecretsChanged}
           task={task}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Scratchpad</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Scratchpad" name="scratchpad">
         <TaskScratchpad
           initialContent={task.scratchpad ?? ''}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Run Log</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Run Log" name="run-log">
         <AgentRunLog agentRuns={task.agentRuns ?? []} taskId={task.id} />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Messages</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection defaultOpen label="Messages" name="messages">
         <TaskMessages
           agentStatus={task.agentStatus}
           currentQuestion={task.currentQuestion ?? null}
           initialMessages={task.messages ?? []}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Progress</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Progress" name="progress">
         <TaskProgress
           agentStatus={task.agentStatus}
           initialEntries={[]}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Timeline</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Timeline" name="timeline">
         <TaskTimeline
           initialSnapshots={task.workspaceSnapshots ?? []}
           taskId={task.id}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Verification</SectionLabel>
+      </CollapsibleSection>
+      <CollapsibleSection label="Verification" name="verification">
         <TaskVerification
           initialRuns={task.verificationRuns ?? []}
           taskId={task.id}
           verifyAttemptCount={task.verifyAttemptCount ?? 0}
         />
-      </div>
-      <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-        <SectionLabel>Event History</SectionLabel>
-        <TaskEventHistory taskId={task.id} />
-      </div>
+      </CollapsibleSection>
+      <CollapsibleSection
+        defaultOpen
+        label="Event History"
+        name="event-history"
+      >
+        <TaskEventHistory
+          initialEntries={initialTimelineEntries ?? []}
+          taskId={task.id}
+        />
+      </CollapsibleSection>
       {task.column?.name !== 'Done' && (
-        <div className="flex flex-col gap-3 border-border-default border-t pt-5">
-          <SectionLabel>Comments</SectionLabel>
-          <TaskComments taskId={task.id} />
-        </div>
+        <CollapsibleSection label="Comments" name="comments">
+          <TaskComments initialComments={task.comments} taskId={task.id} />
+        </CollapsibleSection>
       )}
     </div>
   )
@@ -568,26 +626,18 @@ const AgentPanel = ({
     task.agentStatus === 'QUEUED' || task.agentStatus === 'RUNNING'
   const [instruction, setInstruction] = useState(task.agentInstruction ?? '')
   const { playbooks } = usePlaybooks()
+  const [playbookFireCount, setPlaybookFireCount] = useState(0)
 
   useEffect(() => {
     setInstruction(task.agentInstruction ?? '')
   }, [task.agentInstruction])
 
-  const actionGroups = useMemo(() => {
-    const groups = [
-      { label: 'Built-in actions', options: BUILT_IN_ACTION_OPTIONS },
-    ]
+  const playbookOptions = useMemo(() => {
     const activePlaybooks = (playbooks ?? []).filter((p) => !p.archived)
-    if (activePlaybooks.length > 0) {
-      groups.push({
-        label: 'Playbooks',
-        options: activePlaybooks.map((pb) => ({
-          label: `${pb.displayName} · v${pb.currentVersion.versionNumber}`,
-          value: `playbook:${pb.name}`,
-        })),
-      })
-    }
-    return groups
+    return activePlaybooks.map((pb) => ({
+      label: `${pb.displayName} · v${pb.currentVersion.versionNumber}`,
+      value: `playbook:${pb.name}`,
+    }))
   }, [playbooks])
 
   return (
@@ -645,19 +695,52 @@ const AgentPanel = ({
         />
       </div>
 
-      {/* Action select */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <SelectInput
-            disabled={isAgentActive || loading}
-            groups={actionGroups}
-            onValueChange={(action) =>
-              onUpdateAction(action, instruction || undefined)
-            }
-            placeholder="Select action…"
-            value={task.action || undefined}
-          />
-        </div>
+      {/* Actions: built-ins as buttons, playbooks behind a select */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          color="info"
+          disabled={isAgentActive || loading}
+          onClick={() => onUpdateAction('plan', instruction || undefined)}
+          size="small"
+          type="button"
+          variant="secondary"
+        >
+          Plan
+        </Button>
+        <Button
+          color="success"
+          disabled={isAgentActive || loading}
+          onClick={() => onUpdateAction('implement', instruction || undefined)}
+          size="small"
+          type="button"
+        >
+          Implement
+        </Button>
+        <Button
+          color="warning"
+          disabled={isAgentActive || loading}
+          onClick={() => onUpdateAction('revise', instruction || undefined)}
+          size="small"
+          type="button"
+          variant="secondary"
+        >
+          Revise
+        </Button>
+        {playbookOptions.length > 0 && (
+          <div className="ml-auto min-w-48">
+            <SelectInput
+              disabled={isAgentActive || loading}
+              groups={[{ label: 'Playbooks', options: playbookOptions }]}
+              key={playbookFireCount}
+              onValueChange={(action) => {
+                onUpdateAction(action, instruction || undefined)
+                setPlaybookFireCount((n) => n + 1)
+              }}
+              placeholder="Run playbook…"
+              value={undefined}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -868,6 +951,9 @@ export const TaskDrawer = () => {
   } = useBoardStore()
 
   const [task, setTask] = useState<Task | null>(null)
+  const [timelineEntries, setTimelineEntries] = useState<
+    RawTimelineEvent[] | null
+  >(null)
   const [isPending, startTransition] = useTransition()
 
   const [isEditing, setIsEditing] = useState(false)
@@ -910,20 +996,33 @@ export const TaskDrawer = () => {
       .map((b) => ({ label: b, value: b }))
   }, [board])
 
-  // Fetch task when opening in view mode
+  // Fetch task + timeline in parallel when opening in view mode so the
+  // Event History section doesn't wait for GET_TASK to finish first.
   useEffect(() => {
     if (drawerMode === 'view' && selectedTaskId) {
       let cancelled = false
       setTask(null)
+      setTimelineEntries(null)
       startTransition(async () => {
-        try {
-          const data = await graphqlClient.request<{ task: Task }>(GET_TASK, {
-            id: selectedTaskId,
+        const taskPromise = graphqlClient
+          .request<{ task: Task }>(GET_TASK, { id: selectedTaskId })
+          .then((data) => {
+            if (!cancelled) setTask(data.task)
           })
-          if (!cancelled) setTask(data.task)
-        } catch (err) {
-          if (!cancelled) console.error(err)
-        }
+          .catch((err) => {
+            if (!cancelled) console.error(err)
+          })
+        const timelinePromise = graphqlClient
+          .request<{ taskTimeline: RawTimelineEvent[] }>(GET_TASK_TIMELINE, {
+            taskId: selectedTaskId,
+          })
+          .then((data) => {
+            if (!cancelled) setTimelineEntries(data.taskTimeline)
+          })
+          .catch((err) => {
+            if (!cancelled) console.error(err)
+          })
+        await Promise.all([taskPromise, timelinePromise])
       })
       return () => {
         cancelled = true
@@ -957,6 +1056,7 @@ export const TaskDrawer = () => {
     if (drawerMode === 'closed') {
       setIsEditing(false)
       setTask(null)
+      setTimelineEntries(null)
     }
   }, [drawerMode])
 
@@ -1080,13 +1180,12 @@ export const TaskDrawer = () => {
   const handleContinueTask = async (instruction: string | null) => {
     if (!task) return
     try {
-      const data = await graphqlClient.request<{ continueFailedTask: Partial<Task> }>(
-        CONTINUE_FAILED_TASK,
-        {
-          instruction,
-          taskId: task.id,
-        },
-      )
+      const data = await graphqlClient.request<{
+        continueFailedTask: Partial<Task>
+      }>(CONTINUE_FAILED_TASK, {
+        instruction,
+        taskId: task.id,
+      })
       setTask({ ...task, ...data.continueFailedTask })
       await refetchBoard()
     } catch (e) {
@@ -1123,23 +1222,16 @@ export const TaskDrawer = () => {
     }
   }
 
-  const [copied, setCopied] = useState(false)
-
-  const handleCopyTaskId = () => {
-    if (!task?.id) return
-    navigator.clipboard.writeText(task.id)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
   const drawerTitle =
     drawerMode === 'create'
       ? 'New Task'
-      : task?.id
-        ? `Task #${task.id}`
-        : isPending
-          ? 'Loading…'
-          : 'Task'
+      : task?.title
+        ? task.title
+        : task?.id
+          ? `Task #${task.id}`
+          : isPending
+            ? 'Loading…'
+            : 'Task'
 
   // Build edit initial values from current task
   const editInitialValues: TaskFormValues | null = task
@@ -1160,22 +1252,7 @@ export const TaskDrawer = () => {
       }}
       open={drawerMode !== 'closed'}
       size="wide"
-      title={
-        <span className="flex items-center gap-2">
-          {drawerTitle}
-          {task?.id && (
-            <Button
-              onClick={handleCopyTaskId}
-              size="icon"
-              title={copied ? 'Copied!' : 'Copy task ID'}
-              type="button"
-              variant="ghost"
-            >
-              {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-            </Button>
-          )}
-        </span>
-      }
+      title={drawerTitle}
     >
       {drawerMode === 'create' && (
         <CreateMode
@@ -1197,11 +1274,15 @@ export const TaskDrawer = () => {
       {drawerMode === 'view' && task && !isEditing && (
         <ViewMode
           boardSecrets={board?.secrets ?? []}
+          initialTimelineEntries={timelineEntries}
           loading={isPending}
           onArchive={handleArchive}
           onContinueTask={handleContinueTask}
           onEdit={enterEdit}
           onInterruptAgent={handleInterruptAgent}
+          onRequiredSecretsChanged={(next) =>
+            setTask((prev) => (prev ? { ...prev, ...next } : prev))
+          }
           onUpdateAction={handleUpdateAction}
           task={task}
         />

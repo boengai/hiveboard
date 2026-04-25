@@ -69,30 +69,57 @@ function summarizeAssistant(text: string): string {
   return `[assistant, ${len} chars]: ${head} ... ${tail}`
 }
 
-function summarizeToolUse(block: {
-  name?: string
-  input?: Record<string, unknown>
-}): string {
+/**
+ * Replace the workspace root prefix with a repo-relative form so the running
+ * log doesn't leak `/app/tmp/workspaces/<slug>/task-<ulid>/…` to users. If no
+ * root is supplied (e.g. unit tests, legacy callers), returns the input
+ * unchanged.
+ */
+function relToWorkspace(s: string, workspaceRoot?: string): string {
+  if (!workspaceRoot) return s
+  if (s === workspaceRoot) return '.'
+  const prefix = workspaceRoot.endsWith('/') ? workspaceRoot : workspaceRoot + '/'
+  if (s.startsWith(prefix)) {
+    return s.slice(prefix.length) || '.'
+  }
+  // Best-effort replace for strings that embed the root (e.g. Bash commands).
+  // Strip "<root>/" occurrences first so paths inside the workspace become
+  // relative; then strip any remaining bare "<root>" tokens (e.g. `cd <root>`).
+  let out = s.split(prefix).join('')
+  if (out.includes(workspaceRoot)) {
+    out = out.split(workspaceRoot).join('.')
+  }
+  return out
+}
+
+function summarizeToolUse(
+  block: {
+    name?: string
+    input?: Record<string, unknown>
+  },
+  workspaceRoot?: string,
+): string {
   const name = typeof block.name === 'string' ? block.name : 'unknown'
   const input = block.input ?? {}
+  const rel = (s: string) => relToWorkspace(s, workspaceRoot)
 
   switch (name) {
     case 'Bash': {
-      const cmd = typeof input.command === 'string' ? input.command : ''
+      const cmd = typeof input.command === 'string' ? rel(input.command) : ''
       return `[tool Bash] ${truncateByBytes(cmd, BASH_CMD_CAP_BYTES)}`
     }
     case 'Read': {
-      const path = typeof input.file_path === 'string' ? input.file_path : '?'
+      const path = typeof input.file_path === 'string' ? rel(input.file_path) : '?'
       return `[tool Read] ${path}`
     }
     case 'Write': {
-      const path = typeof input.file_path === 'string' ? input.file_path : '?'
+      const path = typeof input.file_path === 'string' ? rel(input.file_path) : '?'
       const bytes =
         typeof input.content === 'string' ? utf8Bytes(input.content) : 0
       return `[tool Write] ${path} (${bytes} bytes)`
     }
     case 'Edit': {
-      const path = typeof input.file_path === 'string' ? input.file_path : '?'
+      const path = typeof input.file_path === 'string' ? rel(input.file_path) : '?'
       const bytes =
         typeof input.new_string === 'string' ? utf8Bytes(input.new_string) : 0
       return `[tool Edit] ${path} (${bytes} bytes)`
@@ -100,7 +127,7 @@ function summarizeToolUse(block: {
     case 'Grep':
     case 'Glob': {
       const pattern = typeof input.pattern === 'string' ? input.pattern : '?'
-      const path = typeof input.path === 'string' ? input.path : '.'
+      const path = typeof input.path === 'string' ? rel(input.path) : '.'
       return `[tool ${name}] ${pattern} in ${path}`
     }
     default: {
@@ -110,7 +137,7 @@ function summarizeToolUse(block: {
       } catch {
         argStr = String(input)
       }
-      return `[tool ${name}] ${truncateByBytes(argStr, TOOL_ARGS_CAP_BYTES)}`
+      return `[tool ${name}] ${truncateByBytes(rel(argStr), TOOL_ARGS_CAP_BYTES)}`
     }
   }
 }
@@ -152,7 +179,7 @@ function summarizeError(evt: {
 export function summarizeEvent(
   evt: unknown,
   turn: number,
-  opts?: { rawBytes?: number },
+  opts?: { rawBytes?: number; workspaceRoot?: string },
 ): Checkpoint | null {
   if (!evt || typeof evt !== 'object') return null
   const e = evt as Record<string, unknown>
@@ -177,7 +204,7 @@ export function summarizeEvent(
       return {
         kind: 'tool_use',
         rawBytes: opts?.rawBytes ?? 0,
-        summary: capRow(summarizeToolUse(tu)),
+        summary: capRow(summarizeToolUse(tu, opts?.workspaceRoot)),
         turn,
       }
     }

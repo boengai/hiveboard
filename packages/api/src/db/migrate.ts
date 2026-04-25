@@ -77,8 +77,58 @@ function addMissingColumns(db: Database): void {
   )
 }
 
+// Older playbook seed defaults stored verify_commands as ["test","tsc"]
+// (string aliases), but the GraphQL schema and current write path expect
+// [{label, run, timeoutMs?}]. Reading a legacy row crashes the task drawer
+// because VerifyCommand.label is non-nullable. Normalize legacy rows here:
+// keep entries that already have label+run strings, drop malformed ones, and
+// NULL the column when nothing valid remains so the field falls back to
+// project defaults.
+function normalizeLegacyVerifyCommands(db: Database): void {
+  const rows = db
+    .query(
+      'SELECT id, verify_commands FROM tasks WHERE verify_commands IS NOT NULL',
+    )
+    .all() as Array<{ id: string; verify_commands: string }>
+
+  for (const row of rows) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(row.verify_commands)
+    } catch {
+      db.run('UPDATE tasks SET verify_commands = NULL WHERE id = ?', [row.id])
+      continue
+    }
+
+    if (!Array.isArray(parsed)) {
+      db.run('UPDATE tasks SET verify_commands = NULL WHERE id = ?', [row.id])
+      continue
+    }
+
+    const valid = parsed.filter(
+      (e): e is { label: string; run: string } =>
+        typeof e === 'object' &&
+        e !== null &&
+        typeof (e as { label?: unknown }).label === 'string' &&
+        typeof (e as { run?: unknown }).run === 'string',
+    )
+
+    if (valid.length === parsed.length) continue
+
+    if (valid.length === 0) {
+      db.run('UPDATE tasks SET verify_commands = NULL WHERE id = ?', [row.id])
+    } else {
+      db.run('UPDATE tasks SET verify_commands = ? WHERE id = ?', [
+        JSON.stringify(valid),
+        row.id,
+      ])
+    }
+  }
+}
+
 export function migrate(db: Database): void {
   createTables(db)
   seed(db)
   addMissingColumns(db)
+  normalizeLegacyVerifyCommands(db)
 }

@@ -2,12 +2,16 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { Avatar, CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
-import { GitHubIcon } from '@/components/common/icon'
+import {
+  Avatar,
+  CheckIcon,
+  GitHubIcon,
+  LoaderIcon,
+  XIcon,
+} from '@/components/common'
 import { subscribe, TASK_PROGRESS_ADDED_SUBSCRIPTION } from '@/graphql'
 import { useBoardStore } from '@/store'
-import type { Task, TaskCardProps } from '@/types'
-import type { TaskProgressEntry } from '@/types/models'
+import type { Task, TaskCardProps, TaskProgressEntry } from '@/types'
 import { tv } from '@/utils'
 
 const parseActionLabel = (
@@ -84,7 +88,11 @@ function AgentStatusDot({
     return (
       <span
         className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-400/20 font-bold text-warning-400 text-xs"
-        title={missingNames?.length ? `Missing secrets: ${missingNames.join(', ')}` : 'Missing secrets'}
+        title={
+          missingNames?.length
+            ? `Missing secrets: ${missingNames.join(', ')}`
+            : 'Missing secrets'
+        }
       >
         🔒
       </span>
@@ -123,7 +131,7 @@ function AgentStatusDot({
   if (status === 'RUNNING') {
     return (
       <span className="inline-flex h-3 w-3 animate-spin text-info-400">
-        <SpinnerIcon size={12} />
+        <LoaderIcon size={12} />
       </span>
     )
   }
@@ -144,7 +152,7 @@ function AgentStatusDot({
   if (status === 'FAILED') {
     return (
       <span className="inline-flex text-error-400">
-        <XMarkIcon size={12} />
+        <XIcon size={12} />
       </span>
     )
   }
@@ -222,9 +230,9 @@ export function TaskCard({ task, column }: TaskCardProps) {
           {/* Agent status — hidden when idle */}
           {task.agentStatus !== 'IDLE' && (
             <AgentStatusDot
+              missingNames={task.missingSecrets}
               status={task.agentStatus}
               verifyAttemptCount={task.verifyAttemptCount ?? 0}
-              missingNames={task.missingSecrets}
             />
           )}
           {/* Action badge */}
@@ -243,7 +251,7 @@ export function TaskCard({ task, column }: TaskCardProps) {
             <span className="text-body-xs text-text-tertiary">retrying…</span>
           )}
           {task.agentStatus === 'FAILED' && (
-            <span className="text-body-xs text-accent">continue?</span>
+            <span className="text-accent text-body-xs">continue?</span>
           )}
         </div>
       )}
@@ -279,16 +287,24 @@ export function TaskCard({ task, column }: TaskCardProps) {
         {/* Target repo */}
         {task.targetRepo && (
           <div className="flex items-center gap-2">
-            <a
-              className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary"
-              href={`https://github.com/${task.targetRepo}`}
-              onClick={(e) => e.stopPropagation()}
-              rel="noopener"
-              target="_blank"
+            <button
+              className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary hover:text-text-primary"
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                window.open(
+                  `https://github.com/${task.targetRepo}`,
+                  '_blank',
+                  'noopener,noreferrer',
+                )
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              title={`Open ${task.targetRepo} on GitHub`}
+              type="button"
             >
               <GitHubIcon />
               <span>{task.targetRepo}</span>
-            </a>
+            </button>
           </div>
         )}
 

@@ -51,7 +51,7 @@ packages/web/src/
     common/           # Reusable, feature-agnostic UI primitives
       button/
         Button.tsx
-        index.ts      # Barrel: export { Button } from './Button'
+        index.ts      # Barrel: export * from './Button'
       badge/
       drawer/
       icon/
@@ -63,6 +63,8 @@ packages/web/src/
       board/
       task/
       index.ts        # Re-exports all feature components
+    hooks/
+        index.ts      # Barrel: export * from './useFoo'
     index.ts          # Re-exports common/ and feature/
   graphql/            # Client, queries, mutations, subscriptions
   pages/

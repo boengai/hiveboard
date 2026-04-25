@@ -160,6 +160,7 @@ export const typeDefs = /* GraphQL */ `
     requiredSecrets: [String!]!
     missingSecrets: [String!]!
     taskSecrets: [TaskSecret!]!
+    agentRuns: [AgentRun!]!
   }
 
   type Tag {

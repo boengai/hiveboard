@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { CheckIcon, SpinnerIcon, XMarkIcon } from '@/components/common'
+import { CheckIcon, LoaderIcon, XIcon } from '@/components/common'
 import {
   GET_TASK_PROGRESS,
   graphqlClient,
-  subscribe,
   TASK_PROGRESS_ADDED_SUBSCRIPTION,
 } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type {
   TaskProgressAddedPayload,
   TaskProgressEntry,
@@ -23,12 +23,12 @@ function statusIcon(status: string) {
   if (status === 'FAILED')
     return (
       <span className="text-error-400">
-        <XMarkIcon size={12} />
+        <XIcon size={12} />
       </span>
     )
   return (
     <span className="inline-flex animate-spin text-info-400">
-      <SpinnerIcon size={12} />
+      <LoaderIcon size={12} />
     </span>
   )
 }
@@ -64,18 +64,15 @@ export function TaskProgress({
     }
   }, [taskId])
 
-  useEffect(() => {
-    const dispose = subscribe<TaskProgressAddedPayload>(
-      TASK_PROGRESS_ADDED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const incoming = data.taskProgressAdded
-        if (!incoming || incoming.taskId !== taskId) return
-        setEntries((prev: TaskProgressEntry[]) => [...prev, incoming])
-      },
-    )
-    return dispose
-  }, [taskId])
+  useTaskSubscription<TaskProgressAddedPayload>(
+    TASK_PROGRESS_ADDED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const incoming = data.taskProgressAdded
+      if (!incoming || incoming.taskId !== taskId) return
+      setEntries((prev: TaskProgressEntry[]) => [...prev, incoming])
+    },
+  )
 
   if (entries.length === 0) {
     return (

@@ -1,36 +1,20 @@
 import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowIcon, Button, TextInput } from '@/components'
-import { graphqlClient } from '@/graphql/client'
-import { GENERATE_INVITATION, REVOKE_USER } from '@/graphql/mutations'
-import { GET_INVITATIONS, GET_USERS } from '@/graphql/queries'
+import {
+  GENERATE_INVITATION,
+  GET_INVITATIONS,
+  GET_USERS,
+  graphqlClient,
+  REVOKE_USER,
+} from '@/graphql'
 import { useAuthStore } from '@/store/authStore'
-
-type User = {
-  id: string
-  username: string
-  displayName: string
-  role: string
-  githubId: string | null
-  githubUsername: string | null
-  revokedAt: string | null
-  createdAt: string
-}
-
-type Invitation = {
-  id: string
-  token: string
-  githubUsername: string
-  createdAt: string
-  expiresAt: string
-  usedAt: string | null
-  createdBy: { username: string }
-}
+import type { ManagedInvitation, ManagedUser } from '@/types'
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user)
-  const [users, setUsers] = useState<User[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [users, setUsers] = useState<ManagedUser[]>([])
+  const [invitations, setInvitations] = useState<ManagedInvitation[]>([])
   const [newGithubUsername, setNewGithubUsername] = useState('')
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,8 +23,10 @@ export function UsersPage() {
   const loadData = useCallback(async () => {
     try {
       const [usersData, invitationsData] = await Promise.all([
-        graphqlClient.request<{ users: User[] }>(GET_USERS),
-        graphqlClient.request<{ invitations: Invitation[] }>(GET_INVITATIONS),
+        graphqlClient.request<{ users: ManagedUser[] }>(GET_USERS),
+        graphqlClient.request<{ invitations: ManagedInvitation[] }>(
+          GET_INVITATIONS,
+        ),
       ])
       setUsers(usersData.users)
       setInvitations(invitationsData.invitations)
@@ -106,7 +92,7 @@ export function UsersPage() {
     <div className="mx-auto max-w-4xl space-y-8 p-6">
       <div className="flex items-center gap-1">
         <Link className="text-body-sm text-honey-400 hover:underline" to="/">
-          <ArrowIcon direction="left" />
+          <ArrowIcon />
         </Link>
         <h1 className="font-semibold text-lg text-text-primary">
           User Management

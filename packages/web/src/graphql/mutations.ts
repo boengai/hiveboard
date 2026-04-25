@@ -1,42 +1,62 @@
 import { PLAYBOOK_FIELDS } from './playbook-fragments'
 
+const TASK_BOARD_FIELDS = /* GraphQL */ `
+  id
+  title
+  body
+  position
+  action
+  agentInstruction
+  targetRepo
+  targetBranch
+  agentStatus
+  retryCount
+  prUrl
+  verifyAttemptCount
+  archived
+  archivedAt
+  createdAt
+  updatedAt
+  createdBy {
+    id
+    username
+    displayName
+  }
+  updatedBy {
+    id
+    username
+    displayName
+  }
+  column {
+    id
+    name
+  }
+  tags {
+    id
+    name
+    color
+  }
+  blockReason
+  blockers {
+    id
+    title
+    agentStatus
+    blockReason
+  }
+  parentTask {
+    id
+    title
+    tags {
+      color
+    }
+  }
+  missingSecrets
+`
+
 export const CREATE_TASK = /* GraphQL */ `
   mutation CreateTask($input: CreateTaskInput!) {
     createTask(input: $input) {
-      id
-      title
-      body
-      position
-      action
-      agentInstruction
-      targetRepo
-      targetBranch
-      agentStatus
-      retryCount
-      prUrl
-      archived
-      archivedAt
-      createdAt
-      updatedAt
-      createdBy {
-        id
-        username
-        displayName
-      }
-      updatedBy {
-        id
-        username
-        displayName
-      }
-      column {
-        id
-        name
-      }
-      tags {
-        id
-        name
-        color
-      }
+      ${TASK_BOARD_FIELDS}
     }
   }
 `
@@ -44,40 +64,7 @@ export const CREATE_TASK = /* GraphQL */ `
 export const UPDATE_TASK = /* GraphQL */ `
   mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
     updateTask(id: $id, input: $input) {
-      id
-      title
-      body
-      position
-      action
-      agentInstruction
-      targetRepo
-      targetBranch
-      agentStatus
-      retryCount
-      prUrl
-      archived
-      archivedAt
-      createdAt
-      updatedAt
-      createdBy {
-        id
-        username
-        displayName
-      }
-      updatedBy {
-        id
-        username
-        displayName
-      }
-      column {
-        id
-        name
-      }
-      tags {
-        id
-        name
-        color
-      }
+      ${TASK_BOARD_FIELDS}
     }
   }
 `

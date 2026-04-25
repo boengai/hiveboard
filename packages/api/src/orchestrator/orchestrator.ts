@@ -8,10 +8,18 @@ import { selectCheckpointsForReplay } from '../agent/checkpoint-replay'
 import { countTurnsForRun, listCheckpointsForRun } from '../db/checkpoints'
 import { listFailingRunsForAgentRun } from '../db/verification-runs'
 import { subtasksPath } from '../workspace/agent-state'
-import { cascadeDependencyFailure } from './dependencies'
+import { transition as taskLifecycleTransition } from '../lifecycle'
+import {
+  applyFailure,
+  applyQuestion,
+  applySuccess,
+  applyTimeout,
+  decideOutcome,
+  type OutcomeDeps,
+} from './outcomes'
 import { escapeMustacheSyntax } from './mustache-escape'
 import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
-import { formatVerificationFailureForAgent, verifyAndGate } from './verify'
+import { formatVerificationFailureForAgent } from './verify'
 import { parseRequiredSecrets, resolveSecretsForTask } from '../secrets/store'
 import { publishTaskMissingSecretsChanged } from '../pubsub'
 
@@ -20,26 +28,14 @@ export { escapeMustacheSyntax } from './mustache-escape'
 import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
 import {
-  insertMessage,
   listUndeliveredHumanMessages,
   markMessagesDelivered,
 } from '../db/task-messages'
 import type { GitHubClient, ReviewComment } from '../github/client'
 import { getPlaybookByName } from '../playbooks'
-import {
-  publishAgentLog,
-  publishMessageAdded,
-  publishTaskProgress,
-  publishTaskUpdated,
-  pubsub,
-} from '../pubsub'
-import {
-  appendToInbox,
-  questionPath,
-  readQuestion,
-} from '../workspace/agent-state'
+import { publishAgentLog, publishTaskProgress, pubsub } from '../pubsub'
+import { appendToInbox, readQuestion } from '../workspace/agent-state'
 import type { WorkspaceManager } from '../workspace/manager'
-import { slugify } from '../workspace/manager'
 import { watchProgress } from '../workspace/progress-watcher'
 import { startSnapshotLoop } from './snapshot-loop'
 
@@ -126,7 +122,7 @@ function mapTask(row: TaskRow) {
  * Looks for a column named "In Progress" (case-insensitive).
  * Falls back to the second column if found, or null.
  */
-function findColumnId(boardId: string, preferredName: string): string | null {
+export function findColumnId(boardId: string, preferredName: string): string | null {
   const row = db
     .query(
       `SELECT id FROM columns WHERE board_id = ? AND lower(name) = lower(?) ORDER BY position ASC LIMIT 1`,
@@ -135,7 +131,7 @@ function findColumnId(boardId: string, preferredName: string): string | null {
   return row?.id ?? null
 }
 
-function findColumnName(columnId: string): string | null {
+export function findColumnName(columnId: string): string | null {
   const row = db
     .query('SELECT name FROM columns WHERE id = ?')
     .get(columnId) as { name: string } | null
@@ -165,61 +161,97 @@ function formatReviewComments(comments: ReviewComment[]): string {
 }
 
 /**
- * Extract the plan text from Claude CLI JSON output and merge it into the task body.
- * Claude CLI with --print --output-format json returns a JSON array of content blocks.
- * We extract the final text response and append/replace the ## Implementation Plan section.
+ * Pull the plan text out of a Claude CLI run. Handles both output formats:
+ *   - Legacy `--output-format json`: a single JSON blob (array of content
+ *     blocks or `{result: ...}` object).
+ *   - `--output-format stream-json`: JSONL, with a terminal
+ *     `{type:"result", result:"..."}` event carrying the final text.
+ *
+ * Returns '' when no plan text can be recovered — the caller is expected to
+ * return null in that case so we never dump raw CLI bytes into `tasks.body`.
  */
-function extractPlanFromOutput(
+export function parsePlanText(rawOutput: string): string {
+  // Legacy single-blob JSON first.
+  try {
+    const parsed = JSON.parse(rawOutput)
+    if (typeof parsed === 'string') return parsed
+    if (Array.isArray(parsed)) {
+      let t = ''
+      for (const block of parsed) {
+        if (block?.type === 'text' && typeof block.text === 'string') {
+          t = block.text
+        } else if (
+          block?.type === 'result' &&
+          typeof block.result === 'string'
+        ) {
+          t = block.result
+        }
+      }
+      return t
+    }
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as { result?: unknown }).result === 'string' &&
+      (parsed as { is_error?: unknown }).is_error !== true
+    ) {
+      return (parsed as { result: string }).result
+    }
+  } catch {
+    // Fall through to JSONL handling.
+  }
+
+  // stream-json: scan from the tail for the last {type:"result", result:"..."}.
+  const lines = rawOutput.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]?.trim()
+    if (!line) continue
+    try {
+      const evt = JSON.parse(line) as {
+        type?: unknown
+        result?: unknown
+        is_error?: unknown
+      }
+      if (
+        evt?.type === 'result' &&
+        evt.is_error !== true &&
+        typeof evt.result === 'string'
+      ) {
+        return evt.result
+      }
+    } catch {
+      // Skip lines that aren't JSON (e.g. stderr-interleaved garbage).
+    }
+  }
+
+  return ''
+}
+
+/**
+ * Merge the Claude CLI plan text into the task body. Returns null when the
+ * output contains no recoverable plan — the body is left untouched in that
+ * case rather than corrupted with raw event stream bytes.
+ */
+export function extractPlanFromOutput(
   rawOutput: string,
   existingBody: string,
 ): string | null {
-  try {
-    // Claude --print --output-format json outputs a JSON array of message blocks
-    // The last text block from the assistant is the plan
-    const parsed = JSON.parse(rawOutput)
-
-    let planText = ''
-    if (typeof parsed === 'string') {
-      planText = parsed
-    } else if (Array.isArray(parsed)) {
-      // Find the last assistant text content
-      for (const block of parsed) {
-        if (block.type === 'text' && typeof block.text === 'string') {
-          planText = block.text
-        } else if (
-          block.type === 'result' &&
-          typeof block.result === 'string'
-        ) {
-          planText = block.result
-        }
-      }
-    } else if (parsed?.result) {
-      planText = String(parsed.result)
-    }
-
-    if (!planText.trim()) return null
-
-    // Merge into existing body: replace ## Implementation Plan section if it exists
-    const planSection = `## Implementation Plan\n\n${planText.trim()}`
-    const planRegex = /## Implementation Plan[\s\S]*$/
-    if (planRegex.test(existingBody)) {
-      return existingBody.replace(planRegex, planSection)
-    }
-    return existingBody
-      ? `${existingBody.trimEnd()}\n\n${planSection}`
-      : planSection
-  } catch {
-    // Output wasn't valid JSON — use raw text as the plan
-    consola.warn('Could not parse Claude CLI output as JSON, using raw text')
-    const planSection = `## Implementation Plan\n\n${rawOutput.trim()}`
-    const planRegex = /## Implementation Plan[\s\S]*$/
-    if (planRegex.test(existingBody)) {
-      return existingBody.replace(planRegex, planSection)
-    }
-    return existingBody
-      ? `${existingBody.trimEnd()}\n\n${planSection}`
-      : planSection
+  const planText = parsePlanText(rawOutput).trim()
+  if (!planText) {
+    consola.warn(
+      'extractPlanFromOutput: no plan text recovered from CLI output; leaving task body unchanged.',
+    )
+    return null
   }
+
+  const planSection = `## Implementation Plan\n\n${planText}`
+  const planRegex = /## Implementation Plan[\s\S]*$/
+  if (planRegex.test(existingBody)) {
+    return existingBody.replace(planRegex, planSection)
+  }
+  return existingBody
+    ? `${existingBody.trimEnd()}\n\n${planSection}`
+    : planSection
 }
 
 /**
@@ -444,16 +476,22 @@ export function continueFailedTaskDb(
         ? `${nextInstruction}, ${instruction.trim()}`
         : instruction.trim()
   }
-  db.run(
-    `UPDATE tasks
-     SET agent_status = 'queued',
-         retry_count = ?,
-         agent_instruction = ?,
-         queue_after = datetime('now', '+2 seconds'),
-         updated_at = datetime('now')
-     WHERE id = ?`,
-    [nextRetry, nextInstruction, taskId],
-  )
+  taskLifecycleTransition({
+    db,
+    extras: (txDb) => {
+      txDb.run(
+        `UPDATE tasks
+           SET retry_count = ?,
+               agent_instruction = ?,
+               queue_after = datetime('now', '+2 seconds')
+         WHERE id = ?`,
+        [nextRetry, nextInstruction, taskId],
+      )
+    },
+    from: 'failed',
+    taskId,
+    to: 'queued',
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -611,59 +649,49 @@ export class Orchestrator {
 
     let runId: string | null = null
     try {
-      // 1. UPDATE tasks SET agent_status = 'running'
-      db.run(
-        `UPDATE tasks SET agent_status = 'running', updated_at = datetime('now') WHERE id = ?`,
-        [task.id],
-      )
-
-      // 2. INSERT agent_runs: status='running'
       runId = generateId()
-      insertAgentRun({
-        action: task.action ?? '',
-        db,
-        runId,
+      const newRunId = runId
+      taskLifecycleTransition({
+        extras: (txDb) => {
+          insertAgentRun({
+            action: task.action ?? '',
+            db: txDb,
+            runId: newRunId,
+            taskId: task.id,
+          })
+
+          if (task.action !== 'plan') {
+            const inProgressColId = findColumnId(task.board_id, 'In Progress')
+            if (inProgressColId) {
+              const fromColumnName = findColumnName(task.column_id)
+              txDb.run(
+                `UPDATE tasks SET column_id = ?, updated_at = datetime('now') WHERE id = ?`,
+                [inProgressColId, task.id],
+              )
+
+              txDb.run(
+                'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+                [
+                  generateId(),
+                  task.id,
+                  'SYSTEM',
+                  'moved',
+                  JSON.stringify({
+                    from_column: fromColumnName,
+                    to_column: 'In Progress',
+                  }),
+                ],
+              )
+            }
+          }
+        },
         taskId: task.id,
+        to: 'running',
       })
 
-      // 4. Move to "In Progress" (skip for plan)
-      if (task.action !== 'plan') {
-        const inProgressColId = findColumnId(task.board_id, 'In Progress')
-        if (inProgressColId) {
-          const fromColumnName = findColumnName(task.column_id)
-          db.run(
-            `UPDATE tasks SET column_id = ?, updated_at = datetime('now') WHERE id = ?`,
-            [inProgressColId, task.id],
-          )
-
-          // 5. INSERT task_events: moved
-          db.run(
-            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-            [
-              generateId(),
-              task.id,
-              'SYSTEM',
-              'moved',
-              JSON.stringify({
-                from_column: fromColumnName,
-                to_column: 'In Progress',
-              }),
-            ],
-          )
-        }
-      }
-
-      // Fetch fresh task row after updates
       const updatedTask = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(task.id) as TaskRow
-
-      // Publish TASK_UPDATED
-      pubsub.publish(
-        'TASK_UPDATED',
-        updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>,
-      )
 
       // 5. Create workspace with fresh access token and git identity
       const accessToken = await this.github.getAccessToken()
@@ -722,18 +750,20 @@ export class Orchestrator {
     } catch (err) {
       consola.error(`Failed to dispatch task ${task.id}:`, err)
       this.running.delete(task.id)
-      // Mark the agent_runs row as failed so it doesn't remain orphaned
-      if (runId) {
-        db.run(
-          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-          [err instanceof Error ? err.message : String(err), runId],
-        )
-      }
-      // Reset to queued so it can be retried
-      db.run(
-        `UPDATE tasks SET agent_status = 'queued', updated_at = datetime('now') WHERE id = ?`,
-        [task.id],
-      )
+      const errMessage = err instanceof Error ? err.message : String(err)
+      const orphanedRunId = runId
+      taskLifecycleTransition({
+        extras: (txDb) => {
+          if (orphanedRunId) {
+            txDb.run(
+              `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
+              [errMessage, orphanedRunId],
+            )
+          }
+        },
+        taskId: task.id,
+        to: 'queued',
+      })
     }
   }
 
@@ -933,23 +963,22 @@ export class Orchestrator {
       const secretsResolution = resolveSecretsForTask(db, task.id)
       if (!secretsResolution.ok) {
         const missingNames = secretsResolution.missing
-        db.run(
-          `UPDATE tasks
-             SET agent_status = 'missing_secrets',
-                 agent_error = ?,
-                 updated_at = datetime('now')
-           WHERE id = ?`,
-          [`Missing required secrets: ${missingNames.join(', ')}`, task.id],
-        )
-        db.run(
-          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-          [`Missing required secrets: ${missingNames.join(', ')}`, runId],
-        )
+        const errMsg = `Missing required secrets: ${missingNames.join(', ')}`
+        taskLifecycleTransition({
+          extras: (txDb) => {
+            txDb.run(
+              `UPDATE tasks SET agent_error = ? WHERE id = ?`,
+              [errMsg, task.id],
+            )
+            txDb.run(
+              `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
+              [errMsg, runId],
+            )
+          },
+          taskId: task.id,
+          to: 'missing_secrets',
+        })
         publishTaskMissingSecretsChanged(task.id, missingNames)
-        const updatedRow = db
-          .query('SELECT * FROM tasks WHERE id = ?')
-          .get(task.id) as TaskRow | null
-        if (updatedRow) publishTaskUpdated(updatedRow.board_id, mapTask(updatedRow))
         return
       }
       // --- end secrets gate ---
@@ -1079,401 +1108,56 @@ export class Orchestrator {
       error?: string
     },
   ): Promise<void> {
-    // Plan E: time-box expiry. If the abort reason was TIMEOUT, transition the
-    // task to BLOCKED with block_reason='TIMEOUT' instead of the normal
-    // SUCCESS/FAIL / question flow. This wins over the question flow because
-    // the agent was killed mid-thought — the question file (if any) may be
-    // partial and cannot be trusted as a clean "I'm blocked on X" signal.
     const runState = this.running.get(task.id)
-    if (runState?.abortReason === 'TIMEOUT') {
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET agent_status = 'blocked',
-             block_reason = 'TIMEOUT',
-             updated_at = datetime('now')
-           WHERE id = ?`,
-          [task.id],
-        )
-        db.run(
-          `UPDATE agent_runs SET status = 'failed', finished_at = datetime('now'), error = ? WHERE id = ?`,
-          ['time-box expired', runId],
-        )
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            task.id,
-            'SYSTEM',
-            'time_box_expired',
-            JSON.stringify({ limit_ms: task.time_box_ms }),
-          ],
-        )
-      })()
 
-      const updatedTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(task.id) as TaskRow | null
-      if (updatedTask) {
-        pubsub.publish(
-          'TASK_UPDATED',
-          updatedTask.board_id,
-          mapTask(updatedTask) as unknown as Record<string, unknown>,
-        )
-      }
-      return
-    }
+    // Read the question file unconditionally so the picker has all the
+    // signals it needs. (TIMEOUT short-circuits inside `decideOutcome` and
+    // the question text is ignored — see CONTEXT.md → "Outcome".)
+    const question =
+      runState?.abortReason === 'TIMEOUT'
+        ? ''
+        : await readQuestion(this.config, task.id)
 
-    // Publish [DONE] marker so frontend knows stream ended
-    publishAgentLog(task.id, {
-      chunk: '[DONE]',
-      taskId: task.id,
-      timestamp: new Date().toISOString(),
+    const outcome = decideOutcome({
+      abortReason: runState?.abortReason,
+      question,
+      result: { success: result.success },
     })
 
-    // Check for an agent-authored question file. If present, transition to
-    // BLOCKED (regardless of success/failure exit code) and skip the normal
-    // SUCCESS/FAILED path. The question body is captured as a task_messages row.
-    const question = await readQuestion(this.config, task.id)
-    if (question.length > 0) {
-      let eventId!: string
-      let msgId!: string
-      db.transaction(() => {
-        msgId = insertMessage(db, {
-          authorType: 'agent',
-          body: question,
-          createdBy: null,
-          kind: 'question',
-          taskId: task.id,
-        })
-        db.run(
-          `UPDATE tasks SET agent_status = 'blocked',
-             block_reason = 'QUESTION',
-             updated_at = datetime('now')
-           WHERE id = ?`,
-          [task.id],
-        )
-        db.run(
-          `UPDATE agent_runs SET status = 'blocked', finished_at = datetime('now'), error = ? WHERE id = ?`,
-          [result.error ?? null, runId],
-        )
-        eventId = generateId()
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            eventId,
-            task.id,
-            'SYSTEM',
-            'agent_blocked',
-            JSON.stringify({ question_preview: question.slice(0, 120) }),
-          ],
-        )
-      })()
-
-      // Publish agent_blocked event so subscribers see it in real time
-      const blockedEvent = db
-        .query('SELECT * FROM task_events WHERE id = ?')
-        .get(eventId) as {
-        id: string
-        type: string
-        data: string | null
-        created_at: string
-        actor: string
-      } | null
-      if (blockedEvent) {
-        pubsub.publish('TASK_EVENT', task.id, {
-          _actor: 'SYSTEM',
-          createdAt: blockedEvent.created_at,
-          data: blockedEvent.data,
-          id: blockedEvent.id,
-          isSystem: true,
-          type: blockedEvent.type,
-        } as unknown as Record<string, unknown>)
-      }
-
-      // Fetch full message row to publish
-      const row = db
-        .query('SELECT * FROM task_messages WHERE id = ?')
-        .get(msgId) as Record<string, unknown>
-      publishMessageAdded(task.id, {
-        authorType: 'AGENT',
-        body: row.body,
-        createdAt: row.created_at,
-        createdBy: null,
-        deliveredAt: row.delivered_at,
-        id: row.id,
-        kind: 'QUESTION',
-        taskId: row.task_id,
+    // The [DONE] marker is published for every non-timeout exit.
+    if (outcome.kind !== 'timeout') {
+      publishAgentLog(task.id, {
+        chunk: '[DONE]',
+        taskId: task.id,
+        timestamp: new Date().toISOString(),
       })
-
-      // Also republish updated task so board refreshes
-      const updatedTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(task.id) as TaskRow | null
-      if (updatedTask) {
-        publishTaskUpdated(updatedTask.board_id, mapTask(updatedTask))
-      }
-
-      // Best-effort cleanup of the question file so a subsequent run doesn't
-      // re-trigger BLOCKED on the stale contents.
-      try {
-        const qPath = questionPath(this.config, task.id)
-        await unlink(qPath)
-      } catch {
-        // ignore — file may already be gone
-      }
-
-      consola.info(`Task ${task.id} BLOCKED on agent question`)
-      return
     }
 
-    if (result.success) {
-      consola.info(`Task ${task.id} completed successfully`)
+    const deps: OutcomeDeps = {
+      config: this.config,
+      github: this.github,
+      processSubtaskManifest: (t) => this.processSubtaskManifest(t),
+      result,
+      runId,
+      scheduleRetry: (t, err) => this.scheduleRetry(t, err),
+      task,
+      workspacePath: runState?.workspacePath,
+    }
 
-      // Plan E: materialize subtasks declared by the agent via $HIVEBOARD_SUBTASKS.
-      // Runs AFTER Plan B question detection (so BLOCKED tasks never spawn
-      // children) and BEFORE Plan C's verify gate (so verification still
-      // applies to the parent's own code changes).
-      await this.processSubtaskManifest(task)
-
-      // --- Gate on verification for implement/revise ---
-      if (task.action === 'implement' || task.action === 'revise') {
-        const workspacePath = this.running.get(task.id)?.workspacePath
-        if (workspacePath && this.config.verify.enabled) {
-          const verdict = await verifyAndGate({
-            agentRunId: runId,
-            config: this.config,
-            db,
-            taskId: task.id,
-            workspacePath,
-          })
-          if (verdict === 'fail') {
-            await this.dispatchVerificationFailure(task, runId)
-            return
-          }
-        }
-      }
-      // --- end verify gate ---
-
-      // Parse PR URL from output if applicable
-      let prUrl: string | null = null
-      if (task.action === 'implement' || task.action === 'revise') {
-        const prMatch = result.output.match(
-          /https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/,
-        )
-        if (prMatch) {
-          const prRepo = prMatch[1] // "owner/repo" from the URL
-          if (task.target_repo && prRepo !== task.target_repo) {
-            consola.warn(
-              `PR URL ${prMatch[0]} does not belong to target repo ${task.target_repo} — ignoring`,
-            )
-          } else {
-            prUrl = prMatch[0] ?? null
-          }
-        }
-      }
-
-      // Fallback: query GitHub API for PR by branch name
-      if (
-        !prUrl &&
-        task.target_repo &&
-        (task.action === 'implement' || task.action === 'revise')
-      ) {
-        const [owner, repo] = task.target_repo.split('/')
-        if (owner && repo) {
-          const branch = `task-${task.id.slice(-6)}/${slugify(task.title)}`
-          prUrl = await this.github.findPrByHead(owner, repo, branch)
-          if (prUrl) {
-            consola.info(`Found PR URL via GitHub API fallback: ${prUrl}`)
-          }
-        }
-      }
-
-      // Determine target column
-      let targetColumnName: string | null = null
-      if (task.action === 'plan') {
-        targetColumnName = 'Todo'
-      } else if (task.action === 'implement' || task.action === 'revise') {
-        targetColumnName = 'Review'
-      }
-      // plan stays in current column
-
-      let targetColumnId: string | null = null
-      if (targetColumnName) {
-        targetColumnId = findColumnId(task.board_id, targetColumnName)
-      }
-
-      // For plan actions, extract the plan text and update the task body
-      let planBody: string | null = null
-      if (task.action === 'plan' && result.output) {
-        planBody = extractPlanFromOutput(result.output, task.body)
-      }
-
-      db.transaction(() => {
-        // UPDATE tasks — clear action so the task returns to idle state
-        const setParts = [
-          `agent_status = 'success'`,
-          `action = NULL`,
-          `agent_output = ?`,
-          `updated_at = datetime('now')`,
-        ]
-        const setValues: (string | number | null)[] = [result.output]
-
-        if (planBody) {
-          setParts.push('body = ?')
-          setValues.push(planBody)
-        }
-
-        if (prUrl) {
-          setParts.push('pr_url = ?')
-          setValues.push(prUrl)
-        }
-
-        if (targetColumnId) {
-          setParts.push('column_id = ?')
-          setValues.push(targetColumnId)
-        }
-
-        setValues.push(task.id)
-        db.run(
-          `UPDATE tasks SET ${setParts.join(', ')} WHERE id = ?`,
-          setValues,
-        )
-
-        // UPDATE agent_runs
-        db.run(
-          `UPDATE agent_runs SET status = 'success', output = ?, finished_at = datetime('now') WHERE id = ?`,
-          [result.output, runId],
-        )
-
-        // INSERT event: agent_succeeded
-        const eventId = generateId()
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            eventId,
-            task.id,
-            'SYSTEM',
-            'agent_succeeded',
-            JSON.stringify({ action: task.action, pr_url: prUrl }),
-          ],
-        )
-
-        // INSERT event: moved (if column changed)
-        if (targetColumnId && targetColumnName) {
-          const fromColumnName = findColumnName(task.column_id)
-          db.run(
-            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-            [
-              generateId(),
-              task.id,
-              'SYSTEM',
-              'moved',
-              JSON.stringify({
-                from_column: fromColumnName,
-                to_column: targetColumnName,
-              }),
-            ],
-          )
-        }
-      })()
-
-      const updatedTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(task.id) as TaskRow
-      pubsub.publish(
-        'TASK_UPDATED',
-        updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>,
-      )
-
-      // Tell dependents to re-render: their chain-link count just went down.
-      // Cross-board deps are rejected at mutation time, so all dependents
-      // share the same board_id as this task.
-      const dependentRows = db
-        .query(
-          `SELECT t.* FROM tasks t
-             JOIN task_dependencies d ON d.task_id = t.id
-            WHERE d.blocker_id = ?`,
-        )
-        .all(task.id) as TaskRow[]
-      for (const depRow of dependentRows) {
-        pubsub.publish(
-          'TASK_UPDATED',
-          depRow.board_id,
-          mapTask(depRow) as unknown as Record<string, unknown>,
-        )
-      }
-
-      // Publish agent_succeeded event
-      pubsub.publish('TASK_EVENT', task.id, {
-        _actor: 'SYSTEM',
-        createdAt: new Date().toISOString(),
-        data: JSON.stringify({ action: task.action, pr_url: prUrl }),
-        isSystem: true,
-        type: 'agent_succeeded',
-      } as unknown as Record<string, unknown>)
-    } else {
-      consola.warn(`Task ${task.id} failed: ${result.error?.slice(0, 100)}`)
-
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET agent_status = 'failed', agent_error = ?, updated_at = datetime('now') WHERE id = ?`,
-          [result.error ?? null, task.id],
-        )
-
-        db.run(
-          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-          [result.error ?? null, runId],
-        )
-
-        db.run(
-          'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-          [
-            generateId(),
-            task.id,
-            'SYSTEM',
-            'agent_failed',
-            JSON.stringify({ action: task.action, error: result.error }),
-          ],
-        )
-      })()
-
-      const updatedTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(task.id) as TaskRow
-      pubsub.publish(
-        'TASK_UPDATED',
-        updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>,
-      )
-
-      pubsub.publish('TASK_EVENT', task.id, {
-        _actor: 'SYSTEM',
-        createdAt: new Date().toISOString(),
-        data: JSON.stringify({ action: task.action, error: result.error }),
-        isSystem: true,
-        type: 'agent_failed',
-      } as unknown as Record<string, unknown>)
-
-      // Dependency cascade: direct dependents of this task become BLOCKED with
-      // block_reason='DEPENDENCY_FAILED'. Human can remove the edge or mark
-      // the blocker resolved to unblock them.
-      const cascaded = cascadeDependencyFailure(db, task.id)
-      for (const depTaskId of cascaded) {
-        const depRow = db
-          .query('SELECT * FROM tasks WHERE id = ?')
-          .get(depTaskId) as TaskRow | null
-        if (depRow) {
-          pubsub.publish(
-            'TASK_UPDATED',
-            depRow.board_id,
-            mapTask(depRow) as unknown as Record<string, unknown>,
-          )
-        }
-      }
-
-      // Schedule retry with exponential backoff
-      await this.scheduleRetry(task, result.error ?? 'Unknown error')
+    switch (outcome.kind) {
+      case 'timeout':
+        applyTimeout(deps)
+        return
+      case 'question':
+        await applyQuestion(deps, outcome.question)
+        return
+      case 'success':
+        consola.info(`Task ${task.id} completed successfully`)
+        await applySuccess(deps)
+        return
+      case 'failure':
+        await applyFailure(deps)
+        return
     }
   }
 
@@ -1496,157 +1180,25 @@ export class Orchestrator {
 
     const timer = setTimeout(() => {
       this.retryTimers.delete(task.id)
-      // Re-queue the task
-      db.run(
-        `UPDATE tasks SET agent_status = 'queued', retry_count = ?, agent_error = NULL, updated_at = datetime('now') WHERE id = ?`,
-        [nextRetry, task.id],
-      )
-      db.run(
-        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-        [
-          generateId(),
-          task.id,
-          'SYSTEM',
-          'retry_scheduled',
-          JSON.stringify({ attempt: nextRetry, delay }),
-        ],
-      )
-
-      const updatedTask = db
-        .query('SELECT * FROM tasks WHERE id = ?')
-        .get(task.id) as TaskRow
-      pubsub.publish(
-        'TASK_UPDATED',
-        updatedTask.board_id,
-        mapTask(updatedTask) as unknown as Record<string, unknown>,
-      )
+      taskLifecycleTransition({
+        event: {
+          actor: 'SYSTEM',
+          data: { attempt: nextRetry, delay },
+          type: 'retry_scheduled',
+        },
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE tasks SET retry_count = ?, agent_error = NULL WHERE id = ?`,
+            [nextRetry, task.id],
+          )
+        },
+        from: 'failed',
+        taskId: task.id,
+        to: 'queued',
+      })
     }, delay)
 
     this.retryTimers.set(task.id, timer)
-  }
-
-  // -------------------------------------------------------------------------
-  // Verification failure dispatch
-  // -------------------------------------------------------------------------
-
-  private async dispatchVerificationFailure(
-    task: TaskRow,
-    sourceAgentRunId: string,
-  ): Promise<void> {
-    const current = db
-      .query('SELECT verify_attempt_count FROM tasks WHERE id = ?')
-      .get(task.id) as { verify_attempt_count: number } | null
-    const nextAttempt = (current?.verify_attempt_count ?? 0) + 1
-    const cap = this.config.verify.max_auto_revises
-
-    if (nextAttempt > cap) {
-      // Exhausted — surface as FAILED
-      const reason = `verification failed after ${nextAttempt - 1} attempt(s)`
-      db.transaction(() => {
-        db.run(
-          `UPDATE tasks SET
-             agent_status='failed',
-             agent_error=?,
-             action=NULL,
-             verify_attempt_count=?,
-             pending_auto_revise_source_run_id=NULL,
-             updated_at=datetime('now')
-           WHERE id=?`,
-          [reason, nextAttempt - 1, task.id],
-        )
-        db.run(
-          `UPDATE agent_runs SET status='failed', error=?, finished_at=datetime('now') WHERE id=?`,
-          [reason, sourceAgentRunId],
-        )
-        db.run(
-          `INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?,?,?,?,?)`,
-          [
-            generateId(),
-            task.id,
-            'SYSTEM',
-            'verification_exhausted',
-            JSON.stringify({ attempts: nextAttempt - 1 }),
-          ],
-        )
-      })()
-      const updated = db
-        .query('SELECT * FROM tasks WHERE id=?')
-        .get(task.id) as TaskRow | null
-      if (updated) {
-        pubsub.publish(
-          'TASK_UPDATED',
-          updated.board_id,
-          mapTask(updated) as unknown as Record<string, unknown>,
-        )
-        pubsub.publish('TASK_EVENT', task.id, {
-          _actor: 'SYSTEM',
-          createdAt: new Date().toISOString(),
-          data: JSON.stringify({ attempts: nextAttempt - 1 }),
-          isSystem: true,
-          type: 'verification_exhausted',
-        } as unknown as Record<string, unknown>)
-      }
-      consola.warn(`Task ${task.id}: ${reason}; transitioning to FAILED`)
-      return
-    }
-
-    // Queue auto-revise
-    db.transaction(() => {
-      db.run(
-        `UPDATE tasks SET
-           agent_status='queued',
-           action='revise',
-           agent_error=NULL,
-           verify_attempt_count=?,
-           pending_auto_revise_source_run_id=?,
-           queue_after=datetime('now','+5 seconds'),
-           updated_at=datetime('now')
-         WHERE id=?`,
-        [nextAttempt, sourceAgentRunId, task.id],
-      )
-      db.run(
-        `UPDATE agent_runs SET status='fail_verify', finished_at=datetime('now') WHERE id=?`,
-        [sourceAgentRunId],
-      )
-      db.run(
-        `INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?,?,?,?,?)`,
-        [
-          generateId(),
-          task.id,
-          'SYSTEM',
-          'auto_revise_dispatched',
-          JSON.stringify({
-            attempt: nextAttempt,
-            source_agent_run_id: sourceAgentRunId,
-          }),
-        ],
-      )
-    })()
-
-    const updated = db
-      .query('SELECT * FROM tasks WHERE id=?')
-      .get(task.id) as TaskRow | null
-    if (updated) {
-      pubsub.publish(
-        'TASK_UPDATED',
-        updated.board_id,
-        mapTask(updated) as unknown as Record<string, unknown>,
-      )
-      pubsub.publish('TASK_EVENT', task.id, {
-        _actor: 'SYSTEM',
-        createdAt: new Date().toISOString(),
-        data: JSON.stringify({
-          attempt: nextAttempt,
-          source_agent_run_id: sourceAgentRunId,
-        }),
-        isSystem: true,
-        type: 'auto_revise_dispatched',
-      } as unknown as Record<string, unknown>)
-    }
-
-    consola.info(
-      `Task ${task.id}: verification failed (attempt ${nextAttempt}/${cap}); auto-REVISE dispatched`,
-    )
   }
 
   /**
@@ -1789,10 +1341,21 @@ export class Orchestrator {
         // Requeue with a short grace window so follow-up messages can batch.
         // Redirect is a human kick: reset verification state so the new run
         // starts fresh, not mid-retry.
-        db.run(
-          `UPDATE tasks SET agent_status = 'queued', queue_after = datetime('now', '+5 seconds'), verify_attempt_count = 0, pending_auto_revise_source_run_id = NULL, updated_at = datetime('now') WHERE id = ?`,
-          [taskId],
-        )
+        taskLifecycleTransition({
+          extras: (txDb) => {
+            txDb.run(
+              `UPDATE tasks SET
+                 queue_after = datetime('now', '+5 seconds'),
+                 verify_attempt_count = 0,
+                 pending_auto_revise_source_run_id = NULL
+               WHERE id = ?`,
+              [taskId],
+            )
+          },
+          from: 'running',
+          taskId,
+          to: 'queued',
+        })
       }
       return
     }
@@ -1860,29 +1423,22 @@ export class Orchestrator {
       }
       await Promise.race([runState.done, Bun.sleep(10_000)])
     }
-    db.run(
-      `UPDATE tasks SET agent_status = 'failed',
-         agent_error = ?,
-         block_reason = NULL,
-         updated_at = datetime('now')
-       WHERE id = ?`,
-      [reason, taskId],
-    )
-    db.run(
-      `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now')
-        WHERE task_id = ? AND status = 'running'`,
-      [reason, taskId],
-    )
-    const row = db
-      .query('SELECT * FROM tasks WHERE id = ?')
-      .get(taskId) as TaskRow | null
-    if (row) {
-      pubsub.publish(
-        'TASK_UPDATED',
-        row.board_id,
-        mapTask(row) as unknown as Record<string, unknown>,
-      )
-    }
+    taskLifecycleTransition({
+      blockReason: null,
+      extras: (txDb) => {
+        txDb.run(
+          `UPDATE tasks SET agent_error = ? WHERE id = ?`,
+          [reason, taskId],
+        )
+        txDb.run(
+          `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now')
+            WHERE task_id = ? AND status = 'running'`,
+          [reason, taskId],
+        )
+      },
+      taskId,
+      to: 'failed',
+    })
   }
 
   /** Get current status summary. */

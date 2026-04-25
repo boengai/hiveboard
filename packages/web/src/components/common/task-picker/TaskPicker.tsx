@@ -1,22 +1,6 @@
 import { useState } from 'react'
-import type { Task } from '@/types/models'
+import type { TaskPickerProps } from '@/types'
 import { TextInput } from '../input'
-
-export type TaskPickerOption = {
-  id: string
-  title: string
-  agentStatus: Task['agentStatus']
-  disabled?: boolean
-  disabledReason?: string
-}
-
-export type TaskPickerProps = {
-  options: TaskPickerOption[]
-  value: string | null
-  onChange: (id: string | null) => void
-  placeholder?: string
-  excludeIds?: string[]
-}
 
 /**
  * Lightweight board-scoped task picker. Filters by title substring; shows a
@@ -49,10 +33,12 @@ export function TaskPicker({
           </div>
         )}
         {filtered.map((o) => (
+          // Card-shaped row (title + status subtext) — per conventions.md §4
+          // this kind of "card-shaped interactive region with sub-elements"
+          // is a legitimate exception to the Button-wrapper rule.
           <button
-            className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body-sm hover:bg-surface-overlay ${
-              value === o.id ? 'bg-surface-overlay' : ''
-            } ${o.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body-sm hover:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-50 data-[selected=true]:bg-surface-overlay"
+            data-selected={value === o.id ? 'true' : 'false'}
             disabled={o.disabled}
             key={o.id}
             onClick={() => onChange(o.id)}

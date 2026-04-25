@@ -1,49 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { subscribe } from '@/graphql'
-import { CHECKPOINT_ADDED_SUBSCRIPTION } from '@/graphql/subscriptions'
-
-type Checkpoint = {
-  id: string
-  agentRunId: string
-  turn: number
-  kind: string
-  summary: string
-  rawBytes: number
-  occurredAt: string
-}
-
-type AgentRun = {
-  id: string
-  action: string | null
-  status: string
-  turnCount: number
-  checkpoints: Checkpoint[]
-  startedAt: string | null
-  finishedAt: string | null
-  error: string | null
-}
-
-type Props = {
-  taskId: string
-  agentRuns: AgentRun[]
-}
+import { CHECKPOINT_ADDED_SUBSCRIPTION, subscribe } from '@/graphql'
+import type { AgentRunCheckpoint, AgentRunLogProps } from '@/types'
 
 const KIND_ICON: Record<string, string> = {
   assistant: '💬',
-  tool_use: '🛠',
-  tool_result: '←',
   error: '⚠️',
+  tool_result: '←',
+  tool_use: '🛠',
 }
 
 function KindIcon({ kind }: { kind: string }) {
   return (
-    <span aria-label={kind} className="inline-block w-5 text-center">
+    <span
+      aria-label={kind}
+      className="inline-block w-5 text-center"
+      role="img"
+    >
       {KIND_ICON[kind] ?? '•'}
     </span>
   )
 }
 
-function CheckpointRow({ cp }: { cp: Checkpoint }) {
+function CheckpointRow({ cp }: { cp: AgentRunCheckpoint }) {
   const [expanded, setExpanded] = useState(false)
   const isLong = cp.summary.length > 200
   const displayed =
@@ -66,14 +44,14 @@ function CheckpointRow({ cp }: { cp: Checkpoint }) {
   )
 }
 
-export function AgentRunLog({ taskId, agentRuns }: Props) {
+export function AgentRunLog({ taskId, agentRuns }: AgentRunLogProps) {
   const mostRecent = useMemo(() => {
     if (!agentRuns.length) return null
     const sorted = [...agentRuns].sort((a, b) => b.id.localeCompare(a.id))
     return sorted[0] ?? null
   }, [agentRuns])
 
-  const [liveCheckpoints, setLiveCheckpoints] = useState<Checkpoint[]>(
+  const [liveCheckpoints, setLiveCheckpoints] = useState<AgentRunCheckpoint[]>(
     mostRecent?.checkpoints ?? [],
   )
 
@@ -83,16 +61,20 @@ export function AgentRunLog({ taskId, agentRuns }: Props) {
 
   useEffect(() => {
     if (!mostRecent || mostRecent.status !== 'running') return
-    const dispose = subscribe<{ checkpointAdded: Checkpoint }>(
+    const dispose = subscribe<{ checkpointAdded: AgentRunCheckpoint }>(
       CHECKPOINT_ADDED_SUBSCRIPTION,
       { taskId },
       (data) => {
         if (data.checkpointAdded.agentRunId !== mostRecent.id) return
-        setLiveCheckpoints((prev: Checkpoint[]) => {
-          if (prev.some((cp: Checkpoint) => cp.id === data.checkpointAdded.id))
+        setLiveCheckpoints((prev: AgentRunCheckpoint[]) => {
+          if (
+            prev.some(
+              (cp: AgentRunCheckpoint) => cp.id === data.checkpointAdded.id,
+            )
+          )
             return prev
           return [...prev, data.checkpointAdded].sort(
-            (a: Checkpoint, b: Checkpoint) => a.turn - b.turn,
+            (a: AgentRunCheckpoint, b: AgentRunCheckpoint) => a.turn - b.turn,
           )
         })
       },
@@ -121,7 +103,7 @@ export function AgentRunLog({ taskId, agentRuns }: Props) {
 
   return (
     <ol className="flex flex-col gap-1">
-      {liveCheckpoints.map((cp: Checkpoint) => (
+      {liveCheckpoints.map((cp: AgentRunCheckpoint) => (
         <CheckpointRow cp={cp} key={cp.id} />
       ))}
     </ol>

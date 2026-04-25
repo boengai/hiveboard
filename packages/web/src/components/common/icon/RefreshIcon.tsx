@@ -3,9 +3,9 @@ import type { IconProps } from '@/types'
 export const RefreshIcon = ({ size = '1em' }: IconProps) => (
   <svg
     aria-hidden="true"
+    aria-label="Refresh"
     fill="none"
     height={size}
-    role="presentation"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -14,8 +14,9 @@ export const RefreshIcon = ({ size = '1em' }: IconProps) => (
     width={size}
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M1 4v6h6" />
-    <path d="M23 20v-6h-6" />
-    <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 16h5v5" />
   </svg>
 )

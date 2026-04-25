@@ -1,19 +1,14 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { ArrowIcon, Button } from '@/components'
-import { usePlaybooks } from '@/hooks/usePlaybooks'
-import type { Playbook } from '@/types'
+import { usePlaybooks } from '@/hooks'
+import type { PlaybookEditorState } from '@/types'
 import { PlaybookEditor } from './PlaybookEditor'
 import { PlaybookList } from './PlaybookList'
 
-type EditorState =
-  | { mode: 'closed' }
-  | { mode: 'create' }
-  | { mode: 'edit'; playbook: Playbook }
-
 export function PlaybooksPage() {
   const { playbooks, loading, error, refresh } = usePlaybooks()
-  const [editor, setEditor] = useState<EditorState>({ mode: 'closed' })
+  const [editor, setEditor] = useState<PlaybookEditorState>({ mode: 'closed' })
 
   const closeEditor = () => setEditor({ mode: 'closed' })
   const handleSaved = () => {
@@ -25,13 +20,18 @@ export function PlaybooksPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Link className="text-body-sm text-honey-400 hover:underline" to="/">
-            <ArrowIcon direction="left" />
-          </Link>
           <div className="flex flex-col">
-            <h1 className="font-semibold text-lg text-text-primary">
-              Playbooks
-            </h1>
+            <div className="flex items-center gap-1">
+              <Link
+                className="text-body-sm text-honey-400 hover:underline"
+                to="/"
+              >
+                <ArrowIcon />
+              </Link>
+              <h1 className="font-semibold text-lg text-text-primary">
+                Playbooks
+              </h1>
+            </div>
             <p className="text-body-sm text-text-secondary">
               Reusable, versioned task recipes. Dispatched on tasks as{' '}
               <code>playbook:&lt;name&gt;</code>.
@@ -72,21 +72,11 @@ export function PlaybooksPage() {
         ) : null}
       </section>
 
-      {editor.mode === 'create' ? (
-        <PlaybookEditor
-          mode="create"
-          onClose={closeEditor}
-          onSaved={handleSaved}
-        />
-      ) : null}
-      {editor.mode === 'edit' ? (
-        <PlaybookEditor
-          mode="edit"
-          onClose={closeEditor}
-          onSaved={handleSaved}
-          playbook={editor.playbook}
-        />
-      ) : null}
+      <PlaybookEditor
+        onClose={closeEditor}
+        onSaved={handleSaved}
+        state={editor}
+      />
     </div>
   )
 }

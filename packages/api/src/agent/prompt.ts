@@ -5,6 +5,7 @@ import {
   type RenderPlaybookPromptInput,
   renderPlaybookPrompt,
 } from '../playbooks/render'
+import { buildPromptContext } from './prompt-context'
 import { loadPromptPartials } from './prompt-partials'
 
 /** Disable Mustache's default HTML escaping — we output plain text. */
@@ -40,30 +41,7 @@ export type PreviousAttemptReplayForPrompt = {
   checkpoints: Array<{ turn: number; kind: string; summary: string }>
 }
 
-export type PromptContext = {
-  task: {
-    id: string
-    title: string
-    body: string
-    action: string
-    agent_instruction: string
-    repo_owner: string
-    repo_name: string
-    target_branch: string
-    pr_url: string
-  }
-  attempt?: number
-  review_comments?: string
-  has_review_comments?: boolean
-  scratchpad?: string
-  messages?: RunAgentMessage[]
-  has_messages?: boolean
-  auto_revise_from_verification?: boolean
-  verification_failures?: VerificationFailureForPrompt[]
-  previous_attempt_replay?: PreviousAttemptReplayForPrompt
-  has_required_secrets?: boolean
-  required_secrets_list?: Array<{ name: string; description?: string | null }>
-}
+export type { PromptContext } from './prompt-context'
 
 export type RenderPromptResolver = {
   db: Database
@@ -82,7 +60,18 @@ export function renderPrompt(
   resolver?: RenderPromptResolver,
   requiredSecrets?: Array<{ name: string; description?: string | null }>,
 ): string {
-  // Playbook dispatch path
+  const context = buildPromptContext({
+    attempt,
+    messages,
+    previousAttemptReplay,
+    requiredSecrets,
+    reviewComments,
+    scratchpad,
+    task,
+    verificationFailures: verification?.verification_failures,
+  })
+
+  // Playbook dispatch path: same context, different template body.
   if (task.action?.startsWith('playbook:')) {
     if (!resolver) {
       throw new Error(
@@ -93,43 +82,17 @@ export function renderPrompt(
     const pb = getPlaybookByName(resolver.db, name)
     if (!pb) throw new Error(`Playbook not found: ${name}`)
     const input: RenderPlaybookPromptInput = {
+      attempt,
       messages,
       playbookBody: pb.currentVersion.promptTemplate,
       previousAttemptReplay,
+      requiredSecrets,
+      reviewComments,
       scratchpad,
       task,
       verificationFailures: verification?.verification_failures,
     }
     return renderPlaybookPrompt(input)
-  }
-
-  // Existing WORKFLOW.md path — unchanged
-  const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
-
-  const context: PromptContext = {
-    attempt,
-    auto_revise_from_verification:
-      (verification?.verification_failures?.length ?? 0) > 0,
-    has_messages: (messages?.length ?? 0) > 0,
-    has_required_secrets: (requiredSecrets?.length ?? 0) > 0,
-    has_review_comments: !!reviewComments,
-    messages: messages ?? [],
-    previous_attempt_replay: previousAttemptReplay,
-    required_secrets_list: requiredSecrets ?? [],
-    review_comments: reviewComments,
-    scratchpad: scratchpad ?? '',
-    task: {
-      action: task.action ?? '',
-      agent_instruction: task.agentInstruction ?? '',
-      body: task.body,
-      id: task.id,
-      pr_url: task.prUrl ?? '',
-      repo_name: repoName ?? '',
-      repo_owner: repoOwner ?? '',
-      target_branch: task.targetBranch ?? 'main',
-      title: task.title,
-    },
-    verification_failures: verification?.verification_failures ?? [],
   }
 
   return Mustache.render(template, context, loadPromptPartials())

@@ -10,10 +10,9 @@ import {
   ArrowIcon,
   Avatar,
   Badge,
-  BoltIcon,
   Button,
   CheckIcon,
-  ChevronDownIcon,
+  ChevronIcon,
   DotIcon,
   FileTextIcon,
   GitPullRequestIcon,
@@ -22,18 +21,20 @@ import {
   PlayIcon,
   PlusIcon,
   RefreshIcon,
-  XMarkIcon,
+  XIcon,
+  ZapIcon,
 } from '@/components/common'
 import {
   GET_TASK_TIMELINE,
   graphqlClient,
-  subscribe,
   TASK_EVENT_ADDED_SUBSCRIPTION,
 } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type {
   RawTimelineEvent,
   TaskEventHistoryProps,
   TimelineEntry,
+  TimelineGroupedEntry,
 } from '@/types'
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,7 @@ function eventIcon(eventType: string): ReactNode {
     case 'created':
       return <PlusIcon size={s} />
     case 'moved':
-      return <ArrowIcon size={s} />
+      return <ArrowIcon direction="right" size={s} />
     case 'status_changed':
       return <RefreshIcon size={s} />
     case 'agent_started':
@@ -83,7 +84,7 @@ function eventIcon(eventType: string): ReactNode {
     case 'agent_succeeded':
       return <CheckIcon size={s} />
     case 'agent_failed':
-      return <XMarkIcon size={s} />
+      return <XIcon size={s} />
     case 'pr_opened':
       return <GitPullRequestIcon size={s} />
     case 'archived':
@@ -95,9 +96,9 @@ function eventIcon(eventType: string): ReactNode {
     case 'body_changed':
       return <FileTextIcon size={s} />
     case 'action_set':
-      return <BoltIcon size={s} />
+      return <ZapIcon size={s} />
     case 'action_cleared':
-      return <BoltIcon size={s} />
+      return <ZapIcon size={s} />
     case 'tags_changed':
       return <PencilIcon size={s} />
     case 'comment_added':
@@ -204,20 +205,13 @@ function eventGroupKey(entry: TimelineEntry): string {
 // Grouping logic — merge consecutive identical events into clusters
 // ---------------------------------------------------------------------------
 
-type GroupedEntry =
-  | { kind: 'single'; entry: TimelineEntry }
-  | {
-      kind: 'cluster'
-      entries: TimelineEntry[]
-      description: string
-      eventType: string
-    }
-
-function groupConsecutiveEvents(entries: TimelineEntry[]): GroupedEntry[] {
+function groupConsecutiveEvents(
+  entries: TimelineEntry[],
+): TimelineGroupedEntry[] {
   if (entries.length === 0) return []
 
   const first = entries[0] as TimelineEntry
-  const groups: GroupedEntry[] = []
+  const groups: TimelineGroupedEntry[] = []
   let run: TimelineEntry[] = [first]
   let runKey = eventGroupKey(first)
 
@@ -236,7 +230,7 @@ function groupConsecutiveEvents(entries: TimelineEntry[]): GroupedEntry[] {
   return groups
 }
 
-function flush(run: TimelineEntry[], groups: GroupedEntry[]) {
+function flush(run: TimelineEntry[], groups: TimelineGroupedEntry[]) {
   const head = run[0] as TimelineEntry
   if (run.length === 1) {
     groups.push({ entry: head, kind: 'single' })
@@ -290,7 +284,11 @@ function EventRow({ entry }: { entry: TimelineEntry }) {
   )
 }
 
-function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
+function ClusterRow({
+  group,
+}: {
+  group: TimelineGroupedEntry & { kind: 'cluster' }
+}) {
   const [expanded, setExpanded] = useState(false)
   const { entries, eventType } = group
   const first = entries[0] as TimelineEntry
@@ -331,7 +329,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
             className="transition-transform duration-150"
             style={{ transform: expanded ? 'rotate(180deg)' : undefined }}
           >
-            <ChevronDownIcon size={10} />
+            <ChevronIcon size={10} />
           </span>
         </span>
       </button>
@@ -362,7 +360,7 @@ function ClusterRow({ group }: { group: GroupedEntry & { kind: 'cluster' } }) {
   )
 }
 
-function GroupRow({ group }: { group: GroupedEntry }) {
+function GroupRow({ group }: { group: TimelineGroupedEntry }) {
   if (group.kind === 'single') return <EventRow entry={group.entry} />
   return <ClusterRow group={group} />
 }
@@ -371,10 +369,36 @@ function GroupRow({ group }: { group: GroupedEntry }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export function TaskEventHistory({ taskId }: TaskEventHistoryProps) {
-  const [entries, setEntries] = useState<TimelineEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAll, setShowAll] = useState(false)
+function rawToTimelineEntries(raw: RawTimelineEvent[]): TimelineEntry[] {
+  return raw
+    .filter((e) => e.type !== 'comment_added')
+    .map((e) => ({
+      actor: e.actor,
+      createdAt: e.createdAt,
+      data: e.data,
+      eventType: e.type,
+      id: e.id,
+      isSystem: e.isSystem,
+      type: 'event' as const,
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    )
+}
+
+export function TaskEventHistory({
+  taskId,
+  initialEntries,
+}: TaskEventHistoryProps) {
+  // Parent passes `undefined` only when it isn't orchestrating the timeline
+  // fetch itself. When it passes an array (even empty), we trust it and skip
+  // the self-fetch; parent-driven updates flow in via the sync effect below.
+  const hasInitial = initialEntries !== undefined
+  const [entries, setEntries] = useState<TimelineEntry[]>(
+    hasInitial ? rawToTimelineEntries(initialEntries) : [],
+  )
+  const [loading, setLoading] = useState(!hasInitial)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -382,24 +406,7 @@ export function TaskEventHistory({ taskId }: TaskEventHistoryProps) {
       const timelineData = await graphqlClient.request<{
         taskTimeline: RawTimelineEvent[]
       }>(GET_TASK_TIMELINE, { taskId })
-
-      const eventEntries: TimelineEntry[] = timelineData.taskTimeline
-        .filter((e) => e.type !== 'comment_added')
-        .map((e) => ({
-          actor: e.actor,
-          createdAt: e.createdAt,
-          data: e.data,
-          eventType: e.type,
-          id: e.id,
-          isSystem: e.isSystem,
-          type: 'event' as const,
-        }))
-        .sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        )
-
-      setEntries(eventEntries)
+      setEntries(rawToTimelineEntries(timelineData.taskTimeline))
     } catch (err) {
       console.error('TaskEventHistory fetch error', err)
     } finally {
@@ -408,38 +415,50 @@ export function TaskEventHistory({ taskId }: TaskEventHistoryProps) {
   }, [taskId])
 
   useEffect(() => {
+    if (hasInitial) return
     fetchData()
-  }, [fetchData])
+  }, [fetchData, hasInitial])
+
+  // Sync when the parent's parallel fetch resolves later. The subscription
+  // effect (below) handles live pushes; this one handles the initial load.
+  // Replace (not merge): parent's snapshot supersedes any prior local state.
+  // Safe today because the parent fetches exactly once per drawer-open.
+  // Skip empty arrays — the parent sends a transient `[]` while its fetch
+  // is pending and we don't want to clobber subscription events that may
+  // have arrived in that window.
+  useEffect(() => {
+    if (!initialEntries || initialEntries.length === 0) return
+    setEntries(rawToTimelineEntries(initialEntries))
+  }, [initialEntries])
+
+  const [showAll, setShowAll] = useState(false)
 
   // Subscribe to new task events
-  useEffect(() => {
-    const dispose = subscribe<{ taskEventAdded: RawTimelineEvent }>(
-      TASK_EVENT_ADDED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const e = data.taskEventAdded
-        if (!e || e.type === 'comment_added') return
-        const newEntry: TimelineEntry = {
-          actor: e.actor,
-          createdAt: e.createdAt,
-          data: e.data,
-          eventType: e.type,
-          id: e.id,
-          isSystem: e.isSystem,
-          type: 'event',
-        }
-        setEntries((prev) => {
-          // Avoid duplicates
-          if (prev.some((x) => x.id === newEntry.id)) return prev
-          return [...prev, newEntry].sort(
-            (a, b) =>
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          )
-        })
-      },
-    )
-    return dispose
-  }, [taskId])
+  useTaskSubscription<{ taskEventAdded: RawTimelineEvent }>(
+    TASK_EVENT_ADDED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const e = data.taskEventAdded
+      if (!e || e.type === 'comment_added') return
+      const newEntry: TimelineEntry = {
+        actor: e.actor,
+        createdAt: e.createdAt,
+        data: e.data,
+        eventType: e.type,
+        id: e.id,
+        isSystem: e.isSystem,
+        type: 'event',
+      }
+      setEntries((prev) => {
+        // Avoid duplicates
+        if (prev.some((x) => x.id === newEntry.id)) return prev
+        return [...prev, newEntry].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )
+      })
+    },
+  )
 
   // Group consecutive identical events
   const grouped = useMemo(() => groupConsecutiveEvents(entries), [entries])
@@ -485,7 +504,7 @@ export function TaskEventHistory({ taskId }: TaskEventHistoryProps) {
             className="mr-1.5 transition-transform duration-150"
             style={{ transform: showAll ? 'rotate(180deg)' : undefined }}
           >
-            <ChevronDownIcon size={10} />
+            <ChevronIcon size={10} />
           </span>
           <span>
             {showAll

@@ -50,6 +50,8 @@ export function TaskSubtasks({ parentTask, subtasks }: TaskSubtasksProps) {
   return (
     <div className="flex flex-col gap-2">
       {parentTask && (
+        // Card-shaped breadcrumb (icon + label + truncated parent title) —
+        // legitimate exception per conventions.md §4.
         <button
           className="flex items-center gap-1.5 self-start rounded-md border border-border-default bg-surface-raised px-2 py-1 text-body-xs text-text-secondary hover:border-border-hover hover:text-text-primary"
           onClick={() => openDrawerView(parentTask.id)}
@@ -84,6 +86,8 @@ export function TaskSubtasks({ parentTask, subtasks }: TaskSubtasksProps) {
           <ul className="flex flex-col gap-1">
             {subtasks.map((s: TaskSubtaskSummary) => (
               <li key={s.id}>
+                {/* Card-shaped row (status dot + title + action badge) —
+                    legitimate exception per conventions.md §4. */}
                 <button
                   className="flex w-full items-center gap-2 rounded-md border border-border-default bg-surface-raised px-2 py-1.5 text-left text-body-sm hover:border-border-hover hover:bg-surface-overlay/40"
                   onClick={() => openDrawerView(s.id)}

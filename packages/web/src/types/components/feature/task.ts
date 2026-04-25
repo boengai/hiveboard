@@ -1,14 +1,14 @@
-import type { TaskFormValues } from '@/schemas/task'
+import type { TaskFormValues } from '@/schemas'
 import type {
   BlockReason,
   BoardSecretSummary,
+  ComboboxOption,
   Task,
   TaskBlockerSummary,
   TaskProgressEntry,
   TaskSubtaskSummary,
   WorkspaceSnapshotSummary,
-} from '@/types/models'
-import type { ComboboxOption } from '../common/input'
+} from '@/types'
 
 // ---------------------------------------------------------------------------
 // TaskDrawer
@@ -45,8 +45,14 @@ export type ViewModeProps = {
   onInterruptAgent: () => void
   onUpdateAction: (action: string, instruction?: string) => void
   onContinueTask: (instruction: string | null) => Promise<void>
+  onRequiredSecretsChanged: (next: RequiredSecretsResponse) => void
   loading: boolean
   boardSecrets: BoardSecretSummary[]
+  /**
+   * Timeline events fetched in parallel with GET_TASK at the drawer level.
+   * null while in-flight; when provided, TaskEventHistory skips its own fetch.
+   */
+  initialTimelineEntries: RawTimelineEvent[] | null
 }
 
 export type AgentPanelProps = {
@@ -111,6 +117,7 @@ export type CommentBlockProps = {
 
 export type TaskCommentsProps = {
   taskId: string
+  initialComments?: Comment[]
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +175,7 @@ export type TaskEventHistoryProps = {
   taskId: string
   /** Called when a comment is added/updated so parent can refresh */
   onCommentMutation?: () => void
+  initialEntries?: RawTimelineEvent[]
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +228,15 @@ export type TaskMessagesProps = {
 
 export type MessageAddedPayload = {
   messageAdded: TaskMessage
+}
+
+export type ComposerMode = 'ANSWER' | 'HINT_OR_REDIRECT'
+
+export type ComposerProps = {
+  taskId: string
+  mode: ComposerMode
+  agentStatus: string
+  currentQuestion: TaskMessagesProps['currentQuestion']
 }
 
 // ---------------------------------------------------------------------------
@@ -283,3 +300,79 @@ export type TaskTimeBoxProps = {
   timeBoxRemainingMs: number | null
   blockReason: BlockReason | null
 }
+
+// ---------------------------------------------------------------------------
+// TaskSecrets
+// ---------------------------------------------------------------------------
+
+export type RequiredSecretsResponse = {
+  requiredSecrets: string[]
+  missingSecrets: string[]
+  agentStatus: Task['agentStatus']
+}
+
+export type TaskSecretRowStatus = 'override' | 'board' | 'missing'
+
+export type TaskSecretRow = {
+  name: string
+  status: TaskSecretRowStatus
+}
+
+export type TaskSecretsProps = {
+  task: Pick<
+    Task,
+    'id' | 'agentStatus' | 'requiredSecrets' | 'missingSecrets' | 'taskSecrets'
+  >
+  boardSecrets: BoardSecretSummary[]
+  onRequiredChanged?: (next: RequiredSecretsResponse) => void
+}
+
+export type TaskSecretOverrideFormProps = {
+  taskId: string
+  name: string
+  onClose: () => void
+}
+
+// ---------------------------------------------------------------------------
+// TaskVerification
+// ---------------------------------------------------------------------------
+
+export type VerificationRunView = {
+  id: string
+  taskId: string
+  agentRunId: string | null
+  command: string
+  label: string
+  exitCode: number
+  output: string
+  startedAt: string
+  finishedAt: string
+}
+
+export type TaskVerificationProps = {
+  taskId: string
+  initialRuns: VerificationRunView[]
+  verifyAttemptCount: number
+}
+
+export type VerificationRunAddedPayload = {
+  verificationRunAdded: VerificationRunView
+}
+
+export type VerificationRunGroup = {
+  agentRunId: string | null
+  runs: VerificationRunView[]
+}
+
+// ---------------------------------------------------------------------------
+// TaskEventHistory
+// ---------------------------------------------------------------------------
+
+export type TimelineGroupedEntry =
+  | { kind: 'single'; entry: TimelineEntry }
+  | {
+      kind: 'cluster'
+      entries: TimelineEntry[]
+      description: string
+      eventType: string
+    }

@@ -2,7 +2,7 @@ import * as Tabs from '@radix-ui/react-tabs'
 import type { ReactNode } from 'react'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/common/button'
-import { ImageIcon, SpinnerIcon } from '@/components/common/icon'
+import { ImageIcon, LoaderIcon } from '@/components/common/icon'
 import type { MarkdownEditorProps } from '@/types'
 import { MarkdownPreview } from './MarkdownPreview'
 
@@ -149,7 +149,7 @@ export const MarkdownEditor = ({
           <div className="flex items-center gap-1 pr-1">
             {uploading && (
               <span className="text-text-tertiary">
-                <SpinnerIcon size={14} />
+                <LoaderIcon size={14} />
               </span>
             )}
             <Button

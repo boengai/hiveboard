@@ -1,1 +1,1 @@
-export type { AuthProviderProps } from './types'
+export type * from './types'

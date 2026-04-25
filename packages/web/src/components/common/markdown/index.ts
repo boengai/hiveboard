@@ -1,2 +1,2 @@
-export { MarkdownEditor } from './MarkdownEditor'
-export { MarkdownPreview } from './MarkdownPreview'
+export * from './MarkdownEditor'
+export * from './MarkdownPreview'

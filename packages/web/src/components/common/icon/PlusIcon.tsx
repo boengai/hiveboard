@@ -3,9 +3,9 @@ import type { IconProps } from '@/types'
 export const PlusIcon = ({ size = '1em' }: IconProps) => (
   <svg
     aria-hidden="true"
+    aria-label="Plus"
     fill="none"
     height={size}
-    role="presentation"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -14,6 +14,7 @@ export const PlusIcon = ({ size = '1em' }: IconProps) => (
     width={size}
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M12 4v16m8-8H4" />
+    <path d="M5 12h14" />
+    <path d="M12 5v14" />
   </svg>
 )

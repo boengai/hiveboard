@@ -1,82 +1,84 @@
-import { useMemo, useState } from 'react'
-import { Button, TextAreaInput, TextInput } from '@/components/common'
-import { graphqlClient } from '@/graphql'
+import { useForm } from '@tanstack/react-form'
+import { useState } from 'react'
+import {
+  Button,
+  FieldError,
+  TextAreaInput,
+  TextInput,
+} from '@/components/common'
 import {
   DELETE_TASK_SECRET,
+  graphqlClient,
   SET_TASK_REQUIRED_SECRETS,
   SET_TASK_SECRET,
-} from '@/graphql/mutations'
-import type { BoardSecretSummary, Task } from '@/types/models/board'
+} from '@/graphql'
+import { secretUpdateValueSchema, taskSecretRequireSchema } from '@/schemas'
+import type {
+  RequiredSecretsResponse,
+  TaskSecretOverrideFormProps,
+  TaskSecretRow,
+  TaskSecretRowStatus,
+  TaskSecretsProps,
+} from '@/types'
 
-type Props = {
-  task: Pick<
-    Task,
-    'id' | 'agentStatus' | 'requiredSecrets' | 'missingSecrets' | 'taskSecrets'
-  >
-  boardSecrets: BoardSecretSummary[]
-  onRequiredChanged?: (next: { requiredSecrets: string[]; missingSecrets: string[]; agentStatus: Task['agentStatus'] }) => void
-}
-
-const NAME_RE = /^[A-Z_][A-Z0-9_]*$/
-
-export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
+export function TaskSecrets({
+  task,
+  boardSecrets,
+  onRequiredChanged,
+}: TaskSecretsProps) {
   const required = task.requiredSecrets ?? []
   const missing = new Set(task.missingSecrets ?? [])
   const overrides = new Map((task.taskSecrets ?? []).map((s) => [s.name, s]))
   const boardNames = new Set(boardSecrets.map((s) => s.name))
 
-  const [addingName, setAddingName] = useState('')
   const [editingName, setEditingName] = useState<string | null>(null)
-  const [editingValue, setEditingValue] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [addSubmitError, setAddSubmitError] = useState<string | null>(null)
 
-  function statusFor(name: string): 'override' | 'board' | 'missing' {
+  const addForm = useForm({
+    defaultValues: { name: '' },
+    onSubmit: async ({ value }) => {
+      setAddSubmitError(null)
+      const n = value.name.trim()
+      if (required.includes(n)) {
+        addForm.reset()
+        return
+      }
+      try {
+        const data = await graphqlClient.request<{
+          setTaskRequiredSecrets: RequiredSecretsResponse
+        }>(SET_TASK_REQUIRED_SECRETS, {
+          names: [...required, n],
+          taskId: task.id,
+        })
+        onRequiredChanged?.(data.setTaskRequiredSecrets)
+        addForm.reset()
+      } catch (err) {
+        setAddSubmitError(
+          err instanceof Error ? err.message : 'Failed to add requirement.',
+        )
+      }
+    },
+    validators: { onSubmit: taskSecretRequireSchema },
+  })
+
+  const statusFor = (name: string): TaskSecretRowStatus => {
     if (overrides.has(name)) return 'override'
     if (boardNames.has(name)) return 'board'
     return 'missing'
   }
 
-  const rows: Array<{ name: string; status: 'override' | 'board' | 'missing' }> = useMemo(
-    () => required.map((name) => ({ name, status: statusFor(name) })),
-    // statusFor derives from overrides + boardNames, re-compute when those change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [required, boardSecrets, task.taskSecrets],
-  )
+  const rows: TaskSecretRow[] = required.map((name) => ({
+    name,
+    status: statusFor(name),
+  }))
 
-  async function addRequirement(e: React.FormEvent) {
-    e.preventDefault()
-    setFormError(null)
-    const n = addingName.trim()
-    if (!NAME_RE.test(n)) {
-      setFormError('Name must be UPPER_SNAKE (e.g. API_KEY).')
-      return
-    }
-    if (required.includes(n)) {
-      setAddingName('')
-      return
-    }
-    setSaving(true)
+  const removeRequirement = async (name: string) => {
     try {
       const data = await graphqlClient.request<{
-        setTaskRequiredSecrets: { requiredSecrets: string[]; missingSecrets: string[]; agentStatus: Task['agentStatus'] }
-      }>(SET_TASK_REQUIRED_SECRETS, { taskId: task.id, names: [...required, n] })
-      onRequiredChanged?.(data.setTaskRequiredSecrets)
-      setAddingName('')
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to add requirement.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function removeRequirement(name: string) {
-    try {
-      const data = await graphqlClient.request<{
-        setTaskRequiredSecrets: { requiredSecrets: string[]; missingSecrets: string[]; agentStatus: Task['agentStatus'] }
+        setTaskRequiredSecrets: RequiredSecretsResponse
       }>(SET_TASK_REQUIRED_SECRETS, {
-        taskId: task.id,
         names: required.filter((x) => x !== name),
+        taskId: task.id,
       })
       onRequiredChanged?.(data.setTaskRequiredSecrets)
     } catch (err) {
@@ -84,27 +86,9 @@ export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
     }
   }
 
-  async function saveOverride(name: string) {
-    if (!editingValue) return
-    setSaving(true)
+  const removeOverride = async (name: string) => {
     try {
-      await graphqlClient.request(SET_TASK_SECRET, {
-        taskId: task.id,
-        name,
-        value: editingValue,
-      })
-      setEditingValue('')
-      setEditingName(null)
-    } catch (err) {
-      console.error('Failed to set task secret', err)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function removeOverride(name: string) {
-    try {
-      await graphqlClient.request(DELETE_TASK_SECRET, { taskId: task.id, name })
+      await graphqlClient.request(DELETE_TASK_SECRET, { name, taskId: task.id })
     } catch (err) {
       console.error('Failed to remove task secret override', err)
     }
@@ -119,13 +103,16 @@ export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
           <strong className="font-semibold">Missing secrets: </strong>
           {missing.size > 0 ? [...missing].join(', ') : 'resolving…'}
           <div className="mt-1 text-body-xs text-text-tertiary">
-            Set a task-level override below, or add the secret in board Settings → Secrets.
+            Set a task-level override below, or add the secret in board Settings
+            → Secrets.
           </div>
         </div>
       )}
 
       {rows.length === 0 ? (
-        <p className="text-body-sm text-text-tertiary italic">No required secrets declared.</p>
+        <p className="text-body-sm text-text-tertiary italic">
+          No required secrets declared.
+        </p>
       ) : (
         <ul className="space-y-2">
           {rows.map((row) => (
@@ -135,7 +122,9 @@ export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 pt-0.5">
-                  <code className="font-medium text-body-sm text-text-primary">{row.name}</code>
+                  <code className="font-medium text-body-sm text-text-primary">
+                    {row.name}
+                  </code>
                   <span
                     className={`ml-2 text-body-xs ${
                       row.status === 'missing'
@@ -146,22 +135,21 @@ export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
                     {row.status === 'override'
                       ? 'task override'
                       : row.status === 'board'
-                      ? 'satisfied by board'
-                      : 'missing'}
+                        ? 'satisfied by board'
+                        : 'missing'}
                   </span>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   <Button
                     color="default"
-                    onClick={() => {
-                      setEditingName(row.name)
-                      setEditingValue('')
-                    }}
+                    onClick={() => setEditingName(row.name)}
                     size="small"
                     type="button"
                     variant="ghost"
                   >
-                    {row.status === 'override' ? 'Change override' : 'Set override'}
+                    {row.status === 'override'
+                      ? 'Change override'
+                      : 'Set override'}
                   </Button>
                   {row.status === 'override' && (
                     <Button
@@ -187,69 +175,139 @@ export function TaskSecrets({ task, boardSecrets, onRequiredChanged }: Props) {
               </div>
 
               {editingName === row.name && (
-                <div className="mt-3 space-y-2">
-                  {/* CRITICAL: textarea starts empty — write-only, never pre-populate with existing value */}
-                  <TextAreaInput
-                    autoFocus
-                    onChange={setEditingValue}
-                    placeholder="Override value (write-only)"
-                    rows={3}
-                    value={editingValue}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      color="default"
-                      onClick={() => {
-                        setEditingName(null)
-                        setEditingValue('')
-                      }}
-                      size="small"
-                      type="button"
-                      variant="ghost"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      color="primary"
-                      disabled={saving || !editingValue}
-                      onClick={() => saveOverride(row.name)}
-                      size="small"
-                      type="button"
-                    >
-                      {saving ? 'Saving…' : 'Save'}
-                    </Button>
-                  </div>
-                </div>
+                <OverrideForm
+                  name={row.name}
+                  onClose={() => setEditingName(null)}
+                  taskId={task.id}
+                />
               )}
             </li>
           ))}
         </ul>
       )}
 
-      <form className="mt-1 flex items-center gap-2" onSubmit={addRequirement}>
-        {formError && (
-          <span className="text-body-xs text-error-400">{formError}</span>
-        )}
-        <TextInput
-          onChange={(v: string) => setAddingName(v.toUpperCase())}
-          placeholder="ADD_REQUIREMENT_NAME"
-          value={addingName}
-        />
+      <form
+        className="mt-1 flex items-start gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          addForm.handleSubmit()
+        }}
+      >
+        <addForm.Field name="name">
+          {(field) => (
+            <div className="flex grow flex-col gap-1">
+              <TextInput
+                onChange={(v: string) => field.handleChange(v.toUpperCase())}
+                placeholder="e.g. OPENAI_API_KEY"
+                value={field.state.value}
+              />
+              <FieldError errors={field.state.meta.errors} />
+              {addSubmitError && (
+                <span className="text-body-xs text-error-400">
+                  {addSubmitError}
+                </span>
+              )}
+            </div>
+          )}
+        </addForm.Field>
         <datalist id="task-board-secret-names">
           {boardSecrets.map((s) => (
             <option key={s.id} value={s.name} />
           ))}
         </datalist>
-        <Button
-          color="primary"
-          disabled={saving}
-          size="small"
-          type="submit"
-          variant="ghost"
-        >
-          Add requirement
-        </Button>
+        <div className="shrink-0">
+          <addForm.Subscribe selector={(s) => s.isSubmitting}>
+            {(isSubmitting) => (
+              <Button
+                color="primary"
+                disabled={isSubmitting}
+                size="small"
+                type="submit"
+                variant="ghost"
+              >
+                Add requirement
+              </Button>
+            )}
+          </addForm.Subscribe>
+        </div>
       </form>
     </div>
+  )
+}
+
+function OverrideForm({ taskId, name, onClose }: TaskSecretOverrideFormProps) {
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const form = useForm({
+    defaultValues: { value: '' },
+    onSubmit: async ({ value }) => {
+      setSubmitError(null)
+      try {
+        await graphqlClient.request(SET_TASK_SECRET, {
+          name,
+          taskId,
+          value: value.value,
+        })
+        onClose()
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error ? err.message : 'Failed to set task secret.',
+        )
+      }
+    },
+    validators: { onSubmit: secretUpdateValueSchema },
+  })
+
+  return (
+    <form
+      className="mt-3 space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        form.handleSubmit()
+      }}
+    >
+      <form.Field name="value">
+        {(field) => (
+          <div className="flex flex-col gap-1">
+            {/* CRITICAL: textarea starts empty — write-only, never pre-populate with existing value */}
+            <TextAreaInput
+              autoFocus
+              onChange={field.handleChange}
+              placeholder="Override value (write-only)"
+              rows={3}
+              value={field.state.value}
+            />
+            <FieldError errors={field.state.meta.errors} />
+          </div>
+        )}
+      </form.Field>
+      {submitError && (
+        <span className="text-body-xs text-error-400">{submitError}</span>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button
+          color="default"
+          onClick={onClose}
+          size="small"
+          type="button"
+          variant="ghost"
+        >
+          Cancel
+        </Button>
+        <form.Subscribe selector={(s) => s.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              color="primary"
+              disabled={isSubmitting}
+              size="small"
+              type="submit"
+            >
+              {isSubmitting ? 'Saving…' : 'Save'}
+            </Button>
+          )}
+        </form.Subscribe>
+      </div>
+    </form>
   )
 }

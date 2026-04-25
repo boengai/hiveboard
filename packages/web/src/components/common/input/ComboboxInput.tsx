@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
 import { useEffect, useRef, useState } from 'react'
-import { CheckIcon, PlusIcon, XMarkIcon } from '@/components/common/icon'
+import { CheckIcon, PlusIcon, XIcon } from '@/components/common/icon'
 import type { ComboboxInputProps } from '@/types'
 
 export const ComboboxInput = (props: ComboboxInputProps) => {
@@ -194,7 +194,7 @@ export const ComboboxInput = (props: ComboboxInputProps) => {
                       }}
                       type="button"
                     >
-                      <XMarkIcon size={12} />
+                      <XIcon size={12} />
                     </button>
                   </span>
                 ),

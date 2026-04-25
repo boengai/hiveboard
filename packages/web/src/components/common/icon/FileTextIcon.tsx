@@ -3,9 +3,9 @@ import type { IconProps } from '@/types'
 export const FileTextIcon = ({ size = '1em' }: IconProps) => (
   <svg
     aria-hidden="true"
+    aria-label="File Text"
     fill="none"
     height={size}
-    role="presentation"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
@@ -14,10 +14,10 @@ export const FileTextIcon = ({ size = '1em' }: IconProps) => (
     width={size}
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" x2="8" y1="13" y2="13" />
-    <line x1="16" x2="8" y1="17" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+    <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+    <path d="M10 9H8" />
+    <path d="M16 13H8" />
+    <path d="M16 17H8" />
   </svg>
 )

@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { TaskPicker, type TaskPickerOption } from '@/components/common'
+import { useShallow } from 'zustand/react/shallow'
+import { Button } from '@/components'
+import { TaskPicker } from '@/components/common'
 import {
   ADD_TASK_DEPENDENCY,
   graphqlClient,
   REMOVE_TASK_DEPENDENCY,
 } from '@/graphql'
 import { useBoardStore } from '@/store'
-import type { TaskBlockerSummary, TaskDependenciesProps } from '@/types'
+import type {
+  TaskBlockerSummary,
+  TaskDependenciesProps,
+  TaskPickerOption,
+} from '@/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,23 +104,27 @@ function BlockerChip({
 }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-border-default bg-surface-raised px-2 py-0.5 text-body-xs">
+      {/* Chip-shaped link: status dot + truncated title. Card-shaped region
+          with sub-elements — legitimate exception per conventions.md §4. */}
       <button
         className="flex items-center gap-1.5 hover:text-text-primary"
         onClick={onOpen}
         type="button"
       >
         <StatusDot status={blocker.agentStatus} />
-        <span className="max-w-[14rem] truncate">{blocker.title}</span>
+        <span className="max-w-56 truncate">{blocker.title}</span>
       </button>
       {removable && onRemove && (
-        <button
+        <Button
           aria-label="Remove blocker"
-          className="text-text-tertiary hover:text-error-400"
+          color="danger"
           onClick={onRemove}
+          size="small"
           type="button"
+          variant="link-muted"
         >
           ×
-        </button>
+        </Button>
       )}
     </span>
   )
@@ -138,7 +148,7 @@ export function TaskDependencies({
 
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
   const allTasks = useBoardStore(
-    (s) => s.board?.columns.flatMap((c) => c.tasks) ?? [],
+    useShallow((s) => s.board?.columns.flatMap((c) => c.tasks) ?? []),
   )
 
   // Keep local chip state in sync when parent re-renders with new blockers
@@ -220,8 +230,21 @@ export function TaskDependencies({
           task from the Agent panel, or resolve the blocker first.
         </div>
       )}
+
       <div className="flex flex-col gap-1">
-        <span className="text-body-xs text-text-tertiary">Blocked by</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body-xs text-text-tertiary">Blocked by</span>
+          {!adding && (
+            <Button
+              onClick={() => setAdding(true)}
+              size="small"
+              type="button"
+              variant="link-muted"
+            >
+              + Add
+            </Button>
+          )}
+        </div>
         {pendingBlockers.length === 0 ? (
           <span className="text-body-xs text-text-tertiary italic">
             No blockers.
@@ -237,6 +260,30 @@ export function TaskDependencies({
                 removable
               />
             ))}
+          </div>
+        )}
+        {adding && (
+          <div className="flex flex-col gap-2 pt-1">
+            <TaskPicker
+              excludeIds={excludeIds}
+              onChange={handleAdd}
+              options={options}
+              placeholder="Search tasks that must finish first…"
+              value={null}
+            />
+            <div className="self-end">
+              <Button
+                onClick={() => {
+                  setAdding(false)
+                  setError(null)
+                }}
+                size="small"
+                type="button"
+                variant="link-muted"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -260,36 +307,6 @@ export function TaskDependencies({
           </div>
         )}
       </div>
-
-      {adding ? (
-        <div className="flex flex-col gap-2">
-          <TaskPicker
-            excludeIds={excludeIds}
-            onChange={handleAdd}
-            options={options}
-            placeholder="Search tasks to block this one…"
-            value={null}
-          />
-          <button
-            className="self-end text-body-xs text-text-tertiary hover:text-text-primary"
-            onClick={() => {
-              setAdding(false)
-              setError(null)
-            }}
-            type="button"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          className="self-start text-body-xs text-text-tertiary hover:text-text-primary"
-          onClick={() => setAdding(true)}
-          type="button"
-        >
-          + Add blocker
-        </button>
-      )}
 
       {error && <span className="text-body-xs text-error-400">{error}</span>}
     </div>

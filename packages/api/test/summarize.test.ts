@@ -256,6 +256,152 @@ describe('summarizeEvent', () => {
   })
 })
 
+describe('summarizeEvent — workspaceRoot stripping', () => {
+  const root = '/app/tmp/workspaces/some-repo/task-01KPZZ'
+
+  it('strips workspace root prefix from Read paths', () => {
+    const cp = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Read',
+              input: { file_path: `${root}/src/index.css` },
+            },
+          ],
+        },
+      },
+      1,
+      { workspaceRoot: root },
+    )
+    expect(cp?.summary).toBe('[tool Read] src/index.css')
+  })
+
+  it('strips workspace root prefix from Write and Edit paths', () => {
+    const write = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Write',
+              input: {
+                file_path: `${root}/src/App.tsx`,
+                content: 'x',
+              },
+            },
+          ],
+        },
+      },
+      2,
+      { workspaceRoot: root },
+    )
+    expect(write?.summary).toContain('src/App.tsx')
+    expect(write?.summary).not.toContain(root)
+
+    const edit = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Edit',
+              input: {
+                file_path: `${root}/src/App.tsx`,
+                old_string: 'a',
+                new_string: 'b',
+              },
+            },
+          ],
+        },
+      },
+      3,
+      { workspaceRoot: root },
+    )
+    expect(edit?.summary).toContain('src/App.tsx')
+    expect(edit?.summary).not.toContain(root)
+  })
+
+  it('strips workspace root from Bash commands anywhere in the string', () => {
+    const cmd = `cd ${root} && ls ${root}/src`
+    const cp = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [{ type: 'tool_use', name: 'Bash', input: { command: cmd } }],
+        },
+      },
+      4,
+      { workspaceRoot: root },
+    )
+    expect(cp?.summary).not.toContain(root)
+    expect(cp?.summary).toContain('ls src')
+  })
+
+  it('maps exact workspace root to "."', () => {
+    const cp = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Read',
+              input: { file_path: root },
+            },
+          ],
+        },
+      },
+      5,
+      { workspaceRoot: root },
+    )
+    expect(cp?.summary).toBe('[tool Read] .')
+  })
+
+  it('leaves paths outside the workspace root untouched', () => {
+    const cp = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Read',
+              input: { file_path: '/etc/hosts' },
+            },
+          ],
+        },
+      },
+      6,
+      { workspaceRoot: root },
+    )
+    expect(cp?.summary).toBe('[tool Read] /etc/hosts')
+  })
+
+  it('is a no-op when workspaceRoot is not provided', () => {
+    const cp = summarizeEvent(
+      {
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              name: 'Read',
+              input: { file_path: `${root}/src/index.css` },
+            },
+          ],
+        },
+      },
+      7,
+    )
+    expect(cp?.summary).toBe(`[tool Read] ${root}/src/index.css`)
+  })
+})
+
 describe('summarizeEvent — UTF-8 / UTF-16 safety', () => {
   it('truncateByBytes never produces invalid UTF-16 when cutting a supplementary-plane character', () => {
     // Build a string of 600 emoji rockets (each is 4 UTF-8 bytes, 2 UTF-16 units).

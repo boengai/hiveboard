@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   GET_WORKSPACE_SNAPSHOT_PATCH,
   graphqlClient,
-  subscribe,
   WORKSPACE_SNAPSHOT_ADDED_SUBSCRIPTION,
 } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type {
   SnapshotFileEntry,
   TaskTimelineProps,
@@ -42,28 +42,26 @@ export function TaskTimeline({ taskId, initialSnapshots }: TaskTimelineProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSnapshots, liveFollow])
 
-  // Live subscription
-  useEffect(() => {
-    const dispose = subscribe<WorkspaceSnapshotAddedPayload>(
-      WORKSPACE_SNAPSHOT_ADDED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const s = data.workspaceSnapshotAdded
-        if (!s || s.taskId !== taskId) return
-        setSnapshots((prev: WorkspaceSnapshotSummary[]) => {
-          if (prev.some((x: WorkspaceSnapshotSummary) => x.id === s.id))
-            return prev
-          const next = [...prev, s].sort(
-            (a: WorkspaceSnapshotSummary, b: WorkspaceSnapshotSummary) =>
-              a.capturedAt < b.capturedAt ? -1 : 1,
-          )
-          if (liveFollow) setIndex(next.length - 1)
-          return next
-        })
-      },
-    )
-    return dispose
-  }, [taskId, liveFollow])
+  // Live subscription. The hook holds onData in a ref so liveFollow updates
+  // are reflected without tearing down the SSE iterator.
+  useTaskSubscription<WorkspaceSnapshotAddedPayload>(
+    WORKSPACE_SNAPSHOT_ADDED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const s = data.workspaceSnapshotAdded
+      if (!s || s.taskId !== taskId) return
+      setSnapshots((prev: WorkspaceSnapshotSummary[]) => {
+        if (prev.some((x: WorkspaceSnapshotSummary) => x.id === s.id))
+          return prev
+        const next = [...prev, s].sort(
+          (a: WorkspaceSnapshotSummary, b: WorkspaceSnapshotSummary) =>
+            a.capturedAt < b.capturedAt ? -1 : 1,
+        )
+        if (liveFollow) setIndex(next.length - 1)
+        return next
+      })
+    },
+  )
 
   const current: WorkspaceSnapshotSummary | undefined = snapshots[index]
 

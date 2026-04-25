@@ -1,3 +1,3 @@
-export { Board } from './Board'
-export { Column } from './Column'
-export { TaskCard } from './TaskCard'
+export * from './Board'
+export * from './Column'
+export * from './TaskCard'

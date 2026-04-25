@@ -1,4 +1,4 @@
-import type { Column as ColumnType, Task } from '@/types/models'
+import type { Column as ColumnType, Task } from '../../models'
 
 export type ColumnProps = {
   column: ColumnType

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { consola } from 'consola'
 import { parse as parseYaml } from 'yaml'
@@ -28,12 +29,32 @@ function splitFrontMatter(content: string): { yaml: string; body: string } {
   return { body, yaml }
 }
 
-/** Default path: WORKFLOW.md inside packages/api/ (resolved from project root). */
-const DEFAULT_WORKFLOW_PATH = resolve(process.cwd(), 'packages/api/WORKFLOW.md')
+/**
+ * Resolve the default WORKFLOW.md path independently of cwd. Two layouts
+ * to support:
+ *   - Source (dev): import.meta.dir = packages/api/src/config/
+ *     → ../../WORKFLOW.md = packages/api/WORKFLOW.md
+ *   - Bundled (Docker): import.meta.dir = packages/api/dist/
+ *     → ../WORKFLOW.md   = packages/api/WORKFLOW.md
+ * The WORKFLOW_PATH env var, if set, wins over both.
+ */
+function resolveDefaultWorkflowPath(): string {
+  if (process.env.WORKFLOW_PATH) return process.env.WORKFLOW_PATH
+  const candidates = [
+    resolve(import.meta.dir, '../../WORKFLOW.md'),
+    resolve(import.meta.dir, '../WORKFLOW.md'),
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate
+  }
+  // Fall through to the source-layout candidate so the error message is
+  // still meaningful when the file genuinely is missing.
+  return candidates[0] ?? 'WORKFLOW.md'
+}
 
 /** Load and validate a WORKFLOW.md file. */
 export async function loadWorkflow(
-  path = DEFAULT_WORKFLOW_PATH,
+  path = resolveDefaultWorkflowPath(),
 ): Promise<LoadedWorkflow> {
   const file = Bun.file(path)
   const exists = await file.exists()

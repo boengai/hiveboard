@@ -8,12 +8,13 @@ import {
 import {
   ADD_COMMENT,
   COMMENT_ADDED_SUBSCRIPTION,
+  COMMENT_UPDATED_SUBSCRIPTION,
   DELETE_COMMENT,
   GET_COMMENTS,
   graphqlClient,
-  subscribe,
   UPDATE_COMMENT,
 } from '@/graphql'
+import { useTaskSubscription } from '@/hooks'
 import type {
   Comment,
   CommentBlockProps,
@@ -277,9 +278,15 @@ function ReplyBlock({
 // Main component
 // ---------------------------------------------------------------------------
 
-export function TaskComments({ taskId }: TaskCommentsProps) {
-  const [comments, setComments] = useState<Comment[]>([])
-  const [loading, setLoading] = useState(true)
+export function TaskComments({ taskId, initialComments }: TaskCommentsProps) {
+  // GET_TASK already returns task.comments, so callers normally pass them in
+  // as `initialComments` to avoid a redundant round-trip. If they don't, we
+  // fall back to fetching.
+  const hasInitial = initialComments !== undefined
+  const [comments, setComments] = useState<Comment[]>(
+    hasInitial ? initialComments.filter((c) => !c.parentId) : [],
+  )
+  const [loading, setLoading] = useState(!hasInitial)
   const [newBody, setNewBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -299,28 +306,62 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
   }, [taskId])
 
   useEffect(() => {
+    if (hasInitial) return
     fetchComments()
-  }, [fetchComments])
+  }, [fetchComments, hasInitial])
 
   // Subscribe to new comments added by other sessions
-  useEffect(() => {
-    const dispose = subscribe<{ commentAdded: Comment }>(
-      COMMENT_ADDED_SUBSCRIPTION,
-      { taskId },
-      (data) => {
-        const incoming = data.commentAdded
-        if (!incoming) return
-        // Only top-level comments arrive here; skip replies (parentId set)
-        if (incoming.parentId) return
-        setComments((prev) => {
-          // Avoid duplicates (e.g. our own optimistic add)
-          if (prev.some((c) => c.id === incoming.id)) return prev
-          return [...prev, incoming]
-        })
-      },
-    )
-    return dispose
-  }, [taskId])
+  useTaskSubscription<{ commentAdded: Comment }>(
+    COMMENT_ADDED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const incoming = data.commentAdded
+      if (!incoming) return
+      // Only top-level comments arrive here; skip replies (parentId set)
+      if (incoming.parentId) return
+      setComments((prev) => {
+        // Avoid duplicates (e.g. our own optimistic add)
+        if (prev.some((c) => c.id === incoming.id)) return prev
+        return [...prev, incoming]
+      })
+    },
+  )
+
+  // Subscribe to comment edits from other sessions (including edits to replies)
+  useTaskSubscription<{ commentUpdated: Comment }>(
+    COMMENT_UPDATED_SUBSCRIPTION,
+    { taskId },
+    (data) => {
+      const incoming = data.commentUpdated
+      if (!incoming) return
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === incoming.id) {
+            return {
+              ...c,
+              body: incoming.body,
+              updatedAt: incoming.updatedAt,
+            }
+          }
+          if (incoming.parentId && c.id === incoming.parentId) {
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === incoming.id
+                  ? {
+                      ...r,
+                      body: incoming.body,
+                      updatedAt: incoming.updatedAt,
+                    }
+                  : r,
+              ),
+            }
+          }
+          return c
+        }),
+      )
+    },
+  )
 
   const handleAddComment = async () => {
     const trimmed = newBody.trim()

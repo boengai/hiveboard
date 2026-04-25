@@ -1,10 +1,5 @@
 import Mustache from 'mustache'
-import {
-  type PreviousAttemptReplayForPrompt,
-  type RunAgentMessage,
-  type TaskForPrompt,
-  type VerificationFailureForPrompt,
-} from '../agent/prompt'
+import { buildPromptContext, type PromptInput } from '../agent/prompt-context'
 import { loadPromptPartials } from '../agent/prompt-partials'
 
 // Match WORKFLOW.md's identity-escape.
@@ -81,39 +76,12 @@ export function buildPlaybookTemplate(playbookBody: string): string {
   ].join('\n')
 }
 
-export type RenderPlaybookPromptInput = {
-  task: TaskForPrompt
+export type RenderPlaybookPromptInput = PromptInput & {
   playbookBody: string
-  scratchpad?: string
-  messages?: RunAgentMessage[]
-  verificationFailures?: VerificationFailureForPrompt[]
-  previousAttemptReplay?: PreviousAttemptReplayForPrompt
 }
 
 export function renderPlaybookPrompt(input: RenderPlaybookPromptInput): string {
-  const [repoOwner, repoName] = (input.task.targetRepo ?? '/').split('/')
-
-  const context = {
-    auto_revise_from_verification:
-      (input.verificationFailures?.length ?? 0) > 0,
-    has_messages: (input.messages?.length ?? 0) > 0,
-    messages: input.messages ?? [],
-    previous_attempt_replay: input.previousAttemptReplay,
-    scratchpad: input.scratchpad ?? '',
-    task: {
-      action: input.task.action ?? '',
-      agent_instruction: input.task.agentInstruction ?? '',
-      body: input.task.body,
-      id: input.task.id,
-      pr_url: input.task.prUrl ?? '',
-      repo_name: repoName ?? '',
-      repo_owner: repoOwner ?? '',
-      target_branch: input.task.targetBranch ?? 'main',
-      title: input.task.title,
-    },
-    verification_failures: input.verificationFailures ?? [],
-  }
-
+  const context = buildPromptContext(input)
   const template = buildPlaybookTemplate(input.playbookBody)
   return Mustache.render(template, context, loadPromptPartials())
 }

@@ -22,6 +22,52 @@ const buttonVariants = tv({
       color: 'danger',
       variant: 'solid',
     },
+    {
+      class: 'bg-info-400 text-text-on-accent hover:bg-info-500',
+      color: 'info',
+      variant: 'solid',
+    },
+    {
+      class: 'bg-success-400 text-text-on-accent hover:bg-success-500',
+      color: 'success',
+      variant: 'solid',
+    },
+    {
+      class: 'bg-warning-400 text-text-on-accent hover:bg-warning-500',
+      color: 'warning',
+      variant: 'solid',
+    },
+    // secondary × color (muted badge-style)
+    {
+      class: 'bg-gray-800 text-gray-300 hover:bg-gray-700',
+      color: 'default',
+      variant: 'secondary',
+    },
+    {
+      class: 'bg-honey-400/15 text-honey-400 hover:bg-honey-400/25',
+      color: 'primary',
+      variant: 'secondary',
+    },
+    {
+      class: 'bg-error-400/15 text-error-400 hover:bg-error-400/25',
+      color: 'danger',
+      variant: 'secondary',
+    },
+    {
+      class: 'bg-info-400/15 text-info-400 hover:bg-info-400/25',
+      color: 'info',
+      variant: 'secondary',
+    },
+    {
+      class: 'bg-success-400/15 text-success-400 hover:bg-success-400/25',
+      color: 'success',
+      variant: 'secondary',
+    },
+    {
+      class: 'bg-warning-400/15 text-warning-400 hover:bg-warning-400/25',
+      color: 'warning',
+      variant: 'secondary',
+    },
     // ghost × color
     {
       class:
@@ -81,7 +127,10 @@ const buttonVariants = tv({
     color: {
       danger: '',
       default: '',
+      info: '',
       primary: '',
+      success: '',
+      warning: '',
     },
     size: {
       default: 'h-8 px-3',
@@ -93,6 +142,7 @@ const buttonVariants = tv({
       ghost: '',
       link: 'rounded-none underline-offset-2 hover:underline',
       'link-muted': 'rounded-none',
+      secondary: '',
       solid: '',
     },
   },

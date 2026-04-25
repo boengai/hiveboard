@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/components'
 import {
   EXTEND_TIME_BOX,
   graphqlClient,
@@ -149,53 +150,59 @@ export function TaskTimeBox({
           Time-box expired after {expiredMinutes}m. Agent stopped mid-run.
         </span>
         <div className="flex flex-wrap gap-2">
-          <button
-            className="rounded-md bg-surface-raised px-2 py-1 text-body-xs hover:bg-surface-overlay"
+          <Button
             disabled={submitting}
             onClick={() => handleExtend(15 * 60 * 1000)}
+            size="small"
             type="button"
+            variant="ghost"
           >
             Extend +15m
-          </button>
-          <button
-            className="rounded-md bg-surface-raised px-2 py-1 text-body-xs hover:bg-surface-overlay"
+          </Button>
+          <Button
             disabled={submitting}
             onClick={() => handleExtend(30 * 60 * 1000)}
+            size="small"
             type="button"
+            variant="ghost"
           >
             Extend +30m
-          </button>
+          </Button>
           {confirmKill ? (
             <>
               <span className="self-center text-body-xs text-error-400">
                 Really kill?
               </span>
-              <button
-                className="rounded-md bg-error-400/15 px-2 py-1 text-body-xs text-error-400 hover:bg-error-400/25"
+              <Button
+                color="danger"
                 disabled={submitting}
                 onClick={handleKill}
+                size="small"
                 type="button"
               >
                 Yes, kill
-              </button>
-              <button
-                className="rounded-md bg-surface-raised px-2 py-1 text-body-xs hover:bg-surface-overlay"
+              </Button>
+              <Button
                 disabled={submitting}
                 onClick={() => setConfirmKill(false)}
+                size="small"
                 type="button"
+                variant="ghost"
               >
                 Cancel
-              </button>
+              </Button>
             </>
           ) : (
-            <button
-              className="rounded-md bg-surface-raised px-2 py-1 text-body-xs text-error-400 hover:bg-surface-overlay"
+            <Button
+              color="danger"
               disabled={submitting}
               onClick={() => setConfirmKill(true)}
+              size="small"
               type="button"
+              variant="ghost"
             >
               Kill
-            </button>
+            </Button>
           )}
         </div>
         {error && <span className="text-body-xs text-error-400">{error}</span>}
@@ -222,31 +229,32 @@ export function TaskTimeBox({
   // Editable mode (IDLE / QUEUED / RUNNING-no-budget)
   const disabled = isRunning || submitting
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-1.5">
-        {PRESETS.map((p) => {
-          const active = timeBoxMs === p.ms
-          return (
-            <button
-              className={`rounded-full px-2.5 py-1 text-body-xs ${
-                active
-                  ? 'bg-honey-400/20 text-honey-300'
-                  : 'bg-surface-raised text-text-tertiary hover:bg-surface-overlay hover:text-text-primary'
-              } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-              disabled={disabled}
-              key={p.label}
-              onClick={() => applyTimeBox(p.ms)}
-              type="button"
-            >
-              {p.label}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="flex items-center gap-2">
+    <div className="flex gap-2">
+      {PRESETS.map((p) => {
+        const active = timeBoxMs === p.ms
+        // Segmented-control-style pill (rounded-full) toggle, not a
+        // button-shaped action — legitimate exception per conventions.md §4.
+        // If we later add a `chip` variant to Button, swap this for it.
+        return (
+          <button
+            className="rounded-full bg-surface-raised px-2.5 py-1 text-body-xs text-text-tertiary hover:bg-surface-overlay hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50 data-[active=true]:bg-honey-400/20 data-[active=true]:text-honey-300"
+            data-active={active ? 'true' : 'false'}
+            disabled={disabled}
+            key={p.label}
+            onClick={() => applyTimeBox(p.ms)}
+            type="button"
+          >
+            {p.label}
+          </button>
+        )
+      })}
+      <div className="ml-1 flex items-center gap-2 border-border-default border-l pl-3">
+        {/* Narrow numeric minute field — TextInput has no small/compact size
+            variant today. */}
+        <span className="text-body-xs text-text-tertiary">Custom</span>
         <input
-          className="w-20 rounded-md border border-border-default bg-surface-raised px-2 py-1 text-body-xs placeholder:text-text-tertiary"
+          aria-label="Custom time box in minutes"
+          className="w-16 rounded-md border border-border-default bg-surface-raised px-2 py-1 text-body-xs placeholder:text-text-tertiary"
           disabled={disabled}
           inputMode="numeric"
           onChange={(e) => setCustomMinutes(e.currentTarget.value)}
@@ -254,14 +262,15 @@ export function TaskTimeBox({
           type="text"
           value={customMinutes}
         />
-        <button
-          className="rounded-md bg-surface-raised px-2 py-1 text-body-xs hover:bg-surface-overlay"
+        <Button
           disabled={disabled || !customMinutes}
           onClick={handleCustomApply}
+          size="small"
           type="button"
+          variant="ghost"
         >
           Apply
-        </button>
+        </Button>
         {timeBoxMs !== null && !isRunning && (
           <span className="text-body-xs text-text-tertiary">
             Current: {Math.round(timeBoxMs / 60000)}m

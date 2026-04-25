@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { graphqlClient } from '@/graphql/client'
-import { GET_PLAYBOOKS } from '@/graphql/queries'
+import { GET_PLAYBOOKS, graphqlClient } from '@/graphql'
 import type { Playbook } from '@/types'
 
 type UsePlaybooksResult = {

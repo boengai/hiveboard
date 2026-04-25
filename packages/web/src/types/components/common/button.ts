@@ -6,7 +6,7 @@ export type ButtonProps = Omit<
 > &
   RefAttributes<HTMLButtonElement> & {
     size?: 'small' | 'default' | 'large' | 'icon'
-    color?: 'default' | 'primary' | 'danger'
-    variant?: 'solid' | 'ghost' | 'link' | 'link-muted'
+    color?: 'default' | 'danger' | 'info' | 'primary' | 'success' | 'warning'
+    variant?: 'ghost' | 'link' | 'link-muted' | 'secondary' | 'solid'
     block?: boolean
   }

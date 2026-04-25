@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowIcon } from '@/components'
-import { graphqlClient } from '@/graphql'
-import { GET_BOARD } from '@/graphql/queries'
-import type { Board } from '@/types/models/board'
-import { Secrets } from './settings/Secrets'
+import { GET_BOARD, graphqlClient } from '@/graphql'
+import type { Board } from '@/types'
+import { Secrets } from './settings'
 
 export function BoardSettings() {
   const { boardId } = useParams({ strict: false }) as { boardId?: string }
@@ -18,7 +17,9 @@ export function BoardSettings() {
     if (!id) return
     try {
       setLoading(true)
-      const data = await graphqlClient.request<{ board: Board }>(GET_BOARD, { id })
+      const data = await graphqlClient.request<{ board: Board }>(GET_BOARD, {
+        id,
+      })
       setBoard(data.board ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load board')
@@ -62,7 +63,7 @@ export function BoardSettings() {
       <header className="mb-6">
         <div className="mb-2 flex items-center gap-1">
           <Link className="text-honey-400 hover:underline" to="/">
-            <ArrowIcon direction="left" />
+            <ArrowIcon />
           </Link>
           <span className="text-body-sm text-text-tertiary">Back to board</span>
         </div>
@@ -71,7 +72,11 @@ export function BoardSettings() {
         </h1>
       </header>
 
-      <Secrets boardId={id} onRefresh={fetchBoard} secrets={board.secrets ?? []} />
+      <Secrets
+        boardId={id}
+        onRefresh={fetchBoard}
+        secrets={board.secrets ?? []}
+      />
     </main>
   )
 }

@@ -1,22 +1,16 @@
-import type { PlaybookVersion } from '@/types'
+import type { PlaybookVersionListProps } from '@/types'
 
-type Props = {
-  versions: PlaybookVersion[]
-}
-
-export function PlaybookVersionList({ versions }: Props) {
+export function PlaybookVersionList({ versions }: PlaybookVersionListProps) {
   if (versions.length === 0) {
-    return (
-      <p className="text-body-xs text-text-secondary">No versions yet.</p>
-    )
+    return <p className="text-body-xs text-text-secondary">No versions yet.</p>
   }
 
   return (
     <div className="flex flex-col gap-2">
       {versions.map((v) => (
         <div
-          key={v.id}
           className="rounded border border-border-default p-3 text-body-xs"
+          key={v.id}
         >
           <div className="flex items-center justify-between">
             <div className="text-text-secondary">

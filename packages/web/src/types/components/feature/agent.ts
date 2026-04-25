@@ -1,3 +1,5 @@
+import type { AgentRun } from '../../models'
+
 export type AgentLogChunk = {
   agentLogStream: {
     taskId: string
@@ -9,6 +11,11 @@ export type AgentLogChunk = {
 export type AgentLogStreamProps = {
   taskId: string
   agentStatus: string
+}
+
+export type AgentRunLogProps = {
+  taskId: string
+  agentRuns: AgentRun[]
 }
 
 export type AgentStatus =

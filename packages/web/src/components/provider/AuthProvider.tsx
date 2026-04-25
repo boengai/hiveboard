@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { graphqlClient } from '@/graphql/client'
-import { GET_AUTH_CONFIG, GET_ME } from '@/graphql/queries'
+import { GET_AUTH_CONFIG, GET_ME, graphqlClient } from '@/graphql'
 import { useAuthStore } from '@/store/authStore'
 import type { AuthProviderProps } from '@/types'
 
@@ -18,7 +17,7 @@ export function AuthProvider({ children, loginPage }: AuthProviderProps) {
   useEffect(() => {
     let cancelled = false
 
-    async function init() {
+    const init = async () => {
       try {
         // First check auth config to determine if local
         const configData = await graphqlClient.request<{

@@ -1,1 +1,1 @@
-export { ConnectionIndicator } from './ConnectionIndicator'
+export * from './ConnectionIndicator'

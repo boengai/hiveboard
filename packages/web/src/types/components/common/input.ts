@@ -1,8 +1,19 @@
 import type {
   InputHTMLAttributes,
+  ReactNode,
   RefAttributes,
   TextareaHTMLAttributes,
 } from 'react'
+
+export type FieldLabelProps = {
+  htmlFor?: string
+  children: ReactNode
+  required?: boolean
+}
+
+export type FieldErrorProps = {
+  errors: Array<string | { message: string } | undefined>
+}
 
 // interface: extends native HTML attributes
 export type TextInputProps = Omit<
