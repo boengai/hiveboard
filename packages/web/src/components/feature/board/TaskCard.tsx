@@ -289,24 +289,18 @@ export const TaskCard = memo(function TaskCard({
         {/* Target repo */}
         {task.targetRepo && (
           <div className="flex items-center gap-2">
-            <button
+            <a
               className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary hover:text-text-primary"
-              onClick={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-                window.open(
-                  `https://github.com/${task.targetRepo}`,
-                  '_blank',
-                  'noopener,noreferrer',
-                )
-              }}
+              href={`https://github.com/${task.targetRepo}`}
+              onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
+              rel="noopener noreferrer"
+              target="_blank"
               title={`Open ${task.targetRepo} on GitHub`}
-              type="button"
             >
               <GitHubIcon />
               <span>{task.targetRepo}</span>
-            </button>
+            </a>
           </div>
         )}
 
