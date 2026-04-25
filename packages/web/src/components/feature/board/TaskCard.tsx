@@ -162,7 +162,7 @@ function AgentStatusDot({
 
 export const TaskCard = memo(function TaskCard({
   task,
-  column,
+  columnName,
 }: TaskCardProps) {
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
 
@@ -227,7 +227,7 @@ export const TaskCard = memo(function TaskCard({
       whileHover={{ y: -1 }}
     >
       {/* Header row, Agent status + Action badge — hidden in Done column */}
-      {badgeClass && column && column.name !== 'Done' && (
+      {badgeClass && columnName && columnName !== 'Done' && (
         <div className={badgeClass}>
           {/* Agent status — hidden when idle */}
           {task.agentStatus !== 'IDLE' && (

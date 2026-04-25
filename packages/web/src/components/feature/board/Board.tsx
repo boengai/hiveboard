@@ -296,7 +296,10 @@ export function Board() {
         <DragOverlay>
           {activeTask ? (
             <div className="w-board-column rotate-1 opacity-90">
-              <TaskCard column={activeTask.column} task={activeTask} />
+              <TaskCard
+                columnName={activeTask.column?.name}
+                task={activeTask}
+              />
             </div>
           ) : null}
         </DragOverlay>

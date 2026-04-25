@@ -68,7 +68,7 @@ export function Column({
                 {dropTargetTaskId === task.id && (
                   <div className="mx-1 mb-1 h-0.5 rounded-full bg-honey-400" />
                 )}
-                <TaskCard column={column} task={task} />
+                <TaskCard columnName={column.name} task={task} />
               </div>
             ))
           )}
