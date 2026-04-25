@@ -38,11 +38,16 @@ const ALL_STATUSES: readonly TaskStatus[] = [
  *   `cancelAgent` and similar reset paths.
  * - `idle -> idle` is allowed (no-op idempotency) to keep cancel paths
  *   safe to call twice.
- * - `success` is treated as terminal: no edges out except via task delete
- *   (which doesn't go through this module) or admin-style force.
+ * - `success -> queued` is the user-driven re-run edge: the AgentPanel
+ *   keeps Plan/Implement/Revise/playbook actions available on a SUCCESS
+ *   task (until it is moved to Done). Any other exit from `success`
+ *   requires task delete or `force: true`.
  */
 const ALLOWED: Readonly<Record<TaskStatus, ReadonlySet<TaskStatus>>> = {
+  blocked: new Set<TaskStatus>(['queued', 'failed', 'idle']),
+  failed: new Set<TaskStatus>(['queued', 'idle', 'failed']),
   idle: new Set<TaskStatus>(['queued', 'idle', 'blocked', 'failed']),
+  missing_secrets: new Set<TaskStatus>(['queued', 'idle', 'blocked', 'failed']),
   queued: new Set<TaskStatus>([
     'running',
     'missing_secrets',
@@ -59,15 +64,7 @@ const ALLOWED: Readonly<Record<TaskStatus, ReadonlySet<TaskStatus>>> = {
     'idle',
     'missing_secrets',
   ]),
-  blocked: new Set<TaskStatus>(['queued', 'failed', 'idle']),
-  failed: new Set<TaskStatus>(['queued', 'idle', 'failed']),
-  missing_secrets: new Set<TaskStatus>([
-    'queued',
-    'idle',
-    'blocked',
-    'failed',
-  ]),
-  success: new Set<TaskStatus>([]),
+  success: new Set<TaskStatus>(['queued']),
 }
 
 export function isValidStatus(value: unknown): value is TaskStatus {
