@@ -1,7 +1,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { m } from 'motion/react'
-import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { memo, useEffect, useState } from 'react'
 import {
   Avatar,
   CheckIcon,
@@ -159,7 +160,10 @@ function AgentStatusDot({
   return null
 }
 
-export function TaskCard({ task, column }: TaskCardProps) {
+export const TaskCard = memo(function TaskCard({
+  task,
+  column,
+}: TaskCardProps) {
   const openDrawerView = useBoardStore((s) => s.openDrawerView)
 
   const [latestProgress, setLatestProgress] =
@@ -192,11 +196,6 @@ export function TaskCard({ task, column }: TaskCardProps) {
     id: task.id,
   })
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
   const badgeClass = task.action
     ? actionBadge({ action: task.action as keyof typeof actionBadge })
     : null
@@ -208,15 +207,18 @@ export function TaskCard({ task, column }: TaskCardProps) {
   const hasUnresolvedBlockers = unresolvedBlockers.length > 0
   const parentTagColor = task.parentTask?.tags?.[0]?.color
 
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+  if (parentTagColor) {
+    style.borderLeft = `3px solid ${parentTagColor}`
+  }
+
   return (
     <m.div
       ref={setNodeRef}
-      style={{
-        ...style,
-        ...(parentTagColor
-          ? { borderLeft: `3px solid ${parentTagColor}` }
-          : {}),
-      }}
+      style={style}
       {...attributes}
       {...listeners}
       className={`flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md ${task.agentStatus === 'BLOCKED' ? 'ring-1 ring-honey-400/60' : ''}`}
@@ -342,4 +344,4 @@ export function TaskCard({ task, column }: TaskCardProps) {
       </div>
     </m.div>
   )
-}
+})

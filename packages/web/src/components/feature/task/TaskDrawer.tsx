@@ -111,32 +111,41 @@ const SectionLabel = ({ children }: { children: ReactNode }) => (
 
 const DRAWER_SECTION_STORAGE_KEY = 'hiveboard.drawer.collapsed-sections'
 
+let sectionMapCache: Record<string, boolean> | null = null
+
+function readSectionMap(): Record<string, boolean> {
+  if (sectionMapCache) return sectionMapCache
+  if (typeof window === 'undefined') {
+    sectionMapCache = {}
+    return sectionMapCache
+  }
+  try {
+    const raw = window.localStorage.getItem(DRAWER_SECTION_STORAGE_KEY)
+    sectionMapCache = raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
+  } catch {
+    sectionMapCache = {}
+  }
+  return sectionMapCache
+}
+
+function writeSectionMap(name: string, value: boolean) {
+  const map = readSectionMap()
+  map[name] = value
+  try {
+    window.localStorage.setItem(DRAWER_SECTION_STORAGE_KEY, JSON.stringify(map))
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
+}
+
 function useSectionOpen(name: string, defaultOpen: boolean) {
-  const [open, setOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return defaultOpen
-    try {
-      const raw = window.localStorage.getItem(DRAWER_SECTION_STORAGE_KEY)
-      if (!raw) return defaultOpen
-      const map = JSON.parse(raw) as Record<string, boolean>
-      return map[name] ?? defaultOpen
-    } catch {
-      return defaultOpen
-    }
-  })
+  const [open, setOpen] = useState<boolean>(
+    () => readSectionMap()[name] ?? defaultOpen,
+  )
   const onToggle = useCallback(
     (next: boolean) => {
       setOpen(next)
-      try {
-        const raw = window.localStorage.getItem(DRAWER_SECTION_STORAGE_KEY)
-        const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
-        map[name] = next
-        window.localStorage.setItem(
-          DRAWER_SECTION_STORAGE_KEY,
-          JSON.stringify(map),
-        )
-      } catch {
-        /* storage unavailable — non-fatal */
-      }
+      writeSectionMap(name, next)
     },
     [name],
   )
@@ -941,14 +950,12 @@ const EditMode = ({
 // ---------------------------------------------------------------------------
 
 export const TaskDrawer = () => {
-  const {
-    drawerMode,
-    selectedTaskId,
-    createTaskColumnId,
-    closeDrawer,
-    setBoard,
-    board,
-  } = useBoardStore()
+  const drawerMode = useBoardStore((s) => s.drawerMode)
+  const selectedTaskId = useBoardStore((s) => s.selectedTaskId)
+  const createTaskColumnId = useBoardStore((s) => s.createTaskColumnId)
+  const closeDrawer = useBoardStore((s) => s.closeDrawer)
+  const setBoard = useBoardStore((s) => s.setBoard)
+  const board = useBoardStore((s) => s.board)
 
   const [task, setTask] = useState<Task | null>(null)
   const [timelineEntries, setTimelineEntries] = useState<
