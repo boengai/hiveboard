@@ -89,6 +89,11 @@ packages/web/src/
   import { Button } from '@/components/common/button/Button'
   ```
 
+  Vite tree-shakes barrels for production builds; the dev cold-start cost is
+  accepted in exchange for stable, refactor-friendly imports. Deep imports are
+  reserved for hot paths with **measured** startup impact — leave a brief
+  comment at the import site explaining why (see `App.tsx` for an example).
+
 ---
 
 ## 4. Styling
@@ -172,6 +177,13 @@ Raw primitives are reasonable when they fall outside the design system entirely
 — for example, hidden file inputs, or card-shaped interactive regions that
 contain their own sub-elements (`Badge` / `Avatar`) and aren't button-shaped.
 Add a short comment at these sites so the exception is visible.
+
+**Card-shaped interactive regions:** when the outer surface is itself
+clickable (or implicitly `role="button"` via a drag handle, e.g. dnd-kit's
+`useSortable` listeners), interactive children must not be `<button>`
+elements — that produces a nested-button a11y violation. Use `<a>` for
+navigation actions; for in-page actions, move the action out of the card
+surface.
 
 ---
 
@@ -316,3 +328,77 @@ defense-in-depth, `agent_runs.output` is scrubbed by a post-run literal-match
 pass against known secret values before persistence. When introducing a new
 secret-bearing surface, add it to both the exclusion list for resolvers and the
 post-run scrubbing pass.
+
+---
+
+## 9. React Patterns
+
+Project-specific defaults that prevent unnecessary re-renders and keep
+stateful behavior predictable. Deviate only with a concrete reason.
+
+### Zustand selectors
+
+Subscribe to one field per call. A whole-store destructure re-renders the
+component on any unrelated state change.
+
+```tsx
+// Good
+const board = useBoardStore((s) => s.board)
+const closeDrawer = useBoardStore((s) => s.closeDrawer)
+
+// Bad
+const { board, closeDrawer /* ... */ } = useBoardStore()
+```
+
+### memo + primitive props for list items
+
+Components rendered in a loop (cards, rows) should be wrapped in `memo` and
+receive **primitive** props — strings, numbers, booleans — rather than whole
+objects. The store frequently produces fresh object references for unchanged
+data (e.g. `{ ...col, tasks }` in `mergeTaskUpdate`), which defeats `memo`'s
+strict-equality bail-out.
+
+```tsx
+// Good
+<TaskCard columnName={column.name} task={task} />
+export const TaskCard = memo(function TaskCard({ task, columnName }) { ... })
+
+// Bad — column gets a new ref on every store update
+<TaskCard column={column} task={task} />
+```
+
+### Module-level cache for shared storage reads
+
+Hooks that read `localStorage` / `sessionStorage` and are mounted by many
+sibling components should hoist the read/parse into a module-level cache,
+with writes going through the cache. Avoids re-parsing JSON on every mount.
+
+```tsx
+let cache: Record<string, boolean> | null = null
+
+function readMap() {
+  if (cache) return cache
+  try { cache = JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+  catch { cache = {} }
+  return cache
+}
+```
+
+### Lazy state initialization
+
+For non-trivial initial values (storage reads, `JSON.parse`, search-index
+build), pass a function to `useState` so it runs once instead of every render.
+
+```tsx
+// Good
+const [settings] = useState(() => readMap())
+
+// Bad — runs on every render
+const [settings] = useState(readMap())
+```
+
+### Don't define components inside components
+
+A component declared in another component's body is a new type on every parent
+render, causing full unmount/remount and state loss. Always declare components
+at module scope and pass props.
