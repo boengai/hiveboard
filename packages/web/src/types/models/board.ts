@@ -39,7 +39,11 @@ export type AgentStatus =
   | 'SUCCESS'
   | 'FAILED'
 
-export type BlockReason = 'QUESTION' | 'TIMEOUT' | 'DEPENDENCY_FAILED'
+export type BlockReason =
+  | 'QUESTION'
+  | 'TIMEOUT'
+  | 'DEPENDENCY_FAILED'
+  | 'NO_PR_CREATED'
 
 export type TaskBlockerSummary = {
   id: string

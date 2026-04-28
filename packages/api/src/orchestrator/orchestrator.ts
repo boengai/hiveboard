@@ -2,13 +2,16 @@ import type { Database } from 'bun:sqlite'
 import { readFile, rename, unlink } from 'node:fs/promises'
 import { consola } from 'consola'
 import { GraphQLError } from 'graphql'
-import { runAgent } from '../agent/runner'
-import type { PreviousAttemptReplay } from '../agent/runner'
 import { selectCheckpointsForReplay } from '../agent/checkpoint-replay'
+import type { PreviousAttemptReplay } from '../agent/runner'
+import { runAgent } from '../agent/runner'
 import { countTurnsForRun, listCheckpointsForRun } from '../db/checkpoints'
 import { listFailingRunsForAgentRun } from '../db/verification-runs'
-import { subtasksPath } from '../workspace/agent-state'
 import { transition as taskLifecycleTransition } from '../lifecycle'
+import { publishTaskMissingSecretsChanged } from '../pubsub'
+import { parseRequiredSecrets, resolveSecretsForTask } from '../secrets/store'
+import { subtasksPath } from '../workspace/agent-state'
+import { escapeMustacheSyntax } from './mustache-escape'
 import {
   applyFailure,
   applyQuestion,
@@ -17,11 +20,8 @@ import {
   decideOutcome,
   type OutcomeDeps,
 } from './outcomes'
-import { escapeMustacheSyntax } from './mustache-escape'
 import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
 import { formatVerificationFailureForAgent } from './verify'
-import { parseRequiredSecrets, resolveSecretsForTask } from '../secrets/store'
-import { publishTaskMissingSecretsChanged } from '../pubsub'
 
 export { escapeMustacheSyntax } from './mustache-escape'
 
@@ -122,7 +122,10 @@ function mapTask(row: TaskRow) {
  * Looks for a column named "In Progress" (case-insensitive).
  * Falls back to the second column if found, or null.
  */
-export function findColumnId(boardId: string, preferredName: string): string | null {
+export function findColumnId(
+  boardId: string,
+  preferredName: string,
+): string | null {
   const row = db
     .query(
       `SELECT id FROM columns WHERE board_id = ? AND lower(name) = lower(?) ORDER BY position ASC LIMIT 1`,
@@ -391,24 +394,31 @@ export function buildPreviousAttemptReplay(
     )
     .get(taskId) as { id: string; started_at: string } | null
 
-  const failedRow = (latestSuccess
-    ? db
-        .query(
-          `SELECT id, error FROM agent_runs
+  const failedRow = (
+    latestSuccess
+      ? db
+          .query(
+            `SELECT id, error FROM agent_runs
            WHERE task_id = ? AND status IN ('failed', 'fail_verify')
              AND (started_at > ? OR (started_at = ? AND id > ?))
            ORDER BY started_at DESC
            LIMIT 1`,
-        )
-        .get(taskId, latestSuccess.started_at, latestSuccess.started_at, latestSuccess.id)
-    : db
-        .query(
-          `SELECT id, error FROM agent_runs
+          )
+          .get(
+            taskId,
+            latestSuccess.started_at,
+            latestSuccess.started_at,
+            latestSuccess.id,
+          )
+      : db
+          .query(
+            `SELECT id, error FROM agent_runs
            WHERE task_id = ? AND status IN ('failed', 'fail_verify')
            ORDER BY started_at DESC
            LIMIT 1`,
-        )
-        .get(taskId)) as { id: string; error: string | null } | null
+          )
+          .get(taskId)
+  ) as { id: string; error: string | null } | null
 
   if (!failedRow) return null
 
@@ -451,13 +461,11 @@ export function continueFailedTaskDb(
     .query(
       'SELECT agent_status, retry_count, agent_instruction FROM tasks WHERE id = ?',
     )
-    .get(taskId) as
-    | {
-        agent_status: string
-        retry_count: number
-        agent_instruction: string | null
-      }
-    | null
+    .get(taskId) as {
+    agent_status: string
+    retry_count: number
+    agent_instruction: string | null
+  } | null
   if (!row) {
     throw new GraphQLError('NOT_FOUND: Task not found', {
       extensions: { code: 'NOT_FOUND' },
@@ -920,6 +928,7 @@ export class Orchestrator {
       // --- end Plan D setup ---
 
       const gitIdentity = await this.github.getIdentity()
+      const accessToken = await this.github.getAccessToken()
 
       const undeliveredMessages = listUndeliveredHumanMessages(db, task.id)
       const messagesForPrompt = undeliveredMessages
@@ -966,10 +975,10 @@ export class Orchestrator {
         const errMsg = `Missing required secrets: ${missingNames.join(', ')}`
         taskLifecycleTransition({
           extras: (txDb) => {
-            txDb.run(
-              `UPDATE tasks SET agent_error = ? WHERE id = ?`,
-              [errMsg, task.id],
-            )
+            txDb.run(`UPDATE tasks SET agent_error = ? WHERE id = ?`, [
+              errMsg,
+              task.id,
+            ])
             txDb.run(
               `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
               [errMsg, runId],
@@ -992,12 +1001,15 @@ export class Orchestrator {
       })()
       const requiredSecretsForPrompt = declaredNames.map((name) => {
         const boardRow = db
-          .query('SELECT description FROM board_secrets WHERE board_id = ? AND name = ?')
+          .query(
+            'SELECT description FROM board_secrets WHERE board_id = ? AND name = ?',
+          )
           .get(task.board_id, name) as { description: string | null } | null
-        return { name, description: boardRow?.description ?? null }
+        return { description: boardRow?.description ?? null, name }
       })
 
       const result = await runAgent({
+        accessToken,
         agentRunId: runId,
         allowedToolsOverride,
         config: this.config,
@@ -1013,8 +1025,11 @@ export class Orchestrator {
         },
         previousAttemptReplay: previousAttemptReplay ?? undefined,
         promptTemplate: this.promptTemplate,
+        requiredSecrets: requiredSecretsForPrompt,
         retryAttempt: runState.retryAttempt,
         reviewComments,
+        secretsEnv: secretsResolution.env,
+        secretValues: secretsResolution.values,
         signal: runState.abortController.signal,
         task: {
           action: task.action,
@@ -1029,9 +1044,6 @@ export class Orchestrator {
         tokenDir: this.github.getTokenDir(),
         verificationFailures,
         workspacePath: runState.workspacePath,
-        secretsEnv: secretsResolution.env,
-        secretValues: secretsResolution.values,
-        requiredSecrets: requiredSecretsForPrompt,
       })
 
       // Plan D teardown: stop the progress watcher + snapshot loop as soon
@@ -1426,10 +1438,10 @@ export class Orchestrator {
     taskLifecycleTransition({
       blockReason: null,
       extras: (txDb) => {
-        txDb.run(
-          `UPDATE tasks SET agent_error = ? WHERE id = ?`,
-          [reason, taskId],
-        )
+        txDb.run(`UPDATE tasks SET agent_error = ? WHERE id = ?`, [
+          reason,
+          taskId,
+        ])
         txDb.run(
           `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now')
             WHERE task_id = ? AND status = 'running'`,

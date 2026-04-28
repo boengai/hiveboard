@@ -10,9 +10,12 @@ import {
 import type { TaskForAgent } from './runner'
 
 /**
- * Env vars that must NEVER be passed to the agent subprocess.
- * The agent does not need direct GitHub/Git credentials — workspace hooks
- * already embed tokens in git remote URLs via hookEnv().
+ * Env vars that must NEVER be inherited from the host process.
+ * `GITHUB_TOKEN` / `GH_TOKEN` are denied at the inheritance step but then
+ * explicitly set below from the freshly minted installation token, so the
+ * agent's standard auth path (gh/git seeing GITHUB_TOKEN) works without
+ * the agent needing to discover the askpass+file dance. App-level secrets
+ * stay denied permanently — the agent should never see those.
  */
 const DENIED_ENV_VARS = new Set([
   'GITHUB_TOKEN',
@@ -56,6 +59,7 @@ export function buildAgentEnv(
   gitIdentity?: { name: string; email: string },
   tokenDir?: string,
   config?: Config,
+  accessToken?: string,
 ): Record<string, string> {
   const env: Record<string, string> = {}
 
@@ -91,6 +95,16 @@ export function buildAgentEnv(
     env.GH_CONFIG_DIR = join(tokenDir, 'gh')
     env.GIT_ASKPASS = join(tokenDir, 'askpass.sh')
     env.HIVEBOARD_TOKEN_FILE = join(tokenDir, 'token')
+  }
+
+  // Expose the minted installation token via the standard env names so the
+  // agent's default auth path works for both `gh` and `git` (with askpass).
+  // GitHub installation tokens last 1h; the orchestrator's poll cycle keeps
+  // the on-disk token file fresh, so for runs that exceed the env-var's
+  // freshness window the askpass fallback above still works.
+  if (accessToken) {
+    env.GITHUB_TOKEN = accessToken
+    env.GH_TOKEN = accessToken
   }
 
   // Expose per-task scratchpad / inbox / question / progress paths to the agent

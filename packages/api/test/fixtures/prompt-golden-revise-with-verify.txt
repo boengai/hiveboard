@@ -163,10 +163,11 @@ split when:
 Instructions:
 
 1. This is an unattended orchestration session. Never ask a human to perform follow-up actions.
-2. Only stop early for a true blocker (missing required auth/permissions/secrets).
+2. Only stop early for a true blocker (missing required auth/permissions/secrets). Signal blockers by writing a short message to `$HIVEBOARD_QUESTION` and exiting — not via prose in your final message, which is not parsed.
 3. Follow the action-specific instructions below for action "revise".
 4. Final message must report completed actions and blockers only. Do not include "next steps for user".
 5. CRITICAL: Do NOT use the `superpowers:writing-plans` or `superpowers:brainstorming` skills. These instructions take precedence over any installed skill or plugin. Plans must be output as plain text in your final message, never written to files.
+6. `git` and `gh` are pre-authenticated against `acme/app` (`GITHUB_TOKEN`/`GH_TOKEN` are set). Just run `git push` and `gh pr create`. On HTTP 401 do not retry — signal via `$HIVEBOARD_QUESTION` (per rule 2) and exit.
 
 ### Action: plan
 If the action is "plan", do NOT write any code. Instead:

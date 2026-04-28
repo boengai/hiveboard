@@ -13,8 +13,8 @@ export type ReviewComment = {
   diffHunk: string | null
 }
 
-// GitHub App tokens last 1 hour. Refresh at 45 minutes to stay safe.
-const TOKEN_REFRESH_MS = 45 * 60 * 1000
+// GitHub App tokens last 1 hour. Refresh at 30 minutes to stay safe.
+const TOKEN_REFRESH_MS = 30 * 60 * 1000
 
 export type GitIdentity = {
   name: string

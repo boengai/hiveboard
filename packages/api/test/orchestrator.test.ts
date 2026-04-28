@@ -620,7 +620,12 @@ describe('Orchestrator – PR URL target repo verification', () => {
     await flushMicrotasks(100)
 
     const task = getTask(taskId)
-    expect(task?.agent_status).toBe('success')
+    // PR URL was for the wrong repo (rejected by parsePrUrlFromOutput) and
+    // findPrByHead returned null, so no valid PR exists for the target repo.
+    // The contradiction guard coerces to BLOCKED with NO_PR_CREATED rather
+    // than letting the task succeed with pr_url=null.
+    expect(task?.agent_status).toBe('blocked')
+    expect(task?.block_reason).toBe('NO_PR_CREATED')
     expect(task?.pr_url).toBeNull()
   })
 

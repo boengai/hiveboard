@@ -47,6 +47,43 @@ export async function finalizeSuccess(deps: OutcomeDeps): Promise<void> {
     }
   }
 
+  // Contradiction guard: an `implement`/`revise` run that ended with the SDK
+  // reporting success but produced no PR on the remote means the agent
+  // either failed to push (e.g. 401 it described in prose without using the
+  // structured signal), failed to call `gh pr create`, or pushed against the
+  // wrong head. Don't let `pr_url IS NULL AND agent_status='success'` be
+  // representable — coerce to BLOCKED so the user sees the failure.
+  if (
+    !prUrl &&
+    task.target_repo &&
+    (task.action === 'implement' || task.action === 'revise')
+  ) {
+    consola.error(
+      `Task ${task.id} (${task.action}) ended success but no PR exists on ${task.target_repo} — coercing to BLOCKED`,
+    )
+    taskLifecycleTransition({
+      blockReason: 'NO_PR_CREATED',
+      event: {
+        actor: 'SYSTEM',
+        data: { action: task.action, target_repo: task.target_repo },
+        type: 'agent_blocked',
+      },
+      extras: (txDb) => {
+        txDb.run(
+          `UPDATE tasks SET action = NULL, agent_output = ? WHERE id = ?`,
+          [result.output, task.id],
+        )
+        txDb.run(
+          `UPDATE agent_runs SET status = 'blocked', output = ?, finished_at = datetime('now') WHERE id = ?`,
+          [result.output, runId],
+        )
+      },
+      taskId: task.id,
+      to: 'blocked',
+    })
+    return
+  }
+
   let targetColumnName: string | null = null
   if (task.action === 'plan') {
     targetColumnName = 'Todo'

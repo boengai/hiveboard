@@ -17,7 +17,11 @@ export type TaskStatus =
   | 'blocked'
   | 'missing_secrets'
 
-export type BlockReason = 'QUESTION' | 'TIMEOUT' | 'DEPENDENCY_FAILED'
+export type BlockReason =
+  | 'QUESTION'
+  | 'TIMEOUT'
+  | 'DEPENDENCY_FAILED'
+  | 'NO_PR_CREATED'
 
 const ALL_STATUSES: readonly TaskStatus[] = [
   'idle',
