@@ -11,7 +11,7 @@ export const MarkdownPreview = ({ content }: MarkdownPreviewProps) => {
   return (
     <div
       className={[
-        'prose prose-invert max-w-none',
+        'prose prose-invert min-w-0 max-w-none [&_pre]:overflow-x-auto',
         // headings
         'prose-headings:font-semibold prose-headings:text-text-primary',
         // body text

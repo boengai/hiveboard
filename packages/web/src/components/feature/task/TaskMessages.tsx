@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, MarkdownPreview, TextAreaInput } from '@/components/common'
+import {
+  Avatar,
+  Button,
+  MarkdownPreview,
+  TextAreaInput,
+} from '@/components/common'
+import { MessageIcon, ZapIcon } from '@/components/common/icon'
 import {
   ANSWER_QUESTION,
   graphqlClient,
@@ -19,15 +25,32 @@ import type {
 import { timeAgo } from './TaskEventHistory'
 
 // ---------------------------------------------------------------------------
-// Kind chip
+// Kind theming — left ribbon + soft tint per kind, label color
 // ---------------------------------------------------------------------------
 
-const KIND_CHIP_CLASSES: Record<TaskMessageKind, string> = {
-  ANSWER: 'bg-success-400/15 text-success-400',
-  HINT: 'bg-surface-overlay text-text-secondary',
-  QUESTION:
-    'bg-honey-500/30 text-honey-300 ring-1 ring-honey-400/60 ring-inset',
-  REDIRECT: 'bg-honey-400/20 text-honey-400',
+type KindStyle = { ribbon: string; tint: string; label: string }
+
+const KIND_STYLE: Record<TaskMessageKind, KindStyle> = {
+  ANSWER: {
+    label: 'text-success-400',
+    ribbon: 'before:bg-success-400/70',
+    tint: 'bg-success-400/[0.04]',
+  },
+  HINT: {
+    label: 'text-text-tertiary',
+    ribbon: 'before:bg-gray-600',
+    tint: 'bg-surface-overlay/40',
+  },
+  QUESTION: {
+    label: 'text-honey-300',
+    ribbon: 'before:bg-honey-400',
+    tint: 'bg-honey-500/[0.06]',
+  },
+  REDIRECT: {
+    label: 'text-warning-400',
+    ribbon: 'before:bg-warning-400/80',
+    tint: 'bg-warning-400/[0.05]',
+  },
 }
 
 const KIND_LABEL: Record<TaskMessageKind, string> = {
@@ -37,12 +60,14 @@ const KIND_LABEL: Record<TaskMessageKind, string> = {
   REDIRECT: 'Redirect',
 }
 
-function KindChip({ kind }: { kind: TaskMessageKind }) {
+// ---------------------------------------------------------------------------
+// Author marker — bee-styled disc for agent, Avatar for human
+// ---------------------------------------------------------------------------
+
+function AgentMark() {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium text-[10px] uppercase tracking-wide ${KIND_CHIP_CLASSES[kind]}`}
-    >
-      {KIND_LABEL[kind]}
+    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-honey-500/15 text-honey-300 ring-1 ring-honey-400/30 ring-inset">
+      <MessageIcon size={12} />
     </span>
   )
 }
@@ -51,39 +76,75 @@ function KindChip({ kind }: { kind: TaskMessageKind }) {
 // Message bubble
 // ---------------------------------------------------------------------------
 
-function MessageBubble({ message }: { message: TaskMessage }) {
+function MessageBubble({
+  message,
+  isActiveQuestion,
+}: {
+  message: TaskMessage
+  isActiveQuestion: boolean
+}) {
   const isHuman = message.authorType === 'HUMAN'
   const authorName =
     message.createdBy?.displayName ??
     message.createdBy?.username ??
     (isHuman ? 'You' : 'Agent')
   const undelivered = isHuman && message.deliveredAt === null
+  const style = KIND_STYLE[message.kind]
+  const wantsAttention = isActiveQuestion && message.kind === 'QUESTION'
 
+  // Agent on the left, human on the right; marker sits on the bubble's outer side.
   return (
     <div
-      className="flex w-full justify-start data-[author=human]:justify-end"
+      className="flex w-full items-start gap-2 data-[author=human]:flex-row-reverse"
       data-author={isHuman ? 'human' : 'agent'}
     >
+      {isHuman ? (
+        <Avatar name={message.createdBy?.username ?? 'You'} />
+      ) : (
+        <AgentMark />
+      )}
+
       <div
-        className="group flex max-w-[85%] flex-col items-start gap-1 data-[author=human]:items-end"
+        className="group flex min-w-0 max-w-[80%] flex-1 flex-col items-start gap-1 data-[author=human]:items-end"
         data-author={isHuman ? 'human' : 'agent'}
       >
-        <div className="flex items-center gap-1.5 px-1">
-          <KindChip kind={message.kind} />
-          <span className="text-body-xs text-text-tertiary">{authorName}</span>
-          <span className="text-body-xs text-text-tertiary">·</span>
-          <span className="text-body-xs text-text-tertiary">
+        {/* meta line */}
+        <div className="flex items-center gap-1.5 px-1 text-body-xs">
+          <span
+            className={`font-medium uppercase tracking-wider ${style.label}`}
+          >
+            {KIND_LABEL[message.kind]}
+          </span>
+          <span className="text-text-tertiary">·</span>
+          <span className="text-text-secondary">{authorName}</span>
+          <span className="text-text-tertiary">·</span>
+          <span className="text-text-tertiary">
             {timeAgo(message.createdAt)}
           </span>
         </div>
+
+        {/* bubble */}
         <div
-          className="rounded-lg border border-border-default bg-surface-overlay/50 px-3 py-2 text-body-sm text-text-primary data-[author=human]:border-honey-400/30 data-[author=human]:bg-honey-400/10"
-          data-author={isHuman ? 'human' : 'agent'}
+          className={[
+            // structural — keep the horizontal-overflow fix
+            'relative w-full min-w-0 overflow-hidden',
+            // visual frame
+            'rounded-lg border border-border-default px-4 py-3',
+            style.ribbon,
+            style.tint,
+            // active question: subtle honey glow + brighter border
+            wantsAttention &&
+              'border-honey-400/40 shadow-[0_0_0_1px_var(--color-honey-400)/_0.10] shadow-glow-honey',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           <MarkdownPreview content={message.body} />
         </div>
+
         {undelivered && (
-          <span className="px-1 text-body-xs text-text-tertiary italic">
+          <span className="inline-flex items-center gap-1.5 px-1 text-body-xs text-text-tertiary">
+            <span className="size-1.5 animate-pulse rounded-full bg-honey-400/70" />
             queued — will deliver on next spawn
           </span>
         )}
@@ -128,7 +189,6 @@ function Composer({
     const trimmed = body.trim()
     if (!trimmed) return
 
-    // Redirect + running agent → confirm step
     if (
       mode === 'HINT_OR_REDIRECT' &&
       kind === 'REDIRECT' &&
@@ -156,19 +216,16 @@ function Composer({
     }
   }
 
+  // ANSWER mode — compact, focused on the active question.
   if (mode === 'ANSWER') {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-honey-400/40 bg-surface-overlay/30 p-3">
-        {currentQuestion && (
-          <div className="rounded-md border border-honey-400/50 bg-honey-500/10 p-2">
-            <div className="font-medium text-[10px] text-honey-300 uppercase tracking-wide">
-              Waiting for your answer
-            </div>
-            <div className="mt-1 text-body-sm text-text-primary">
-              {currentQuestion.body}
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col gap-2 rounded-lg border border-honey-400/40 bg-honey-500/[0.06] p-3 shadow-glow-honey">
+        <div className="flex items-center gap-1.5 text-body-xs">
+          <span className="size-1.5 animate-pulse rounded-full bg-honey-400" />
+          <span className="font-medium text-honey-300 uppercase tracking-wider">
+            Answering question
+          </span>
+        </div>
         <TextAreaInput
           onChange={(v: string) => setBody(v)}
           placeholder="Write your answer…"
@@ -182,41 +239,53 @@ function Composer({
             onClick={handleSubmit}
             size="small"
           >
-            {submitting ? 'Answering…' : 'Send answer'}
+            {submitting ? 'Sending…' : 'Send answer'}
           </Button>
         </div>
       </div>
     )
   }
 
+  // HINT_OR_REDIRECT — segmented toggle + textarea.
+  const explainer =
+    kind === 'HINT'
+      ? 'Non-urgent nudge — delivered next time the agent spawns.'
+      : 'Urgent — aborts the running agent and requeues with this guidance.'
+
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/20 p-3">
-      {/* Kind selector */}
-      <div className="flex gap-1">
-        <Button
-          color={kind === 'HINT' ? 'primary' : 'default'}
+    <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/30 p-3">
+      {/* Segmented kind toggle */}
+      <div className="flex items-center gap-1 rounded-md bg-surface-inset p-0.5">
+        <button
+          aria-pressed={kind === 'HINT'}
+          className={[
+            'flex-1 rounded px-2 py-1 text-body-xs transition-colors',
+            kind === 'HINT'
+              ? 'bg-surface-overlay text-text-primary shadow-xs'
+              : 'text-text-tertiary hover:text-text-secondary',
+          ].join(' ')}
           onClick={() => {
             setKind('HINT')
             setPendingRedirect(false)
           }}
-          size="small"
-          variant={kind === 'HINT' ? 'solid' : 'ghost'}
+          type="button"
         >
           Hint
-        </Button>
-        <Button
-          color={kind === 'REDIRECT' ? 'primary' : 'default'}
+        </button>
+        <button
+          aria-pressed={kind === 'REDIRECT'}
+          className={[
+            'flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-body-xs transition-colors',
+            kind === 'REDIRECT'
+              ? 'bg-warning-400/15 text-warning-400 shadow-xs'
+              : 'text-text-tertiary hover:text-text-secondary',
+          ].join(' ')}
           onClick={() => setKind('REDIRECT')}
-          size="small"
-          variant={kind === 'REDIRECT' ? 'solid' : 'ghost'}
+          type="button"
         >
+          <ZapIcon size={11} />
           Redirect
-        </Button>
-        <span className="ml-1 self-center text-body-xs text-text-tertiary">
-          {kind === 'HINT'
-            ? 'Non-urgent nudge, delivered on next spawn.'
-            : 'Urgent — aborts running agent and requeues.'}
-        </span>
+        </button>
       </div>
 
       <TextAreaInput
@@ -233,10 +302,15 @@ function Composer({
         value={body}
       />
 
+      <p className="px-0.5 text-body-xs text-text-tertiary">{explainer}</p>
+
       {pendingRedirect && (
-        <div className="rounded-md border border-honey-400/50 bg-honey-400/10 p-2 text-body-xs text-text-primary">
-          This will abort the running agent and requeue the task. Confirm to
-          proceed.
+        <div className="flex items-start gap-2 rounded-md border border-warning-400/40 bg-warning-400/10 p-2 text-body-xs text-text-primary">
+          <ZapIcon size={12} />
+          <span>
+            This will abort the running agent and requeue the task. Confirm to
+            proceed.
+          </span>
         </div>
       )}
 
@@ -251,7 +325,7 @@ function Composer({
           </Button>
         )}
         <Button
-          color="primary"
+          color={kind === 'REDIRECT' ? 'warning' : 'primary'}
           disabled={!body.trim() || submitting}
           onClick={handleSubmit}
           size="small"
@@ -264,6 +338,26 @@ function Composer({
                 ? 'Send hint'
                 : 'Send redirect'}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Empty state
+// ---------------------------------------------------------------------------
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-border-default border-dashed bg-surface-overlay/20 px-4 py-6 text-center">
+      <span className="flex size-8 items-center justify-center rounded-full bg-honey-500/10 text-honey-300">
+        <MessageIcon size={16} />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-body-sm text-text-secondary">No messages yet</p>
+        <p className="text-body-xs text-text-tertiary">
+          Drop a hint to nudge the agent, or wait for it to ask a question.
+        </p>
       </div>
     </div>
   )
@@ -310,27 +404,23 @@ export function TaskMessages({
   const blocked = agentStatus === 'BLOCKED' && currentQuestion !== null
   const mode: ComposerMode = blocked ? 'ANSWER' : 'HINT_OR_REDIRECT'
 
+  // The question bubble that wants attention is the one matching the active
+  // currentQuestion id (or, falling back, the latest QUESTION when blocked).
+  const activeQuestionId = blocked ? (currentQuestion?.id ?? null) : null
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Banner shown above the thread when blocked */}
-      {blocked && currentQuestion && (
-        <div className="rounded-lg border border-honey-400/50 bg-honey-500/10 p-3">
-          <div className="font-medium text-body-xs text-honey-300 uppercase tracking-wide">
-            Waiting for your answer
-          </div>
-          <div className="mt-1 text-body-sm text-text-primary">
-            {currentQuestion.body}
-          </div>
-        </div>
-      )}
-
       {/* Thread */}
       {sorted.length === 0 ? (
-        <p className="text-body-xs text-text-tertiary">No messages yet.</p>
+        <EmptyState />
       ) : (
         <div className="flex flex-col gap-3">
           {sorted.map((message: TaskMessage) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              isActiveQuestion={message.id === activeQuestionId}
+              key={message.id}
+              message={message}
+            />
           ))}
         </div>
       )}
