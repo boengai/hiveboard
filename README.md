@@ -119,7 +119,6 @@ GITHUB_TOKEN=ghp_your_token_here
 # ── Optional ──────────────────────────────────────────
 # API_PORT=8080
 # WEB_PORT=5173
-# CLAUDE_CODE_VERSION=latest   # Pin Claude Code version in Docker builds
 ```
 
 ## Available Commands
@@ -136,7 +135,7 @@ GITHUB_TOKEN=ghp_your_token_here
 | `bun run test` | Run tests |
 | `bun run fmt` | Auto-fix formatting and lint (Biome) |
 | `bun run lint` | Lint only |
-| `bun run check` | Run lint + fmt + test + tsc + build |
+| `bun run check` | Run lint + fmt + test + tsc + build:web |
 
 ## Docker
 
@@ -176,7 +175,7 @@ docker compose logs -f       # follow logs
 docker compose down          # stop
 ```
 
-The compose file mounts `tmp/database`, `tmp/workspaces`, `tmp/agent-state`, and agent Claude config as volumes so data persists across container restarts. You can pin the Claude Code version via `CLAUDE_CODE_VERSION` in `.env`.
+The compose file mounts `tmp/database`, `tmp/workspaces`, `tmp/agent-state`, and agent Claude config as volumes so data persists across container restarts.
 
 ## How Agents Work
 
@@ -303,6 +302,7 @@ Admins can generate invitation tokens for specific GitHub usernames. Invited use
 | `claude.model` | `opus` | Claude model to use |
 | `claude.max_turns` | `200` | Max agent turns per run |
 | `claude.permission_mode` | `bypassPermissions` | Claude CLI permission mode |
+| `claude.allowed_tools` | `[Bash, Read, Write, Edit, Glob, Grep]` | Tools the agent may invoke (passed to `claude --allowedTools`) |
 | `verify.enabled` | `true` | Run verification commands after IMPLEMENT / REVISE |
 | `verify.max_auto_revises` | `1` | Cap on auto-REVISE attempts before surfacing FAILED |
 | `verify.commands` | *(see WORKFLOW.md)* | Array of `{label, run, timeout_ms}` — lint / tsc / test |
