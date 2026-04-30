@@ -63,7 +63,11 @@ function AppLayout() {
       {/* Header */}
       <header className="flex h-12 shrink-0 items-center justify-between border-border-default border-b px-4">
         <div className="flex items-center gap-2">
-          <a className="font-semibold text-body-sm text-honey-400" href="/">
+          <span aria-hidden className="text-honey-300">▌</span>
+          <a
+            className="font-semibold text-body-sm text-honey-300 uppercase tracking-[0.18em]"
+            href="/"
+          >
             HiveBoard
           </a>
         </div>

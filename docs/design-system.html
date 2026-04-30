@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HiveBoard — Terminal Theme · Design System v0.1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <style type="text/tailwindcss">
+      /* ────────────────────────────────────────────────────────────────
+         HiveBoard Terminal Theme — token source of truth.
+         Names mirror packages/web/src/index.css so porting is a copy.
+         Direction: modern TUI · mono everywhere · phosphor-amber accent · flat.
+         ──────────────────────────────────────────────────────────────── */
+
+      @theme {
+        --color-*: initial;
+        --text-*: initial;
+        --shadow-*: initial;
+        --radius-*: initial;
+        /* Keep Tailwind v4's default breakpoints (sm/md/lg/xl/2xl). */
+      }
+
+      @theme {
+        /* Mono-everywhere. Display row optionally uses VT323 for retro accent. */
+        --font-sans: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --font-display: 'VT323', 'JetBrains Mono', ui-monospace, monospace;
+
+        --text-heading-1: 1.5rem;     /* 24px — page title */
+        --text-heading-2: 1.25rem;    /* 20px — section */
+        --text-heading-3: 1.0625rem;  /* 17px — subsection */
+        --text-heading-4: 0.9375rem;  /* 15px */
+        --text-body-lg: 0.9375rem;
+        --text-body: 0.8125rem;       /* 13px — default body */
+        --text-body-sm: 0.75rem;      /* 12px — labels */
+        --text-body-xs: 0.6875rem;    /* 11px — meta */
+      }
+
+      @theme {
+        /* Warm near-black neutrals (hue 80) */
+        --color-gray-50:  oklch(0.97 0.005 80);
+        --color-gray-100: oklch(0.92 0.006 80);
+        --color-gray-200: oklch(0.84 0.008 80);
+        --color-gray-300: oklch(0.72 0.010 80);
+        --color-gray-400: oklch(0.58 0.010 80);
+        --color-gray-500: oklch(0.45 0.010 80);
+        --color-gray-600: oklch(0.34 0.009 80);
+        --color-gray-700: oklch(0.26 0.008 80);
+        --color-gray-800: oklch(0.18 0.006 80);
+        --color-gray-850: oklch(0.14 0.005 80);
+        --color-gray-900: oklch(0.11 0.005 80);
+        --color-gray-950: oklch(0.08 0.004 80);
+
+        /* Phosphor amber accent (CRT-amber, hue ~80) */
+        --color-amber-50:  oklch(0.97 0.04 80);
+        --color-amber-100: oklch(0.93 0.09 80);
+        --color-amber-200: oklch(0.88 0.13 80);
+        --color-amber-300: oklch(0.84 0.16 80);
+        --color-amber-400: oklch(0.78 0.17 80);
+        --color-amber-500: oklch(0.70 0.16 80);
+        --color-amber-600: oklch(0.60 0.14 78);
+        --color-amber-700: oklch(0.48 0.11 76);
+        --color-amber-800: oklch(0.36 0.08 75);
+        --color-amber-900: oklch(0.26 0.05 75);
+        --color-amber-glow: oklch(0.78 0.17 80 / 0.18);
+
+        /* ANSI-leaning semantic accents */
+        --color-success-400: oklch(0.80 0.16 145);  /* phosphor green */
+        --color-success-500: oklch(0.70 0.15 145);
+        --color-error-400:   oklch(0.72 0.20 25);   /* terminal red */
+        --color-error-500:   oklch(0.62 0.19 25);
+        --color-info-400:    oklch(0.78 0.13 195);  /* cyan */
+        --color-info-500:    oklch(0.68 0.12 195);
+        --color-warning-400: oklch(0.85 0.15 95);   /* yellow */
+        --color-warning-500: oklch(0.74 0.14 95);
+        --color-agent-400:   oklch(0.74 0.18 320);  /* magenta — AI / agent */
+        --color-agent-500:   oklch(0.62 0.17 320);
+      }
+
+      /* Surfaces / borders / text — semantic aliases */
+      @theme {
+        --color-surface-page:    var(--color-gray-950);
+        --color-surface-raised:  var(--color-gray-900);
+        --color-surface-overlay: var(--color-gray-850);
+        --color-surface-inset:   oklch(0.06 0.004 80);
+
+        --color-border-default:  var(--color-gray-700);
+        --color-border-subtle:   var(--color-gray-800);
+        --color-border-hover:    var(--color-gray-600);
+        --color-border-active:   var(--color-amber-400);
+
+        --color-text-primary:    var(--color-gray-100);
+        --color-text-secondary:  var(--color-gray-300);
+        --color-text-tertiary:   var(--color-gray-500);
+        --color-text-muted:      var(--color-gray-600);
+        --color-text-on-accent:  var(--color-gray-950);
+        --color-text-accent:     var(--color-amber-300);
+      }
+
+      /* Radii — TUI is hard-edged. Keep tokens but bias to 0–2px. */
+      @theme {
+        --radius-none: 0;
+        --radius-sm: 2px;
+        --radius-md: 2px;
+        --radius-lg: 4px;
+        --radius-full: 9999px;
+      }
+
+      /* Shadows replaced by glow rings (no soft drop shadows in TUI) */
+      @theme {
+        --shadow-glow-amber:   0 0 0 1px var(--color-amber-400),
+                                0 0 14px var(--color-amber-glow);
+        --shadow-glow-success: 0 0 0 1px var(--color-success-500);
+        --shadow-glow-error:   0 0 0 1px var(--color-error-500);
+      }
+
+      /* Base */
+      html, body {
+        background-color: var(--color-surface-page);
+        color: var(--color-text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--text-body);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Caret blink for the page title */
+      @keyframes caret-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+      .caret { animation: caret-blink 1s steps(1) infinite; }
+
+      /* Optional CRT scanline overlay — flip body[data-scanlines="on"] to enable.
+         Off by default for the modern-TUI baseline. */
+      body[data-scanlines='on']::before {
+        content: '';
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent 2px,
+          oklch(0 0 0 / 0.18) 3px,
+          transparent 4px
+        );
+        z-index: 9999;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen">
+    <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+    <header
+      class="sticky top-0 z-40 border-border-default border-b bg-surface-page/95 backdrop-blur"
+    >
+      <div class="mx-auto flex max-w-6xl items-center gap-4 px-6 py-3">
+        <span class="text-amber-400">▌</span>
+        <h1 class="font-medium text-body uppercase tracking-[0.18em] text-amber-300">
+          HiveBoard&nbsp;·&nbsp;Terminal Theme
+        </h1>
+        <span class="text-text-muted">v0.1 — draft</span>
+        <nav class="ml-auto hidden gap-4 text-body-sm text-text-secondary md:flex">
+          <a href="#palette" class="hover:text-amber-300">palette</a>
+          <a href="#type" class="hover:text-amber-300">type</a>
+          <a href="#buttons" class="hover:text-amber-300">buttons</a>
+          <a href="#badges" class="hover:text-amber-300">badges</a>
+          <a href="#inputs" class="hover:text-amber-300">inputs</a>
+          <a href="#cards" class="hover:text-amber-300">cards</a>
+          <a href="#panels" class="hover:text-amber-300">panels</a>
+          <a href="#sample" class="hover:text-amber-300">sample</a>
+        </nav>
+        <button
+          id="scanlineToggle"
+          class="ml-2 border border-border-default px-2 py-1 text-body-xs text-text-tertiary hover:border-amber-400 hover:text-amber-300"
+          type="button"
+        >
+          scanlines: off
+        </button>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-6 py-10 space-y-16">
+      <!-- ── INTRO ─────────────────────────────────────────────────────── -->
+      <section>
+        <p class="text-text-secondary">
+          <span class="text-amber-300">$</span> hiveboard --theme=terminal
+          <span class="caret text-amber-300">▌</span>
+        </p>
+        <h2 class="mt-2 font-medium text-heading-1 tracking-tight">
+          Modern TUI. Mono everywhere. Phosphor amber.
+        </h2>
+        <p class="mt-3 max-w-3xl text-text-secondary">
+          A token-only retheme of HiveBoard. Hard-edged borders, no drop shadows,
+          ANSI-leaning semantic colors, status as <code
+            class="border border-border-default px-1 text-amber-300"
+          >[ STATUS ]</code> text. Drop the <code class="text-amber-300">@theme</code>
+          block at the top of this file into <code
+            class="text-amber-300"
+          >packages/web/src/index.css</code> and the rest of the app inherits the
+          new palette through existing tokens.
+        </p>
+      </section>
+
+      <!-- ── PALETTE ───────────────────────────────────────────────────── -->
+      <section id="palette" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 01 · palette ────────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div>
+          <p class="mb-3 text-body-sm uppercase tracking-widest text-text-tertiary">
+            surface
+          </p>
+          <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <!-- swatch template -->
+            <div class="border border-border-default">
+              <div class="h-20 bg-surface-page"></div>
+              <div class="border-border-default border-t px-3 py-2">
+                <div class="text-body-sm text-text-primary">surface-page</div>
+                <div class="text-body-xs text-text-tertiary">gray-950</div>
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-20 bg-surface-raised"></div>
+              <div class="border-border-default border-t px-3 py-2">
+                <div class="text-body-sm text-text-primary">surface-raised</div>
+                <div class="text-body-xs text-text-tertiary">gray-900</div>
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-20 bg-surface-overlay"></div>
+              <div class="border-border-default border-t px-3 py-2">
+                <div class="text-body-sm text-text-primary">surface-overlay</div>
+                <div class="text-body-xs text-text-tertiary">gray-850</div>
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-20 bg-surface-inset"></div>
+              <div class="border-border-default border-t px-3 py-2">
+                <div class="text-body-sm text-text-primary">surface-inset</div>
+                <div class="text-body-xs text-text-tertiary">≈ gray-980</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-3 text-body-sm uppercase tracking-widest text-text-tertiary">
+            text
+          </p>
+          <div class="grid grid-cols-1 gap-3 border border-border-default p-4 md:grid-cols-4">
+            <div>
+              <div class="text-text-primary">text-primary</div>
+              <div class="text-body-xs text-text-tertiary">gray-100</div>
+            </div>
+            <div>
+              <div class="text-text-secondary">text-secondary</div>
+              <div class="text-body-xs text-text-tertiary">gray-300</div>
+            </div>
+            <div>
+              <div class="text-text-tertiary">text-tertiary</div>
+              <div class="text-body-xs text-text-tertiary">gray-500</div>
+            </div>
+            <div>
+              <div class="text-text-muted">text-muted</div>
+              <div class="text-body-xs text-text-tertiary">gray-600</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-3 text-body-sm uppercase tracking-widest text-text-tertiary">
+            accent · phosphor amber
+          </p>
+          <div class="grid grid-cols-5 gap-2 md:grid-cols-10">
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-50"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">50</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-100"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">100</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-200"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">200</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-300"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">300</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-400"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">400</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-500"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">500</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-600"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">600</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-700"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">700</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-800"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">800</div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-12 bg-amber-900"></div>
+              <div class="px-1.5 py-1 text-[10px] text-text-tertiary">900</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-3 text-body-sm uppercase tracking-widest text-text-tertiary">
+            semantic
+          </p>
+          <div class="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div class="border border-border-default">
+              <div class="h-14 bg-success-500"></div>
+              <div class="border-border-default border-t px-3 py-2 text-body-xs text-text-tertiary">
+                <span class="text-text-primary">success</span> · phosphor green
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-14 bg-error-500"></div>
+              <div class="border-border-default border-t px-3 py-2 text-body-xs text-text-tertiary">
+                <span class="text-text-primary">error</span> · terminal red
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-14 bg-warning-500"></div>
+              <div class="border-border-default border-t px-3 py-2 text-body-xs text-text-tertiary">
+                <span class="text-text-primary">warning</span> · ansi yellow
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-14 bg-info-500"></div>
+              <div class="border-border-default border-t px-3 py-2 text-body-xs text-text-tertiary">
+                <span class="text-text-primary">info</span> · cyan
+              </div>
+            </div>
+            <div class="border border-border-default">
+              <div class="h-14 bg-agent-500"></div>
+              <div class="border-border-default border-t px-3 py-2 text-body-xs text-text-tertiary">
+                <span class="text-text-primary">agent</span> · magenta / AI
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TYPOGRAPHY ────────────────────────────────────────────────── -->
+      <section id="type" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 02 · typography ─────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="space-y-2 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              jetbrains mono — UI
+            </div>
+            <div style="font-size: var(--text-heading-1)">Heading 1 · 24px</div>
+            <div style="font-size: var(--text-heading-2)">Heading 2 · 20px</div>
+            <div style="font-size: var(--text-heading-3)">Heading 3 · 17px</div>
+            <div style="font-size: var(--text-body-lg)">Body large · 15px</div>
+            <div style="font-size: var(--text-body)">
+              Body · 13px — the default. Aaaaa bbbbb ccccc 0123456789.
+            </div>
+            <div style="font-size: var(--text-body-sm)" class="text-text-secondary">
+              Body small · 12px — labels and metadata.
+            </div>
+            <div style="font-size: var(--text-body-xs)" class="text-text-tertiary">
+              Body xs · 11px — fine print and timestamps.
+            </div>
+          </div>
+          <div class="space-y-3 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              VT323 — display only (logo, retro accents)
+            </div>
+            <div
+              style="font-family: var(--font-display); font-size: 2.75rem; line-height: 1"
+              class="text-amber-300"
+            >
+              HIVEBOARD ▌
+            </div>
+            <div
+              style="font-family: var(--font-display); font-size: 1.5rem"
+              class="text-text-secondary"
+            >
+              READY · WAITING FOR INPUT
+            </div>
+            <p class="text-body-xs text-text-tertiary">
+              Reserved for hero / login splash. Do <em>not</em> use VT323 for
+              dense UI — it loses readability at small sizes.
+            </p>
+          </div>
+        </div>
+
+        <div class="border border-border-default p-5">
+          <div class="mb-2 text-body-xs uppercase tracking-widest text-text-tertiary">
+            label treatment (uppercase + tracked)
+          </div>
+          <p class="font-medium text-body-sm uppercase tracking-[0.18em] text-text-secondary">
+            tasks · in&nbsp;progress · 3
+          </p>
+        </div>
+      </section>
+
+      <!-- ── BORDERS / RADII ───────────────────────────────────────────── -->
+      <section id="borders" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 03 · borders, radii, glow ───────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div class="border border-border-subtle p-4">
+            <div class="text-body-sm">border-subtle</div>
+            <div class="text-body-xs text-text-tertiary">
+              section dividers, very-low-emphasis containers
+            </div>
+          </div>
+          <div class="border border-border-default p-4">
+            <div class="text-body-sm">border-default</div>
+            <div class="text-body-xs text-text-tertiary">
+              cards, inputs, drawers — the workhorse
+            </div>
+          </div>
+          <div class="border border-amber-400 p-4 shadow-glow-amber">
+            <div class="text-body-sm text-amber-300">border-active + glow-amber</div>
+            <div class="text-body-xs text-text-tertiary">
+              focused / selected / active state
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-border-default p-4">
+          <div class="mb-3 text-body-xs uppercase tracking-widest text-text-tertiary">
+            radii — bias to 0–2px
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="border border-border-default bg-surface-raised px-3 py-2 text-body-sm">radius-none&nbsp;0px</span>
+            <span class="rounded-sm border border-border-default bg-surface-raised px-3 py-2 text-body-sm">radius-sm&nbsp;2px</span>
+            <span class="rounded-md border border-border-default bg-surface-raised px-3 py-2 text-body-sm">radius-md&nbsp;2px</span>
+            <span class="rounded-lg border border-border-default bg-surface-raised px-3 py-2 text-body-sm">radius-lg&nbsp;4px</span>
+            <span class="rounded-full border border-border-default bg-surface-raised px-3 py-2 text-body-sm">radius-full</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── BUTTONS ───────────────────────────────────────────────────── -->
+      <section id="buttons" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 04 · buttons ───────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="space-y-3 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              variants
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- primary -->
+              <button
+                class="border border-amber-400 bg-amber-400/10 px-3 py-1.5 font-medium text-amber-300 hover:bg-amber-400/20 hover:shadow-glow-amber active:bg-amber-400/30"
+                type="button"
+              >
+                [ primary ]
+              </button>
+              <!-- secondary -->
+              <button
+                class="border border-border-default bg-surface-raised px-3 py-1.5 text-text-primary hover:border-border-hover"
+                type="button"
+              >
+                [ secondary ]
+              </button>
+              <!-- ghost -->
+              <button
+                class="border border-transparent px-3 py-1.5 text-text-secondary hover:border-border-default hover:text-text-primary"
+                type="button"
+              >
+                [ ghost ]
+              </button>
+              <!-- danger -->
+              <button
+                class="border border-error-500 bg-error-500/10 px-3 py-1.5 text-error-400 hover:bg-error-500/20"
+                type="button"
+              >
+                [ destructive ]
+              </button>
+              <!-- disabled -->
+              <button
+                class="cursor-not-allowed border border-border-subtle px-3 py-1.5 text-text-muted"
+                disabled
+                type="button"
+              >
+                [ disabled ]
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              sizes
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                class="border border-border-default px-2 py-1 text-body-xs hover:border-border-hover"
+                type="button"
+              >
+                [ sm ]
+              </button>
+              <button
+                class="border border-border-default px-3 py-1.5 text-body-sm hover:border-border-hover"
+                type="button"
+              >
+                [ md ]
+              </button>
+              <button
+                class="border border-border-default px-4 py-2 hover:border-border-hover"
+                type="button"
+              >
+                [ lg ]
+              </button>
+              <button
+                class="grid h-8 w-8 place-items-center border border-border-default hover:border-amber-400 hover:text-amber-300"
+                aria-label="Icon"
+                type="button"
+              >
+                ▶
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-border-default p-5">
+          <div class="mb-3 text-body-xs uppercase tracking-widest text-text-tertiary">
+            agent dispatch row (live composition)
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="border border-amber-400 bg-amber-400/10 px-3 py-1.5 font-medium text-amber-300 hover:shadow-glow-amber"
+              type="button"
+            >
+              ▶ run plan
+            </button>
+            <button
+              class="border border-border-default bg-surface-raised px-3 py-1.5 text-text-primary hover:border-amber-400 hover:text-amber-300"
+              type="button"
+            >
+              implement
+            </button>
+            <button
+              class="border border-border-default bg-surface-raised px-3 py-1.5 text-text-primary hover:border-amber-400 hover:text-amber-300"
+              type="button"
+            >
+              revise
+            </button>
+            <span class="px-2 text-text-tertiary">│</span>
+            <button
+              class="border border-agent-500 bg-agent-500/10 px-3 py-1.5 text-agent-400 hover:bg-agent-500/20"
+              type="button"
+            >
+              playbook ▾
+            </button>
+            <span class="ml-auto text-body-xs text-text-tertiary">
+              ⌘+enter to dispatch
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── BADGES / STATUS PILLS ─────────────────────────────────────── -->
+      <section id="badges" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 05 · badges · agent status ──────────────────────────────
+          </h3>
+        </header>
+
+        <div class="space-y-4 border border-border-default p-5">
+          <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+            agentStatus — bracketed text labels
+          </div>
+          <div class="flex flex-wrap gap-2 text-body-xs">
+            <span class="border border-border-default bg-surface-raised px-2 py-0.5 text-text-tertiary">
+              [ IDLE ]
+            </span>
+            <span class="border border-info-500 bg-info-500/10 px-2 py-0.5 text-info-400">
+              [ QUEUED ]
+            </span>
+            <span class="border border-amber-400 bg-amber-400/10 px-2 py-0.5 text-amber-300">
+              [ RUNNING&nbsp;<span class="caret">▌</span> ]
+            </span>
+            <span class="border border-warning-500 bg-warning-500/10 px-2 py-0.5 text-warning-400">
+              [ BLOCKED · QUESTION ]
+            </span>
+            <span class="border border-warning-500 bg-warning-500/10 px-2 py-0.5 text-warning-400">
+              [ BLOCKED · TIMEOUT ]
+            </span>
+            <span class="border border-warning-500 bg-warning-500/10 px-2 py-0.5 text-warning-400">
+              [ BLOCKED · DEPENDENCY_FAILED ]
+            </span>
+            <span class="border border-error-500 bg-error-500/10 px-2 py-0.5 text-error-400">
+              [ MISSING_SECRETS ]
+            </span>
+            <span class="border border-success-500 bg-success-500/10 px-2 py-0.5 text-success-400">
+              [ SUCCESS ]
+            </span>
+            <span class="border border-error-500 bg-error-500/10 px-2 py-0.5 text-error-400">
+              [ FAILED ]
+            </span>
+          </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-2 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              tags (board-scoped)
+            </div>
+            <div class="flex flex-wrap gap-2 text-body-xs">
+              <span class="border border-error-400 px-2 py-0.5 text-error-400">#bug</span>
+              <span class="border border-info-400 px-2 py-0.5 text-info-400">#feature</span>
+              <span class="border border-warning-400 px-2 py-0.5 text-warning-400">#chore</span>
+              <span class="border border-agent-400 px-2 py-0.5 text-agent-400">#agent-only</span>
+              <span class="border border-success-400 px-2 py-0.5 text-success-400">#docs</span>
+            </div>
+          </div>
+          <div class="space-y-2 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              chips · counters · meta
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-body-xs">
+              <span class="border border-border-default px-2 py-0.5 text-text-secondary">
+                retry × 2
+              </span>
+              <span class="border border-border-default px-2 py-0.5 text-text-secondary">
+                turn 47 / 200
+              </span>
+              <span class="border border-border-default px-2 py-0.5 text-text-secondary">
+                ⏱ 03:42 / 10:00
+              </span>
+              <span class="border border-amber-400 px-2 py-0.5 text-amber-300">
+                playbook:bump-dep · v3
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── INPUTS ────────────────────────────────────────────────────── -->
+      <section id="inputs" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 06 · inputs ─────────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="space-y-3 border border-border-default p-5">
+            <label class="block text-body-xs uppercase tracking-widest text-text-tertiary">
+              text input
+            </label>
+            <div class="flex items-center border border-border-default bg-surface-inset px-3 focus-within:border-amber-400 focus-within:shadow-glow-amber">
+              <span class="text-amber-300">›</span>
+              <input
+                class="ml-2 w-full bg-transparent py-1.5 outline-none placeholder:text-text-muted"
+                placeholder="task title…"
+                type="text"
+              />
+            </div>
+
+            <label class="mt-4 block text-body-xs uppercase tracking-widest text-text-tertiary">
+              text input · invalid
+            </label>
+            <div class="flex items-center border border-error-500 bg-error-500/5 px-3">
+              <span class="text-error-400">!</span>
+              <input
+                class="ml-2 w-full bg-transparent py-1.5 outline-none"
+                value="task title with no targetRepo"
+                type="text"
+              />
+            </div>
+            <p class="text-body-xs text-error-400">
+              targetRepo is required for implement / revise.
+            </p>
+          </div>
+
+          <div class="space-y-3 border border-border-default p-5">
+            <label class="block text-body-xs uppercase tracking-widest text-text-tertiary">
+              textarea · scratchpad-style
+            </label>
+            <div class="border border-border-default bg-surface-inset focus-within:border-amber-400">
+              <div class="flex items-center justify-between border-border-default border-b px-3 py-1 text-body-xs text-text-tertiary">
+                <span>$HIVEBOARD_SCRATCHPAD</span>
+                <span>append-only · 64 KB cap</span>
+              </div>
+              <textarea
+                class="block min-h-[7rem] w-full resize-y bg-transparent px-3 py-2 outline-none"
+                spellcheck="false"
+              >## attempt 1
+- read packages/api/src/orchestrator/orchestrator.ts
+- found post-exit pipeline at line 412
+- the question file wins over verify — confirmed</textarea>
+            </div>
+
+            <label class="mt-2 block text-body-xs uppercase tracking-widest text-text-tertiary">
+              select / combobox
+            </label>
+            <div class="flex items-center justify-between border border-border-default bg-surface-raised px-3 py-1.5 hover:border-border-hover">
+              <span>action: <span class="text-amber-300">implement</span></span>
+              <span class="text-text-tertiary">▾</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CARDS ─────────────────────────────────────────────────────── -->
+      <section id="cards" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 07 · task card ──────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-4 md:grid-cols-3">
+          <!-- idle card -->
+          <article class="space-y-2 border border-border-default bg-surface-raised p-3 hover:border-border-hover">
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="text-body text-text-primary">Add target_branch field to tasks</h4>
+              <span class="border border-border-default px-1.5 py-0.5 text-[10px] text-text-tertiary">
+                IDLE
+              </span>
+            </div>
+            <p class="text-body-xs text-text-tertiary">
+              boengai/hiveboard · main
+            </p>
+            <div class="flex flex-wrap gap-1 text-body-xs">
+              <span class="border border-info-400 px-1.5 text-info-400">#feature</span>
+              <span class="border border-success-400 px-1.5 text-success-400">#docs</span>
+            </div>
+          </article>
+
+          <!-- running card -->
+          <article class="space-y-2 border border-amber-400 bg-amber-400/[0.04] p-3 shadow-glow-amber">
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="text-body text-text-primary">
+                Wire up checkpoint replay on retry
+              </h4>
+              <span class="border border-amber-400 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                RUNNING<span class="caret">▌</span>
+              </span>
+            </div>
+            <p class="text-body-xs text-text-tertiary">
+              boengai/hiveboard · feat/checkpoint-resume
+            </p>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-body-xs text-text-secondary">
+                <span>turn 47 / 200</span>
+                <span>⏱ 03:42</span>
+              </div>
+              <div class="h-1 w-full bg-surface-inset">
+                <div class="h-full bg-amber-400" style="width: 23.5%"></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- blocked card -->
+          <article class="space-y-2 border border-warning-500 bg-warning-500/[0.04] p-3">
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="text-body text-text-primary">
+                Refactor verify gate to support per-task overrides
+              </h4>
+              <span class="border border-warning-500 bg-warning-500/10 px-1.5 py-0.5 text-[10px] text-warning-400">
+                BLOCKED · Q
+              </span>
+            </div>
+            <p class="text-body-xs text-text-tertiary">
+              waiting on human · 00:14:21
+            </p>
+            <p class="border-warning-500 border-l-2 pl-2 text-body-xs italic text-text-secondary">
+              should the override <em>replace</em> or <em>merge with</em> the
+              global verify.commands?
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── DRAWER / PANEL CHROME ─────────────────────────────────────── -->
+      <section id="panels" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 08 · panels · drawer chrome · tabs ──────────────────────
+          </h3>
+        </header>
+
+        <div class="border border-border-default">
+          <!-- top chrome with ASCII corners -->
+          <div class="flex items-center justify-between border-border-default border-b bg-surface-overlay px-4 py-2">
+            <div class="flex items-center gap-3">
+              <span class="text-amber-300">┌─</span>
+              <span class="text-body-sm uppercase tracking-widest text-text-secondary">
+                task · 01HYX3KPQRS5N6Z8VBQX2WMABC
+              </span>
+              <span class="border border-amber-400 bg-amber-400/10 px-2 text-body-xs text-amber-300">
+                [ RUNNING ]
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button
+                class="border border-border-default px-2 py-1 text-body-xs hover:border-amber-400 hover:text-amber-300"
+                type="button"
+              >
+                cancel
+              </button>
+              <button
+                class="border border-border-default px-2 py-1 text-body-xs hover:border-amber-400 hover:text-amber-300"
+                aria-label="Close"
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- tabs -->
+          <div class="flex flex-wrap items-stretch border-border-default border-b bg-surface-raised text-body-sm">
+            <button class="border-amber-400 border-b-2 bg-amber-400/5 px-4 py-2 text-amber-300">
+              scratchpad
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              progress
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              timeline
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              messages
+              <span class="ml-1 border border-warning-500 bg-warning-500/10 px-1 text-[10px] text-warning-400">
+                1
+              </span>
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              verification
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              events
+            </button>
+            <button class="border-transparent border-b-2 px-4 py-2 text-text-secondary hover:text-text-primary">
+              comments
+            </button>
+          </div>
+
+          <!-- body -->
+          <div class="space-y-4 bg-surface-page p-5">
+            <div class="border border-border-default bg-surface-inset p-4 text-body-sm">
+              <pre class="whitespace-pre-wrap font-mono text-text-secondary">## attempt 2
+- previous attempt failed verification (tsc red)
+- root cause: ConfigSchema.safeParse return shape changed
+- replay shows agent edited <span class="text-amber-300">resolvers.ts:412</span> last
+- next: rerun tsc with the corrected import shape</pre>
+            </div>
+
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              live agent log
+            </div>
+            <div class="border border-border-default bg-surface-inset font-mono text-body-xs">
+              <div class="border-border-default border-b px-3 py-1 text-text-tertiary">
+                $HIVEBOARD_PROGRESS · streaming
+              </div>
+              <pre class="whitespace-pre-wrap px-3 py-2 leading-relaxed text-text-secondary">
+[<span class="text-text-tertiary">12:04:17</span>] <span class="text-info-400">tool_use</span>  Read packages/api/src/schema/resolvers.ts
+[<span class="text-text-tertiary">12:04:18</span>] <span class="text-info-400">tool_use</span>  Grep "ConfigSchema" → 4 hits
+[<span class="text-text-tertiary">12:04:21</span>] <span class="text-amber-300">assistant</span> proposing edit at line 412
+[<span class="text-text-tertiary">12:04:22</span>] <span class="text-info-400">tool_use</span>  Edit packages/api/src/schema/resolvers.ts
+[<span class="text-text-tertiary">12:04:23</span>] <span class="text-success-400">tool_result</span> exit=0  bytes=128
+[<span class="text-text-tertiary">12:04:25</span>] <span class="text-info-400">tool_use</span>  Bash bun run tsc
+[<span class="text-text-tertiary">12:04:48</span>] <span class="text-success-400">tool_result</span> exit=0  bytes=12
+[<span class="text-text-tertiary">12:04:49</span>] <span class="text-amber-300">assistant</span> tsc green — proceeding to verify
+<span class="caret text-amber-300">▌</span></pre>
+            </div>
+
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              messages — pending question from agent
+            </div>
+            <blockquote class="border-warning-500 border-l-2 bg-warning-500/[0.04] p-3 text-body-sm">
+              <div class="mb-1 text-body-xs uppercase tracking-widest text-warning-400">
+                ? agent · question
+              </div>
+              should the per-task verify override <em>replace</em> the global
+              <code class="text-amber-300">verify.commands</code> or merge into
+              it? defaults today suggest replace; confirm before i continue.
+            </blockquote>
+
+            <div class="flex items-center gap-2">
+              <input
+                class="flex-1 border border-border-default bg-surface-inset px-3 py-1.5 outline-none focus:border-amber-400"
+                placeholder="answer the agent…"
+                type="text"
+              />
+              <button
+                class="border border-amber-400 bg-amber-400/10 px-3 py-1.5 text-amber-300 hover:bg-amber-400/20"
+                type="button"
+              >
+                ↵ answer
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── EMPTY / LOADING / ERROR ───────────────────────────────────── -->
+      <section id="states" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 09 · states ─────────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="space-y-2 border border-dashed border-border-default p-5 text-center">
+            <div class="text-body-sm uppercase tracking-widest text-text-tertiary">
+              ─── empty ───
+            </div>
+            <p class="text-body-sm text-text-secondary">
+              no tasks in this column.
+            </p>
+            <button
+              class="border border-amber-400 bg-amber-400/10 px-3 py-1 text-body-xs text-amber-300 hover:bg-amber-400/20"
+              type="button"
+            >
+              + new task
+            </button>
+          </div>
+
+          <div class="space-y-2 border border-border-default p-5">
+            <div class="text-body-sm uppercase tracking-widest text-text-tertiary">
+              loading
+            </div>
+            <div class="flex items-center gap-2 text-text-secondary">
+              <span class="caret text-amber-300">▌</span>
+              fetching boards…
+            </div>
+            <div class="space-y-1.5 pt-2">
+              <div class="h-2 w-3/4 animate-pulse bg-surface-overlay"></div>
+              <div class="h-2 w-1/2 animate-pulse bg-surface-overlay"></div>
+              <div class="h-2 w-2/3 animate-pulse bg-surface-overlay"></div>
+            </div>
+          </div>
+
+          <div class="space-y-2 border border-error-500 bg-error-500/[0.04] p-5">
+            <div class="text-body-sm uppercase tracking-widest text-error-400">
+              error · NOT_FOUND
+            </div>
+            <p class="text-body-sm text-text-secondary">
+              board <code class="text-error-400">01HYX…ABC</code> not found, or
+              you don't have access.
+            </p>
+            <button
+              class="border border-error-500 px-3 py-1 text-body-xs text-error-400 hover:bg-error-500/10"
+              type="button"
+            >
+              [ back to boards ]
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── CONNECTION INDICATOR / AVATAR ─────────────────────────────── -->
+      <section id="indicators" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 10 · indicators ─────────────────────────────────────────
+          </h3>
+        </header>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="space-y-3 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              connection indicator
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-body-sm">
+              <span class="inline-flex items-center gap-1.5 border border-success-500 px-2 py-0.5 text-success-400">
+                <span class="h-2 w-2 bg-success-400"></span> ONLINE
+              </span>
+              <span class="inline-flex items-center gap-1.5 border border-warning-500 px-2 py-0.5 text-warning-400">
+                <span class="h-2 w-2 animate-pulse bg-warning-400"></span> RECONNECTING
+              </span>
+              <span class="inline-flex items-center gap-1.5 border border-error-500 px-2 py-0.5 text-error-400">
+                <span class="h-2 w-2 bg-error-400"></span> OFFLINE
+              </span>
+            </div>
+          </div>
+
+          <div class="space-y-3 border border-border-default p-5">
+            <div class="text-body-xs uppercase tracking-widest text-text-tertiary">
+              avatar — initials only, mono
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="grid h-7 w-7 place-items-center border border-amber-400 bg-amber-400/10 text-body-xs font-medium text-amber-300">
+                QB
+              </span>
+              <span class="grid h-7 w-7 place-items-center border border-border-default bg-surface-raised text-body-xs text-text-secondary">
+                JK
+              </span>
+              <span class="grid h-7 w-7 place-items-center border border-agent-500 bg-agent-500/10 text-body-xs text-agent-400">
+                AI
+              </span>
+              <span class="text-body-xs text-text-tertiary">
+                amber = super-admin · agent = AI author
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SAMPLE COMPOSITION ────────────────────────────────────────── -->
+      <section id="sample" class="space-y-6">
+        <header class="border-border-default border-b pb-2">
+          <h3 class="text-heading-3 text-amber-300">
+            ── 11 · sample composition · mini board ────────────────────
+          </h3>
+        </header>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <!-- column: backlog -->
+          <div class="border border-border-default bg-surface-raised">
+            <div class="flex items-center justify-between border-border-default border-b bg-surface-overlay px-3 py-2">
+              <span class="text-body-sm uppercase tracking-widest text-text-secondary">
+                ▸ backlog
+              </span>
+              <span class="text-body-xs text-text-tertiary">2</span>
+            </div>
+            <div class="space-y-2 p-2">
+              <article class="border border-border-default bg-surface-page p-2">
+                <div class="text-body-sm">Add target_branch field to tasks</div>
+                <div class="mt-1 text-body-xs text-text-tertiary">IDLE · #feature</div>
+              </article>
+              <article class="border border-border-default bg-surface-page p-2">
+                <div class="text-body-sm">Document the post-exit pipeline ordering</div>
+                <div class="mt-1 text-body-xs text-text-tertiary">IDLE · #docs</div>
+              </article>
+            </div>
+          </div>
+
+          <!-- column: in progress -->
+          <div class="border border-border-default bg-surface-raised">
+            <div class="flex items-center justify-between border-border-default border-b bg-surface-overlay px-3 py-2">
+              <span class="text-body-sm uppercase tracking-widest text-amber-300">
+                ▸ in progress
+              </span>
+              <span class="text-body-xs text-text-tertiary">2</span>
+            </div>
+            <div class="space-y-2 p-2">
+              <article class="border border-amber-400 bg-amber-400/[0.04] p-2 shadow-glow-amber">
+                <div class="text-body-sm">Wire up checkpoint replay on retry</div>
+                <div class="mt-1 text-body-xs text-amber-300">
+                  RUNNING<span class="caret">▌</span> · turn 47 / 200
+                </div>
+                <div class="mt-2 h-1 w-full bg-surface-inset">
+                  <div class="h-full bg-amber-400" style="width: 23.5%"></div>
+                </div>
+              </article>
+              <article class="border border-warning-500 bg-warning-500/[0.04] p-2">
+                <div class="text-body-sm">Refactor verify gate</div>
+                <div class="mt-1 text-body-xs text-warning-400">
+                  BLOCKED · QUESTION
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- column: review -->
+          <div class="border border-border-default bg-surface-raised">
+            <div class="flex items-center justify-between border-border-default border-b bg-surface-overlay px-3 py-2">
+              <span class="text-body-sm uppercase tracking-widest text-text-secondary">
+                ▸ review
+              </span>
+              <span class="text-body-xs text-text-tertiary">1</span>
+            </div>
+            <div class="space-y-2 p-2">
+              <article class="border border-success-500 bg-success-500/[0.04] p-2">
+                <div class="text-body-sm">Bump dep: graphql-yoga to 5.13</div>
+                <div class="mt-1 text-body-xs text-success-400">
+                  SUCCESS · PR #284
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PORTING NOTES ─────────────────────────────────────────────── -->
+      <section id="porting" class="space-y-3 border-amber-400 border-l-2 pl-5">
+        <h3 class="text-heading-3 text-amber-300">
+          ── 12 · porting notes ──────────────────────────────────────
+        </h3>
+        <ol class="list-inside list-decimal space-y-2 text-text-secondary">
+          <li>
+            Copy the four <code class="text-amber-300">@theme&nbsp;{…}</code>
+            blocks (palette · surfaces · radii · shadows) at the top of this
+            file into <code class="text-amber-300">packages/web/src/index.css</code>,
+            <em>replacing</em> the existing Bee palette / surfaces / shadow blocks.
+          </li>
+          <li>
+            Switch <code class="text-amber-300">--font-sans</code> to
+            JetBrains Mono. Keep <code class="text-amber-300">--font-mono</code>
+            unchanged. (VT323 is opt-in for hero / login.)
+          </li>
+          <li>
+            Update each <code class="text-amber-300">tv()</code> variant in
+            <code class="text-amber-300">components/common/</code> to use the
+            new tokens — e.g. <code class="text-amber-300">Button</code>'s
+            primary becomes <code class="text-amber-300">border-amber-400 bg-amber-400/10 text-amber-300</code>;
+            replace soft drop-shadow utilities with
+            <code class="text-amber-300">shadow-glow-amber</code>.
+          </li>
+          <li>
+            Replace soft / pill <code class="text-amber-300">Badge</code>
+            variants with bracketed text labels — see Section 05.
+          </li>
+          <li>
+            Optional retro layer: enable <code class="text-amber-300">body[data-scanlines='on']</code>
+            for a CRT overlay (toggle in this preview's header). Keep it off in
+            the React app's default.
+          </li>
+        </ol>
+      </section>
+
+      <footer class="border-border-default border-t pt-6 text-body-xs text-text-tertiary">
+        HiveBoard · design-system.html · v0.1 · iterate freely.
+      </footer>
+    </main>
+
+    <script>
+      // Scanline toggle — purely a preview convenience.
+      const btn = document.getElementById('scanlineToggle')
+      btn?.addEventListener('click', () => {
+        const on = document.body.getAttribute('data-scanlines') === 'on'
+        document.body.setAttribute('data-scanlines', on ? 'off' : 'on')
+        btn.textContent = `scanlines: ${on ? 'off' : 'on'}`
+      })
+    </script>
+  </body>
+</html>

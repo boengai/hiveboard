@@ -503,14 +503,18 @@ const ViewMode = ({
             rows={2}
             value={continueInstruction}
           />
-          <button
-            className="self-start rounded bg-accent px-3 py-1 text-body-xs text-surface-1 disabled:opacity-50"
-            disabled={continuing || loading}
-            onClick={handleContinue}
-            type="button"
-          >
-            {continuing ? 'Continuing…' : 'Continue'}
-          </button>
+          <span className="self-start">
+            <Button
+              color="primary"
+              disabled={continuing || loading}
+              onClick={handleContinue}
+              size="small"
+              type="button"
+              variant="solid"
+            >
+              {continuing ? 'Continuing…' : 'Continue'}
+            </Button>
+          </span>
         </div>
       )}
 
@@ -917,8 +921,11 @@ const EditMode = ({
         )}
       </form.Field>
 
-      {/* Footer */}
-      <div className="mt-auto flex items-center gap-3 border-border-default border-t pt-5 *:w-1/2">
+      {/* Footer — sticky to the bottom of the scrollable drawer body so the
+          Save/Cancel actions are always reachable, even when the form is
+          longer than the viewport. The negative inset margins extend the
+          footer + its border edge-to-edge past the parent's `p-5` padding. */}
+      <div className="-mx-5 -mb-5 sticky -bottom-5 z-10 mt-auto flex items-center gap-3 border-border-default border-t bg-surface-raised p-5 *:w-1/2">
         <form.Subscribe selector={(s) => s.isSubmitting}>
           {(isSubmitting) => (
             <Button

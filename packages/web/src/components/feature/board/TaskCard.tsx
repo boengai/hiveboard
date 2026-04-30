@@ -221,7 +221,17 @@ export const TaskCard = memo(function TaskCard({
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md ${task.agentStatus === 'BLOCKED' ? 'ring-1 ring-honey-400/60' : ''}`}
+      className={`flex cursor-pointer select-none flex-col gap-1 rounded-md border border-border-default bg-surface-raised p-3 opacity-100 hover:border-border-hover hover:shadow-xs data-[dragging=true]:opacity-40 data-[dragging=true]:shadow-md ${
+        task.agentStatus === 'RUNNING'
+          ? 'border-honey-400 bg-honey-400/[0.04] shadow-glow-honey'
+          : task.agentStatus === 'BLOCKED'
+            ? 'border-warning-500 bg-warning-500/[0.04]'
+            : task.agentStatus === 'FAILED'
+              ? 'border-error-500 bg-error-500/[0.04]'
+              : task.agentStatus === 'SUCCESS'
+                ? 'border-success-500/60'
+                : ''
+      }`}
       data-dragging={isDragging ? 'true' : 'false'}
       onClick={() => openDrawerView(task.id)}
       whileHover={{ y: -1 }}

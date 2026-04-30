@@ -2,7 +2,7 @@ import type { AvatarProps } from '@/types'
 import { hashToBg, hashToColor, tv } from '@/utils'
 
 const avatar = tv({
-  base: 'inline-flex shrink-0 items-center justify-center rounded-full font-semibold uppercase',
+  base: 'inline-flex shrink-0 items-center justify-center border border-border-default font-semibold uppercase',
   defaultVariants: { size: 'md' },
   variants: {
     size: {

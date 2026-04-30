@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/common'
 import {
   GET_WORKSPACE_SNAPSHOT_PATCH,
   graphqlClient,
@@ -138,20 +139,38 @@ export function TaskTimeline({ taskId, initialSnapshots }: TaskTimelineProps) {
           type="range"
           value={index}
         />
-        <span className="shrink-0 font-mono text-body-xs text-text-tertiary tabular-nums">
-          {index + 1} / {snapshots.length}
+        <span className="shrink-0 whitespace-pre font-mono text-body-xs text-text-tertiary tabular-nums">
+          {String(index + 1).padStart(String(snapshots.length).length, ' ')} /{' '}
+          {snapshots.length}
         </span>
-        {!atLatest && (
-          <button
-            className="shrink-0 rounded border border-border-default px-2 py-0.5 text-body-xs text-text-secondary hover:bg-surface-overlay"
-            onClick={() => {
-              setIndex(snapshots.length - 1)
-              setLiveFollow(true)
-            }}
-            type="button"
+        {/* Same slot always — toggles between a passive LIVE indicator (at
+            latest) and a clickable JUMP TO LATEST Button. The `min-w-[8.25rem]`
+            wrapper keeps the slider width stable when scrubbing across the
+            last index. */}
+        {atLatest ? (
+          <span
+            aria-label="Following live snapshots"
+            className="inline-flex h-7 min-w-[9rem] shrink-0 items-center justify-center gap-1.5 border border-success-500/40 bg-success-500/10 px-2 text-body-xs text-success-400 uppercase tracking-wider"
           >
-            Jump to latest
-          </button>
+            <span className="size-1.5 animate-pulse bg-success-400" />
+            live
+          </span>
+        ) : (
+          <span className="inline-flex min-w-[9rem] shrink-0">
+            <Button
+              block
+              color="primary"
+              onClick={() => {
+                setIndex(snapshots.length - 1)
+                setLiveFollow(true)
+              }}
+              size="small"
+              type="button"
+              variant="secondary"
+            >
+              ↘ jump to latest
+            </Button>
+          </span>
         )}
       </div>
 

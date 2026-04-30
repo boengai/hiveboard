@@ -254,7 +254,10 @@ function Composer({
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-surface-overlay/30 p-3">
-      {/* Segmented kind toggle */}
+      {/* Segmented kind toggle. Two-state segmented control with `aria-pressed`
+          and a hover/active visual treatment that the Button wrapper does not
+          model — legitimate exception per conventions.md §4 (matches the
+          TaskTimeBox preset chips pattern). */}
       <div className="flex items-center gap-1 rounded-md bg-surface-inset p-0.5">
         <button
           aria-pressed={kind === 'HINT'}

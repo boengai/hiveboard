@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/common'
 import { CHECKPOINT_ADDED_SUBSCRIPTION, subscribe } from '@/graphql'
 import type { AgentRunCheckpoint, AgentRunLogProps } from '@/types'
 
@@ -32,13 +33,14 @@ function CheckpointRow({ cp }: { cp: AgentRunCheckpoint }) {
       <KindIcon kind={cp.kind} />
       <span className="flex-1 whitespace-pre-wrap break-all">{displayed}</span>
       {isLong && (
-        <button
-          className="text-text-tertiary underline"
+        <Button
           onClick={() => setExpanded((v: boolean) => !v)}
+          size="small"
           type="button"
+          variant="link-muted"
         >
           {expanded ? 'less' : 'more'}
-        </button>
+        </Button>
       )}
     </li>
   )
