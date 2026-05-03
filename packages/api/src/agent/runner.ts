@@ -55,12 +55,6 @@ export type RunAgentOptions = {
   gitIdentity?: { name: string; email: string }
   /** Directory containing token files for dynamic credential refresh. */
   tokenDir?: string
-  /**
-   * Freshly minted installation token. Set as `GITHUB_TOKEN`/`GH_TOKEN` in
-   * the agent env so default-path auth works without the agent having to
-   * discover the askpass setup.
-   */
-  accessToken?: string
   messages?: RunAgentMessage[]
   verificationFailures?: VerificationFailureForPrompt[]
   allowedToolsOverride?: string[] | null
@@ -160,7 +154,6 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     onLog,
     gitIdentity,
     tokenDir,
-    accessToken,
     messages,
     verificationFailures,
   } = options
@@ -194,7 +187,6 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
     gitIdentity,
     tokenDir,
     config,
-    accessToken,
   )
   const env = { ...baseEnv, ...(options.secretsEnv ?? {}) }
 

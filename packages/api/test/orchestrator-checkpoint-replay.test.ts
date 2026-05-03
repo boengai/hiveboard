@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { Database } from 'bun:sqlite'
 import { createTables } from '../src/db/schema'
 import { insertCheckpoint } from '../src/db/checkpoints'
-import { buildPreviousAttemptReplay } from '../src/orchestrator/orchestrator'
+import { buildPreviousAttemptReplay } from '../src/agent/checkpoint-replay'
 
 const TASK_ID_1 = '01HYX3KPQR000000000000000A'
 const TASK_ID_2 = '01HYX3KPQR000000000000000B'

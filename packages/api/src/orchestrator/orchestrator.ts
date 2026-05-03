@@ -2,16 +2,10 @@ import type { Database } from 'bun:sqlite'
 import { readFile, rename, unlink } from 'node:fs/promises'
 import { consola } from 'consola'
 import { GraphQLError } from 'graphql'
-import { selectCheckpointsForReplay } from '../agent/checkpoint-replay'
-import type { PreviousAttemptReplay } from '../agent/runner'
 import { runAgent } from '../agent/runner'
-import { countTurnsForRun, listCheckpointsForRun } from '../db/checkpoints'
-import { listFailingRunsForAgentRun } from '../db/verification-runs'
 import { transition as taskLifecycleTransition } from '../lifecycle'
 import { publishTaskMissingSecretsChanged } from '../pubsub'
-import { parseRequiredSecrets, resolveSecretsForTask } from '../secrets/store'
 import { subtasksPath } from '../workspace/agent-state'
-import { escapeMustacheSyntax } from './mustache-escape'
 import {
   applyFailure,
   applyQuestion,
@@ -20,18 +14,15 @@ import {
   decideOutcome,
   type OutcomeDeps,
 } from './outcomes'
+import { plan as prespawnPlan, type SpawnPlan } from './prespawn'
 import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
-import { formatVerificationFailureForAgent } from './verify'
 
 export { escapeMustacheSyntax } from './mustache-escape'
 
 import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
-import {
-  listUndeliveredHumanMessages,
-  markMessagesDelivered,
-} from '../db/task-messages'
-import type { GitHubClient, ReviewComment } from '../github/client'
+import { markMessagesDelivered } from '../db/task-messages'
+import type { GitHubClient } from '../github/client'
 import { getPlaybookByName } from '../playbooks'
 import { publishAgentLog, publishTaskProgress, pubsub } from '../pubsub'
 import { appendToInbox, readQuestion } from '../workspace/agent-state'
@@ -84,6 +75,8 @@ type RunState = {
   timeBoxTimer?: NodeJS.Timeout
   /** Abort reason set on time-box expiry; read in onComplete to decide BLOCKED vs SUCCESS/FAIL. */
   abortReason?: 'TIMEOUT' | 'REDIRECT' | 'CANCEL'
+  /** The pre-spawn plan computed before dispatch; carried into runAgentAsync. */
+  spawnPlan: SpawnPlan
 }
 
 // ---------------------------------------------------------------------------
@@ -141,27 +134,6 @@ export function findColumnName(columnId: string): string | null {
   return row?.name ?? null
 }
 
-/**
- * Format an array of PR review comments into a readable string for the agent prompt.
- * All user-provided fields are escaped to prevent Mustache/template injection.
- */
-function formatReviewComments(comments: ReviewComment[]): string {
-  const lines: string[] = ['## PR Review Comments', '']
-  for (const comment of comments) {
-    lines.push(`### Comment by @${escapeMustacheSyntax(comment.author)}`)
-    if (comment.path) {
-      const escapedPath = escapeMustacheSyntax(comment.path)
-      const location =
-        comment.line != null ? `${escapedPath}:${comment.line}` : escapedPath
-      lines.push(`File: \`${location}\``)
-    }
-    if (comment.diffHunk) {
-      lines.push('```diff', escapeMustacheSyntax(comment.diffHunk), '```')
-    }
-    lines.push(escapeMustacheSyntax(comment.body), '')
-  }
-  return lines.join('\n').trim()
-}
 
 /**
  * Pull the plan text out of a Claude CLI run. Handles both output formats:
@@ -366,81 +338,6 @@ export function insertAgentRun(input: InsertAgentRunInput): void {
 /** Test-only re-export to avoid importing private class internals. */
 export function insertAgentRunForTest(input: InsertAgentRunInput): void {
   insertAgentRun(input)
-}
-
-// ---------------------------------------------------------------------------
-// Checkpoint replay builder (exported for test + orchestrator dispatch)
-// ---------------------------------------------------------------------------
-
-/**
- * Given a task id, find the most recent FAILED agent_run that occurred AFTER
- * the most recent SUCCESS run (if any), then build a PreviousAttemptReplay
- * bundle from its checkpoints.
- *
- * Rationale: only replay the immediate prior attempt in the current retry
- * cycle. If the task previously succeeded then later failed, we want the
- * recently-failed run, not some ancient failed run from before the success.
- */
-export function buildPreviousAttemptReplay(
-  db: Database,
-  taskId: string,
-): PreviousAttemptReplay | null {
-  const latestSuccess = db
-    .query(
-      `SELECT id, started_at FROM agent_runs
-       WHERE task_id = ? AND status = 'success'
-       ORDER BY started_at DESC
-       LIMIT 1`,
-    )
-    .get(taskId) as { id: string; started_at: string } | null
-
-  const failedRow = (
-    latestSuccess
-      ? db
-          .query(
-            `SELECT id, error FROM agent_runs
-           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
-             AND (started_at > ? OR (started_at = ? AND id > ?))
-           ORDER BY started_at DESC
-           LIMIT 1`,
-          )
-          .get(
-            taskId,
-            latestSuccess.started_at,
-            latestSuccess.started_at,
-            latestSuccess.id,
-          )
-      : db
-          .query(
-            `SELECT id, error FROM agent_runs
-           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
-           ORDER BY started_at DESC
-           LIMIT 1`,
-          )
-          .get(taskId)
-  ) as { id: string; error: string | null } | null
-
-  if (!failedRow) return null
-
-  const all = listCheckpointsForRun(db, failedRow.id)
-  if (all.length === 0) {
-    return {
-      checkpoints: [],
-      failure_summary:
-        failedRow.error ?? 'previous attempt failed (no checkpoints available)',
-      turn_count: 0,
-    }
-  }
-  const selected = selectCheckpointsForReplay(all)
-  return {
-    checkpoints: selected.map((cp) => ({
-      kind: cp.kind,
-      summary: cp.summary,
-      turn: cp.turn,
-    })),
-    failure_summary: failedRow.error ?? 'previous attempt failed',
-    turn_count: countTurnsForRun(db, failedRow.id),
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -655,16 +552,40 @@ export class Orchestrator {
   async dispatchTask(task: TaskRow): Promise<void> {
     consola.info(`Dispatching task ${task.id} (action: ${task.action})`)
 
-    let runId: string | null = null
-    try {
-      runId = generateId()
-      const newRunId = runId
+    // 1. Secrets-gate-first pre-spawn pipeline.
+    const result = await prespawnPlan(task, {
+      db,
+      github: this.github,
+    })
+
+    if (result.kind === 'missing_secrets') {
+      const errMsg = `Missing required secrets: ${result.missing.join(', ')}`
       taskLifecycleTransition({
+        taskId: task.id,
+        to: 'missing_secrets',
+        extras: (txDb) => {
+          txDb.run(`UPDATE tasks SET agent_error = ? WHERE id = ?`, [errMsg, task.id])
+        },
+      })
+      publishTaskMissingSecretsChanged(task.id, result.missing)
+      return
+    }
+
+    const spawnPlan = result.plan
+    const runId = generateId()
+    const agentStartedEventId = generateId()
+
+    try {
+      // 2. Atomic commit: RUNNING transition + run insert + column move +
+      //    delivered_at writes + cleared auto-revise pointer + agent_started event.
+      taskLifecycleTransition({
+        taskId: task.id,
+        to: 'running',
         extras: (txDb) => {
           insertAgentRun({
             action: task.action ?? '',
             db: txDb,
-            runId: newRunId,
+            runId,
             taskId: task.id,
           })
 
@@ -676,7 +597,6 @@ export class Orchestrator {
                 `UPDATE tasks SET column_id = ?, updated_at = datetime('now') WHERE id = ?`,
                 [inProgressColId, task.id],
               )
-
               txDb.run(
                 'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
                 [
@@ -684,24 +604,42 @@ export class Orchestrator {
                   task.id,
                   'SYSTEM',
                   'moved',
-                  JSON.stringify({
-                    from_column: fromColumnName,
-                    to_column: 'In Progress',
-                  }),
+                  JSON.stringify({ from_column: fromColumnName, to_column: 'In Progress' }),
                 ],
               )
             }
           }
+
+          if (spawnPlan.commits.deliveredMessageIds.length > 0) {
+            markMessagesDelivered(txDb, spawnPlan.commits.deliveredMessageIds)
+          }
+
+          if (spawnPlan.commits.clearPendingAutoReviseFor) {
+            txDb.run(
+              `UPDATE tasks SET pending_auto_revise_source_run_id = NULL, updated_at = datetime('now') WHERE id = ?`,
+              [spawnPlan.commits.clearPendingAutoReviseFor],
+            )
+          }
+
+          // agent_started event — inserted in the same tx as the RUNNING transition.
+          txDb.run(
+            'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
+            [
+              agentStartedEventId,
+              task.id,
+              'SYSTEM',
+              'agent_started',
+              JSON.stringify({ action: task.action, retry: spawnPlan.retryAttempt }),
+            ],
+          )
         },
-        taskId: task.id,
-        to: 'running',
       })
 
       const updatedTask = db
         .query('SELECT * FROM tasks WHERE id = ?')
         .get(task.id) as TaskRow
 
-      // 5. Create workspace with fresh access token and git identity
+      // 3. Workspace creation post-commit.
       const accessToken = await this.github.getAccessToken()
       const gitIdentity = await this.github.getIdentity()
       const ws = await this.workspace.createForTask(
@@ -716,29 +654,24 @@ export class Orchestrator {
         gitIdentity,
       )
 
-      // 7. Set up RunState
+      // 4. RunState assembly + time-box arming.
       const abortController = new AbortController()
-      const retryAttempt = task.retry_count ?? 0
-
       let resolveDone!: () => void
-      const done = new Promise<void>((resolve) => {
-        resolveDone = resolve
-      })
+      const done = new Promise<void>((resolve) => { resolveDone = resolve })
 
       const runState: RunState = {
         abortController,
         done,
         resolveDone,
-        retryAttempt,
+        retryAttempt: spawnPlan.retryAttempt,
         startedAt: new Date(),
         taskId: task.id,
         workspacePath: ws.path,
+        spawnPlan,
       }
 
       this.running.set(task.id, runState)
 
-      // Plan E: per-task time box. If set, abort the run after the budget
-      // and stamp `time_box_started_at` so the UI can show a countdown.
       if (task.time_box_ms && task.time_box_ms > 0) {
         db.run(
           `UPDATE tasks SET time_box_started_at = datetime('now') WHERE id = ?`,
@@ -753,24 +686,29 @@ export class Orchestrator {
         }, task.time_box_ms)
       }
 
-      // 8. Fire runAgentAsync (not awaited)
-      this.runAgentAsync(updatedTask, runId, runState)
+      // 5. Fire runAgentAsync (not awaited).
+      this.runAgentAsync(updatedTask, runId, runState, gitIdentity, agentStartedEventId)
     } catch (err) {
       consola.error(`Failed to dispatch task ${task.id}:`, err)
       this.running.delete(task.id)
       const errMessage = err instanceof Error ? err.message : String(err)
-      const orphanedRunId = runId
+      // Note: agent_runs row was inserted inside the lifecycle tx above; if that
+      // tx succeeded but spawn setup later threw, we mark the run failed and
+      // requeue. If the tx itself failed, the run row never existed.
       taskLifecycleTransition({
-        extras: (txDb) => {
-          if (orphanedRunId) {
-            txDb.run(
-              `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-              [errMessage, orphanedRunId],
-            )
-          }
-        },
         taskId: task.id,
         to: 'queued',
+        extras: (txDb) => {
+          txDb.run(
+            `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
+            [errMessage, runId],
+          )
+          // The agent_started event was inserted in the prior lifecycle tx
+          // (which committed). Spawn setup failed before runAgent could be
+          // called, so we delete the orphan event here to keep the timeline
+          // honest. If the prior tx itself rolled back, this DELETE is a no-op.
+          txDb.run(`DELETE FROM task_events WHERE id = ?`, [agentStartedEventId])
+        },
       })
     }
   }
@@ -783,95 +721,25 @@ export class Orchestrator {
     task: TaskRow,
     runId: string,
     runState: RunState,
+    gitIdentity: { name: string; email: string },
+    agentStartedEventId: string,
   ): Promise<void> {
     try {
-      // Detect auto-revise-from-verification mode: the task carries a pointer to
-      // the agent_run whose verification failed. We load the failing runs, format
-      // them for the prompt, then CLEAR the pointer so a subsequent human-driven
-      // revise on the same task doesn't re-render the verification block.
-      let verificationFailures: Array<{
-        label: string
-        command: string
-        exit_code: number
-        output: string
-      }> = []
+      const spawnPlan = runState.spawnPlan
 
-      const pendingRow = db
-        .query(
-          'SELECT pending_auto_revise_source_run_id FROM tasks WHERE id = ?',
-        )
-        .get(task.id) as {
-        pending_auto_revise_source_run_id: string | null
-      } | null
-
-      if (pendingRow?.pending_auto_revise_source_run_id) {
-        const sourceRunId = pendingRow.pending_auto_revise_source_run_id
-        const failing = listFailingRunsForAgentRun(db, sourceRunId)
-        if (failing.length > 0) {
-          const fmt = formatVerificationFailureForAgent(
-            failing.map((f) => ({
-              command: f.command,
-              exit_code: f.exitCode,
-              finished_at: f.finishedAt,
-              label: f.label,
-              output: f.output,
-              started_at: f.startedAt,
-            })),
-          )
-          verificationFailures = fmt.verification_failures
-        }
-        // Clear the pointer regardless — whether or not we found failing runs,
-        // this spawn is the attempt triggered by it.
-        db.run(
-          `UPDATE tasks SET pending_auto_revise_source_run_id = NULL, updated_at = datetime('now') WHERE id = ?`,
-          [task.id],
-        )
-      }
-
-      // For revise action, fetch PR review comments to include in the agent prompt
-      let reviewComments: string | undefined
-      if (task.action === 'revise' && task.pr_url) {
-        try {
-          const comments = await this.github.fetchReviewComments(task.pr_url)
-          if (comments.length > 0) {
-            reviewComments = formatReviewComments(comments)
-            consola.info(
-              `Fetched ${comments.length} review comment(s) for task ${task.id}`,
-            )
-          } else {
-            consola.info(
-              `No review comments found for task ${task.id} (${task.pr_url})`,
-            )
-          }
-        } catch (err) {
-          consola.warn(
-            `Failed to fetch review comments for task ${task.id}: ${err}`,
-          )
-          // Continue without review comments rather than failing the whole run
-        }
-      }
-
-      // Publish agent_started event right before spawning the agent process
-      const agentStartedEventId = generateId()
-      db.run(
-        'INSERT INTO task_events (id, task_id, actor, type, data) VALUES (?, ?, ?, ?, ?)',
-        [
-          agentStartedEventId,
-          task.id,
-          'SYSTEM',
-          'agent_started',
-          JSON.stringify({ action: task.action, retry: runState.retryAttempt }),
-        ],
-      )
+      // Re-publish the agent_started event we already inserted in the dispatch tx.
+      // The tx is the source of truth for the row; we look it up by id (deterministic).
       const startedEvent = db
-        .query('SELECT * FROM task_events WHERE id = ?')
+        .query(
+          'SELECT id, type, data, created_at, actor FROM task_events WHERE id = ?',
+        )
         .get(agentStartedEventId) as {
         id: string
         type: string
         data: string | null
         created_at: string
         actor: string
-      }
+      } | null
       if (startedEvent) {
         pubsub.publish('TASK_EVENT', task.id, {
           _actor: 'SYSTEM',
@@ -883,34 +751,24 @@ export class Orchestrator {
         } as unknown as Record<string, unknown>)
       }
 
-      // --- Plan D: progress watcher + snapshot loop ---
+      // Plan D: progress watcher + snapshot loop.
       if (this.config.progress?.enabled) {
         try {
-          runState.progressDispose = watchProgress(
-            this.config,
-            task.id,
-            (entry) => {
-              publishTaskProgress(task.id, {
-                agentRunId: runId,
-                detail: entry.detail ?? null,
-                label: entry.label,
-                status: entry.status.toUpperCase() as
-                  | 'IN_PROGRESS'
-                  | 'DONE'
-                  | 'FAILED',
-                step: entry.step,
-                taskId: task.id,
-                total: entry.total,
-                ts: entry.ts,
-              })
-            },
-          )
+          runState.progressDispose = watchProgress(this.config, task.id, (entry) => {
+            publishTaskProgress(task.id, {
+              agentRunId: runId,
+              detail: entry.detail ?? null,
+              label: entry.label,
+              status: entry.status.toUpperCase() as 'IN_PROGRESS' | 'DONE' | 'FAILED',
+              step: entry.step,
+              taskId: task.id,
+              total: entry.total,
+              ts: entry.ts,
+            })
+          })
         } catch (err) {
-          consola.warn(
-            `progress watcher setup failed for ${task.id}: ${(err as Error).message}`,
-          )
+          consola.warn(`progress watcher setup failed for ${task.id}: ${(err as Error).message}`)
         }
-
         try {
           runState.snapshotLoop = startSnapshotLoop({
             agentRunId: runId,
@@ -920,102 +778,17 @@ export class Orchestrator {
             workspacePath: runState.workspacePath,
           })
         } catch (err) {
-          consola.warn(
-            `snapshot loop setup failed for ${task.id}: ${(err as Error).message}`,
-          )
+          consola.warn(`snapshot loop setup failed for ${task.id}: ${(err as Error).message}`)
         }
       }
-      // --- end Plan D setup ---
-
-      const gitIdentity = await this.github.getIdentity()
-      const accessToken = await this.github.getAccessToken()
-
-      const undeliveredMessages = listUndeliveredHumanMessages(db, task.id)
-      const messagesForPrompt = undeliveredMessages
-        .filter((m) => m.kind !== 'question') // questions are agent-authored anyway; safety
-        .map((m) => ({
-          body: escapeMustacheSyntax(m.body),
-          created_at: m.createdAt,
-          kind: m.kind as 'hint' | 'redirect' | 'answer',
-        }))
-
-      // Mark delivered before spawn. If spawn fails, the message is still preserved
-      // in task_messages and the next spawn-time query will exclude it; the agent
-      // won't see it. This is acceptable per spec (scratchpad captures context
-      // across runs).
-      if (undeliveredMessages.length > 0) {
-        markMessagesDelivered(
-          db,
-          undeliveredMessages.map((m) => m.id),
-        )
-      }
-
-      // For playbook dispatches, resolve the current version's
-      // allowedToolsOverride so the spawned Claude CLI has its tool allowlist
-      // clamped per the playbook. Missing playbooks degrade to undefined and
-      // the runner falls back to the global config allow-list.
-      let allowedToolsOverride: string[] | null | undefined
-      if (task.action?.startsWith('playbook:')) {
-        const name = task.action.slice('playbook:'.length)
-        const pb = getPlaybookByName(db, name)
-        allowedToolsOverride = pb
-          ? pb.currentVersion.allowedToolsOverride
-          : undefined
-      }
-
-      const previousAttemptReplay =
-        runState.retryAttempt > 0
-          ? buildPreviousAttemptReplay(db, task.id)
-          : null
-
-      // --- Pre-spawn secrets resolution gate (Plan H Task 13) ---
-      const secretsResolution = resolveSecretsForTask(db, task.id)
-      if (!secretsResolution.ok) {
-        const missingNames = secretsResolution.missing
-        const errMsg = `Missing required secrets: ${missingNames.join(', ')}`
-        taskLifecycleTransition({
-          extras: (txDb) => {
-            txDb.run(`UPDATE tasks SET agent_error = ? WHERE id = ?`, [
-              errMsg,
-              task.id,
-            ])
-            txDb.run(
-              `UPDATE agent_runs SET status = 'failed', error = ?, finished_at = datetime('now') WHERE id = ?`,
-              [errMsg, runId],
-            )
-          },
-          taskId: task.id,
-          to: 'missing_secrets',
-        })
-        publishTaskMissingSecretsChanged(task.id, missingNames)
-        return
-      }
-      // --- end secrets gate ---
-
-      // Build required-secrets list for prompt context (names + descriptions from board scope)
-      const declaredNames = (() => {
-        const taskSecretRow = db
-          .query('SELECT required_secrets FROM tasks WHERE id = ?')
-          .get(task.id) as { required_secrets: string | null } | null
-        return parseRequiredSecrets(taskSecretRow?.required_secrets ?? null)
-      })()
-      const requiredSecretsForPrompt = declaredNames.map((name) => {
-        const boardRow = db
-          .query(
-            'SELECT description FROM board_secrets WHERE board_id = ? AND name = ?',
-          )
-          .get(task.board_id, name) as { description: string | null } | null
-        return { description: boardRow?.description ?? null, name }
-      })
 
       const result = await runAgent({
-        accessToken,
         agentRunId: runId,
-        allowedToolsOverride,
+        allowedToolsOverride: spawnPlan.allowedToolsOverride,
         config: this.config,
         db,
         gitIdentity,
-        messages: messagesForPrompt,
+        messages: spawnPlan.messages,
         onLog: (chunk) => {
           pubsub.publish('AGENT_LOG', task.id, {
             chunk,
@@ -1023,26 +796,17 @@ export class Orchestrator {
             timestamp: new Date().toISOString(),
           } as unknown as Record<string, unknown>)
         },
-        previousAttemptReplay: previousAttemptReplay ?? undefined,
+        previousAttemptReplay: spawnPlan.previousAttemptReplay,
         promptTemplate: this.promptTemplate,
-        requiredSecrets: requiredSecretsForPrompt,
-        retryAttempt: runState.retryAttempt,
-        reviewComments,
-        secretsEnv: secretsResolution.env,
-        secretValues: secretsResolution.values,
+        requiredSecrets: spawnPlan.requiredSecrets,
+        retryAttempt: spawnPlan.retryAttempt,
+        reviewComments: spawnPlan.reviewComments,
+        secretsEnv: spawnPlan.secretsEnv,
+        secretValues: spawnPlan.secretValues,
         signal: runState.abortController.signal,
-        task: {
-          action: task.action,
-          agentInstruction: task.agent_instruction,
-          body: task.body,
-          id: task.id,
-          prUrl: task.pr_url,
-          targetBranch: task.target_branch,
-          targetRepo: task.target_repo,
-          title: task.title,
-        },
+        task: spawnPlan.task,
         tokenDir: this.github.getTokenDir(),
-        verificationFailures,
+        verificationFailures: spawnPlan.verificationFailures,
         workspacePath: runState.workspacePath,
       })
 

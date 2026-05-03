@@ -63,6 +63,25 @@ Task Lifecycle for its status transition. Outcomes never write
 ## Pre-spawn / Post-exit Pipeline
 
 The two ordered chains documented in `docs/architecture.md` §5. The
-post-exit pipeline is the dispatch surface for Outcomes; the pre-spawn
-pipeline is currently a sequence inside `Orchestrator#spawnTask` and is
-out of scope for the current architecture cut.
+post-exit pipeline is the dispatch surface for Outcomes.
+
+The Pre-spawn Pipeline lives in `packages/api/src/orchestrator/prespawn/`.
+Single entrypoint:
+
+```
+plan(task, deps) → { kind: 'ok', plan: SpawnPlan }
+                 | { kind: 'missing_secrets', missing: string[] }
+```
+
+`plan()` is pure-ish: DB reads, secrets decryption, and a single GitHub
+read (PR review comments on `revise` actions). It performs **no DB
+writes** — the writes it implies (`delivered_at`, clearing
+`pending_auto_revise_source_run_id`) are returned as a typed
+`SpawnPlanCommits` struct that the orchestrator lands inside the same
+`taskLifecycleTransition` that moves the task to `RUNNING`. Workspace
+creation, time-box arming, and `runAgent` invocation stay with the
+orchestrator.
+
+The secrets gate runs first. A `MissingSecrets` result transitions
+`queued → missing_secrets` with no workspace I/O and no orphan
+`agent_run`. The `running → missing_secrets` edge does not exist.

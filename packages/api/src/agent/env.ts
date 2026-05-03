@@ -10,12 +10,17 @@ import {
 import type { TaskForAgent } from './runner'
 
 /**
- * Env vars that must NEVER be inherited from the host process.
- * `GITHUB_TOKEN` / `GH_TOKEN` are denied at the inheritance step but then
- * explicitly set below from the freshly minted installation token, so the
- * agent's standard auth path (gh/git seeing GITHUB_TOKEN) works without
- * the agent needing to discover the askpass+file dance. App-level secrets
- * stay denied permanently — the agent should never see those.
+ * Env vars that must NEVER reach the agent subprocess.
+ *
+ * `GITHUB_TOKEN`/`GH_TOKEN` are deliberately NOT set: the global git config
+ * routes `git push` through `gh auth git-credential`, and `gh` reads `GH_TOKEN`
+ * from env *first*, falling through to `$GH_CONFIG_DIR/hosts.yml` only when
+ * env is unset. The orchestrator rewrites `hosts.yml` (and the askpass
+ * `token` file) on every cache refresh — but a frozen env-var snapshot taken
+ * at spawn defeats that mid-run freshness path. Keeping these denied means
+ * every credential read at git/gh time hits the always-fresh disk file.
+ *
+ * App-level secrets are denied permanently — the agent should never see them.
  */
 const DENIED_ENV_VARS = new Set([
   'GITHUB_TOKEN',
@@ -59,7 +64,6 @@ export function buildAgentEnv(
   gitIdentity?: { name: string; email: string },
   tokenDir?: string,
   config?: Config,
-  accessToken?: string,
 ): Record<string, string> {
   const env: Record<string, string> = {}
 
@@ -89,22 +93,17 @@ export function buildAgentEnv(
     env.GIT_COMMITTER_NAME = gitIdentity.name
   }
 
-  // When a tokenDir is provided, point git & gh at on-disk token files that
-  // the orchestrator keeps up-to-date across refreshes.
+  // Point git & gh at on-disk token files that the orchestrator rewrites
+  // on every cache refresh. With no `GH_TOKEN`/`GITHUB_TOKEN` in env (per
+  // DENIED_ENV_VARS above), `gh auth git-credential` falls through to
+  // `$GH_CONFIG_DIR/hosts.yml`, so each `git push` and `gh` invocation reads
+  // the latest token at use time — surviving mid-run cache refreshes. Git
+  // operations that go through GIT_ASKPASS read `$HIVEBOARD_TOKEN_FILE` the
+  // same way.
   if (tokenDir) {
     env.GH_CONFIG_DIR = join(tokenDir, 'gh')
     env.GIT_ASKPASS = join(tokenDir, 'askpass.sh')
     env.HIVEBOARD_TOKEN_FILE = join(tokenDir, 'token')
-  }
-
-  // Expose the minted installation token via the standard env names so the
-  // agent's default auth path works for both `gh` and `git` (with askpass).
-  // GitHub installation tokens last 1h; the orchestrator's poll cycle keeps
-  // the on-disk token file fresh, so for runs that exceed the env-var's
-  // freshness window the askpass fallback above still works.
-  if (accessToken) {
-    env.GITHUB_TOKEN = accessToken
-    env.GH_TOKEN = accessToken
   }
 
   // Expose per-task scratchpad / inbox / question / progress paths to the agent

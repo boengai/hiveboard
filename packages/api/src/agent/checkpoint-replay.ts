@@ -1,4 +1,7 @@
+import type { Database } from 'bun:sqlite'
 import type { CheckpointRow } from '../db/checkpoints'
+import { countTurnsForRun, listCheckpointsForRun } from '../db/checkpoints'
+import type { PreviousAttemptReplay } from './runner'
 
 const MAX_REPLAY_ENTRIES = 50
 const LAST_N_TURNS = 20
@@ -80,4 +83,79 @@ export function selectCheckpointsForReplay(
   }
 
   return ordered.filter((r) => !toDrop.has(r.id))
+}
+
+// ---------------------------------------------------------------------------
+// Checkpoint replay builder (exported for test + orchestrator dispatch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Given a task id, find the most recent FAILED agent_run that occurred AFTER
+ * the most recent SUCCESS run (if any), then build a PreviousAttemptReplay
+ * bundle from its checkpoints.
+ *
+ * Rationale: only replay the immediate prior attempt in the current retry
+ * cycle. If the task previously succeeded then later failed, we want the
+ * recently-failed run, not some ancient failed run from before the success.
+ */
+export function buildPreviousAttemptReplay(
+  db: Database,
+  taskId: string,
+): PreviousAttemptReplay | null {
+  const latestSuccess = db
+    .query(
+      `SELECT id, started_at FROM agent_runs
+       WHERE task_id = ? AND status = 'success'
+       ORDER BY started_at DESC
+       LIMIT 1`,
+    )
+    .get(taskId) as { id: string; started_at: string } | null
+
+  const failedRow = (
+    latestSuccess
+      ? db
+          .query(
+            `SELECT id, error FROM agent_runs
+           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
+             AND (started_at > ? OR (started_at = ? AND id > ?))
+           ORDER BY started_at DESC
+           LIMIT 1`,
+          )
+          .get(
+            taskId,
+            latestSuccess.started_at,
+            latestSuccess.started_at,
+            latestSuccess.id,
+          )
+      : db
+          .query(
+            `SELECT id, error FROM agent_runs
+           WHERE task_id = ? AND status IN ('failed', 'fail_verify')
+           ORDER BY started_at DESC
+           LIMIT 1`,
+          )
+          .get(taskId)
+  ) as { id: string; error: string | null } | null
+
+  if (!failedRow) return null
+
+  const all = listCheckpointsForRun(db, failedRow.id)
+  if (all.length === 0) {
+    return {
+      checkpoints: [],
+      failure_summary:
+        failedRow.error ?? 'previous attempt failed (no checkpoints available)',
+      turn_count: 0,
+    }
+  }
+  const selected = selectCheckpointsForReplay(all)
+  return {
+    checkpoints: selected.map((cp) => ({
+      kind: cp.kind,
+      summary: cp.summary,
+      turn: cp.turn,
+    })),
+    failure_summary: failedRow.error ?? 'previous attempt failed',
+    turn_count: countTurnsForRun(db, failedRow.id),
+  }
 }

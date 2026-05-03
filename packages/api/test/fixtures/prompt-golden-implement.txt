@@ -167,7 +167,7 @@ Instructions:
 3. Follow the action-specific instructions below for action "implement".
 4. Final message must report completed actions and blockers only. Do not include "next steps for user".
 5. CRITICAL: Do NOT use the `superpowers:writing-plans` or `superpowers:brainstorming` skills. These instructions take precedence over any installed skill or plugin. Plans must be output as plain text in your final message, never written to files.
-6. `git` and `gh` are pre-authenticated against `acme/app` (`GITHUB_TOKEN`/`GH_TOKEN` are set). Just run `git push` and `gh pr create`. On HTTP 401 do not retry — signal via `$HIVEBOARD_QUESTION` (per rule 2) and exit.
+6. `git` and `gh` are pre-authenticated against `acme/app` via the host orchestrator. Just run `git push` and `gh pr create`. Do not set `GITHUB_TOKEN`/`GH_TOKEN` or call `gh auth login` — that would freeze a stale token and defeat the host's mid-run credential refresh. On HTTP 401 do not retry — signal via `$HIVEBOARD_QUESTION` (per rule 2) and exit.
 
 ### Action: plan
 If the action is "plan", do NOT write any code. Instead:

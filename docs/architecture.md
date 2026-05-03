@@ -216,77 +216,104 @@ Every dispatch walks two ordered pipelines.
 
 ### 5.1 Pre-spawn resolution pipeline
 
-Location: the top of `Orchestrator#spawnTask` in
-`packages/api/src/orchestrator/orchestrator.ts`.
+Module: `packages/api/src/orchestrator/prespawn/`
+
+Single entrypoint: `plan(task, deps)` returns either
+`{ kind: 'missing_secrets', missing: string[] }` or
+`{ kind: 'ok', plan: SpawnPlan }`.
 
 ```
 ┌──────────────────────────────────────────────┐
-│ 1. Dependency check                          │
-│    scheduler SELECT already filters out      │
-│    tasks with unresolved blockers, but       │
-│    re-verification is cheap                  │
-└───────────────┬──────────────────────────────┘
-                ▼
-┌──────────────────────────────────────────────┐
-│ 2. Secrets resolution  (Spec H)              │
-│    resolveSecretsForTask()                   │
-│      task_secrets → board_secrets → missing  │
+│ 1. Secrets gate  (resolveSecretsForTask)      │
+│    task_secrets → board_secrets → missing    │
 │    any missing?                              │
-│      - agent_status = MISSING_SECRETS        │
-│      - publish taskMissingSecretsChanged     │
-│      - return early (no spawn)               │
+│      → return MissingSecrets immediately     │
+│        (no workspace I/O, no DB writes,      │
+│         no agent_run insert)                 │
 │    all present?                              │
-│      - decrypt in orchestrator memory        │
-│      - carry plaintext env forward           │
+│      → decrypt into SpawnPlan.env            │
+│        plaintext never leaves this module    │
 └───────────────┬──────────────────────────────┘
                 ▼
 ┌──────────────────────────────────────────────┐
-│ 3. Env construction  (agent/env.ts)          │
-│    HIVEBOARD_* paths (scratchpad, inbox,     │
-│    question, progress, subtasks)             │
-│    + GIT_* identity, GH_CONFIG_DIR, askpass  │
-│    + decrypted secrets under DECLARED names  │
-│      (NOT HIVEBOARD_*) — bypasses the        │
-│      ALLOWED_ENV_VARS allowlist              │
-│    GITHUB_TOKEN is explicitly DENIED for the │
-│    agent subprocess; git / gh use on-disk    │
-│    token files instead                       │
+│ 2. Verification-failure replay loader        │
+│    reads pending_auto_revise_source_run_id   │
+│    pointer; returns failures + a             │
+│    clearPendingAutoReviseFor commit token    │
 └───────────────┬──────────────────────────────┘
                 ▼
 ┌──────────────────────────────────────────────┐
-│ 4. Prompt rendering  (agent/prompt.ts OR     │
-│                      playbooks/render.ts)    │
-│    - readScratchpad()  → injected as         │
-│      {{{scratchpad}}} (64 KB tail-capped)    │
-│    - undelivered human messages (Spec B)     │
-│      fetched; marked delivered AFTER spawn   │
-│      handle obtained                         │
-│    - previousAttemptReplay built from        │
-│      agent_run_checkpoints if retry_count>0  │
-│    - verificationFailures from last agent_run│
-│      if auto-REVISE                          │
-│    - rendered via shared Mustache partials   │
+│ 3. PR review comments                        │
+│    revise + pr_url only                      │
+│    via GitHubReviewCommentsAdapter           │
+│    transport errors swallowed (best-effort)  │
 └───────────────┬──────────────────────────────┘
                 ▼
 ┌──────────────────────────────────────────────┐
-│ 5. Bun.spawn + stream-json line parser       │
-│    + per-task wall-clock setTimeout          │
-│    + progress-watcher on progress.ndjson     │
-│    + snapshotLoop (15 s git-diff cadence)    │
+│ 4. Undelivered messages loader               │
+│    SELECT task_messages WHERE delivered_at   │
+│      IS NULL                                 │
+│    no DB write here — returns                │
+│      deliveredMessageIds commit token        │
+└───────────────┬──────────────────────────────┘
+                ▼
+┌──────────────────────────────────────────────┐
+│ 5. Playbook tool override loader             │
+└───────────────┬──────────────────────────────┘
+                ▼
+┌──────────────────────────────────────────────┐
+│ 6. Previous-attempt replay                   │
+│    only when retry_count > 0                 │
+│    reads agent_run_checkpoints               │
+└───────────────┬──────────────────────────────┘
+                ▼
+┌──────────────────────────────────────────────┐
+│ 7. Required-secrets metadata loader          │
+│    populates "Secrets available" block in    │
+│    the rendered prompt                       │
 └──────────────────────────────────────────────┘
 ```
 
+`plan()` returns a `SpawnPlan` that carries the resolved env, rendered
+prompt inputs, and a `commits` bag of deferred write tokens. The
+orchestrator's `spawnTask` then acts on the result:
+
+**On `MissingSecrets`:**
+
+- `taskLifecycleTransition({ to: 'missing_secrets' })` sets `agent_error`
+- Publish `taskMissingSecretsChanged`
+- Return early — no workspace creation, no `agent_run` insert, no
+  `RUNNING` flicker. The `QUEUED → MISSING_SECRETS` edge is the only
+  valid secrets-related transition; `running → missing_secrets` no longer
+  exists.
+
+**On `ok` (`SpawnPlan`):**
+
+- A single `taskLifecycleTransition({ to: 'running', extras })` lands all
+  dispatch-time writes atomically in one DB transaction:
+  - `agent_run` insert
+  - column move + `moved` event (non-`plan` actions only)
+  - `markMessagesDelivered(plan.commits.deliveredMessageIds)`
+  - clear `pending_auto_revise_source_run_id` if
+    `plan.commits.clearPendingAutoReviseFor` is non-null
+  - `agent_started` event insert
+- After the transaction: workspace creation, time-box arming,
+  `runAgent(...)` invocation.
+
 **Why this order matters:**
 
-- Dependency check **before** secrets so we don't decrypt plaintext for a
-  task that isn't runnable yet (plaintext lifetime minimization).
-- Secrets **before** env construction so a missing-secret task never even
-  has an env built (fail fast).
-- Secrets **before** prompt rendering so the prompt's "Secrets available"
-  block lists real names, not aspirational ones.
-- Messages marked delivered **after** `Bun.spawn` returns a process
-  handle, so if spawn throws the messages remain `delivered_at=NULL` and
-  the next attempt picks them up.
+- Secrets **first** (fail-fast): a missing-secret task never triggers any
+  I/O. No orphan workspace, no orphan `agent_run` row, no status flicker.
+- Verification-failure replay **before** PR comments so the prompt
+  sections appear in a coherent narrative order.
+- Messages loader **reads only** — the actual `delivered_at` stamp lands
+  inside the atomic dispatch transaction, so a crash before `running`
+  cannot leave messages silently consumed.
+- Atomicity: a crash mid-dispatch cannot leave a `RUNNING` task with
+  undelivered hints or a stale auto-revise pointer.
+- Testability: `plan()` is pure (DB reads + secrets decryption + one
+  optional GitHub adapter call), so spawn shapes can be verified without
+  `Bun.spawn`.
 
 ### 5.2 Post-exit pipeline
 

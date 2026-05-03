@@ -66,7 +66,6 @@ const ALLOWED: Readonly<Record<TaskStatus, ReadonlySet<TaskStatus>>> = {
     'blocked',
     'queued',
     'idle',
-    'missing_secrets',
   ]),
   success: new Set<TaskStatus>(['queued']),
 }
