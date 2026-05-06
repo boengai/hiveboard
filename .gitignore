@@ -53,3 +53,9 @@ packages/web/dist/
 
 # Git worktrees
 .worktrees/
+
+# graphify: commit graph.html + graph.json + GRAPH_REPORT.md, ignore the rest
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/graph.html
+!graphify-out/graph.json

@@ -1,0 +1,6 @@
+# .graphifyignore
+vendor/
+node_modules/
+dist/
+*.generated.py
+docs/superpowers
