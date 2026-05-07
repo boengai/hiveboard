@@ -18,12 +18,12 @@ import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { setOrchestrator } from '../src/orchestrator'
 import { resolvers } from '../src/schema/resolvers'
+import { getCurrentUser, makeCtx } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UserRow = { id: string; username: string }
 type BoardRow = { id: string }
 type ColumnRow = { id: string }
 type TaskDbRow = {
@@ -38,12 +38,6 @@ type TaskDbRow = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function getBoard(): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
@@ -67,7 +61,7 @@ function insertTask(
     blockReason: string | null
   }> = {},
 ): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status,
@@ -91,20 +85,6 @@ function insertTask(
 
 function getTaskRow(taskId: string): TaskDbRow {
   return db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskDbRow
-}
-
-function makeCtx() {
-  const user = getCurrentUser()
-  return {
-    user: {
-      displayName: 'Queen Bee',
-      githubId: null,
-      githubUsername: null,
-      id: user.id,
-      role: 'super-admin',
-      username: 'queen-bee',
-    },
-  } as never
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +115,7 @@ describe('Mutation.setTimeBox', () => {
     const result = resolvers.Mutation.setTimeBox(
       {},
       { taskId, timeBoxMs: 30_000 },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(result.id).toBe(taskId)
@@ -148,7 +128,7 @@ describe('Mutation.setTimeBox', () => {
     const col = getColumn(board.id)
     const taskId = insertTask(board.id, col.id, 'idle', { timeBoxMs: 60_000 })
 
-    resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: null }, makeCtx())
+    resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: null }, makeCtx(db))
 
     const row = getTaskRow(taskId)
     expect(row.time_box_ms).toBeNull()
@@ -160,11 +140,11 @@ describe('Mutation.setTimeBox', () => {
     const taskId = insertTask(board.id, col.id)
 
     expect(() =>
-      resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: 500 }, makeCtx()),
+      resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: 500 }, makeCtx(db)),
     ).toThrow(GraphQLError)
 
     try {
-      resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: 500 }, makeCtx())
+      resolvers.Mutation.setTimeBox({}, { taskId, timeBoxMs: 500 }, makeCtx(db))
     } catch (err) {
       expect(err).toBeInstanceOf(GraphQLError)
       expect((err as GraphQLError).extensions.code).toBe('BAD_USER_INPUT')
@@ -189,7 +169,7 @@ describe('Mutation.extendTimeBox', () => {
       await resolvers.Mutation.extendTimeBox(
         {},
         { additionalMs: 10_000, taskId },
-        makeCtx(),
+        makeCtx(db),
       )
     } catch (err) {
       caught = err
@@ -211,7 +191,7 @@ describe('Mutation.extendTimeBox', () => {
     const result = await resolvers.Mutation.extendTimeBox(
       {},
       { additionalMs: 15_000, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(result.id).toBe(taskId)
@@ -250,7 +230,7 @@ describe('Mutation.killTask', () => {
       },
     } as never)
 
-    const result = await resolvers.Mutation.killTask({}, { taskId }, makeCtx())
+    const result = await resolvers.Mutation.killTask({}, { taskId }, makeCtx(db))
 
     expect(result.id).toBe(taskId)
     const row = getTaskRow(taskId)
@@ -294,7 +274,7 @@ describe('Task.timeBoxRemainingMs field resolver', () => {
     const col = getColumn(board.id)
 
     // Seed a task with time_box_ms=60000, time_box_started_at=now, agent_status='running'
-    const user = getCurrentUser()
+    const user = getCurrentUser(db)
     const taskId = generateId()
     db.run(
       `INSERT INTO tasks (id, board_id, column_id, title, body, position,
