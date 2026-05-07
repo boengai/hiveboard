@@ -20,12 +20,12 @@ import { seed } from '../src/db/seed'
 import { setOrchestrator } from '../src/orchestrator'
 import type { Orchestrator } from '../src/orchestrator/orchestrator'
 import { resolvers } from '../src/schema/resolvers'
+import { getCurrentUser, makeCtx } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UserRow = { id: string; username: string }
 type BoardRow = { id: string }
 type ColumnRow = { id: string }
 type TaskRow = {
@@ -46,12 +46,6 @@ type MessageRow = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getCurrentUser(): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
-
 function getBoard(): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
 }
@@ -69,7 +63,7 @@ function insertTask(
   columnId: string,
   agentStatus: 'idle' | 'queued' | 'running' | 'blocked' = 'idle',
 ): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by)
@@ -87,20 +81,6 @@ function insertQuestion(taskId: string, body: string): string {
     [id, taskId, body],
   )
   return id
-}
-
-function makeCtx() {
-  const user = getCurrentUser()
-  return {
-    user: {
-      displayName: 'Queen Bee',
-      githubId: null,
-      githubUsername: null,
-      id: user.id,
-      role: 'super-admin',
-      username: 'queen-bee',
-    },
-  } as never
 }
 
 type DispatchCall = {
@@ -154,7 +134,7 @@ describe('Mutation.sendHint', () => {
     const message = await resolvers.Mutation.sendHint(
       {},
       { body: '  use the new API  ', taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(message.kind).toBe('HINT')
@@ -185,7 +165,7 @@ describe('Mutation.sendHint', () => {
     const taskId = insertTask(board.id, col.id, 'running')
 
     await expect(
-      resolvers.Mutation.sendHint({}, { body: '   ', taskId }, makeCtx()),
+      resolvers.Mutation.sendHint({}, { body: '   ', taskId }, makeCtx(db)),
     ).rejects.toThrow(GraphQLError)
 
     // No row inserted
@@ -203,7 +183,7 @@ describe('Mutation.sendHint', () => {
     const huge = 'x'.repeat(8 * 1024 + 1)
 
     await expect(
-      resolvers.Mutation.sendHint({}, { body: huge, taskId }, makeCtx()),
+      resolvers.Mutation.sendHint({}, { body: huge, taskId }, makeCtx(db)),
     ).rejects.toThrow(/too long/i)
 
     // No row inserted
@@ -224,7 +204,7 @@ describe('Mutation.sendRedirect', () => {
     const message = await resolvers.Mutation.sendRedirect(
       {},
       { body: 'pivot to plan B', taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(message.kind).toBe('REDIRECT')
@@ -248,7 +228,7 @@ describe('Mutation.sendRedirect', () => {
     const huge = 'x'.repeat(8 * 1024 + 1)
 
     await expect(
-      resolvers.Mutation.sendRedirect({}, { body: huge, taskId }, makeCtx()),
+      resolvers.Mutation.sendRedirect({}, { body: huge, taskId }, makeCtx(db)),
     ).rejects.toThrow(/too long/i)
 
     const rows = db
@@ -269,7 +249,7 @@ describe('Mutation.answerQuestion', () => {
     const message = resolvers.Mutation.answerQuestion(
       {},
       { body: 'Use the staging config', taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(message.kind).toBe('ANSWER')
@@ -312,7 +292,7 @@ describe('Mutation.answerQuestion', () => {
       resolvers.Mutation.answerQuestion(
         {},
         { body: 'I have an answer', taskId },
-        makeCtx(),
+        makeCtx(db),
       ),
     ).toThrow(GraphQLError)
 
@@ -331,7 +311,7 @@ describe('Mutation.answerQuestion', () => {
     const huge = 'x'.repeat(8 * 1024 + 1)
 
     expect(() =>
-      resolvers.Mutation.answerQuestion({}, { body: huge, taskId }, makeCtx()),
+      resolvers.Mutation.answerQuestion({}, { body: huge, taskId }, makeCtx(db)),
     ).toThrow(/too long/i)
 
     // Only the seeded question row exists; no answer was persisted.
@@ -356,13 +336,13 @@ describe('Task.messages field resolver', () => {
     await resolvers.Mutation.sendHint(
       {},
       { body: 'first hint', taskId },
-      makeCtx(),
+      makeCtx(db),
     )
     insertQuestion(taskId, 'a question')
     await resolvers.Mutation.sendHint(
       {},
       { body: 'second hint', taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     const messages = resolvers.Task.messages({ id: taskId } as never)
