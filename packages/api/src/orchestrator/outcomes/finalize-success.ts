@@ -5,10 +5,8 @@ import { transition as taskLifecycleTransition } from '../../lifecycle'
 import { mapTaskRow } from '../../lifecycle/task-row'
 import { pubsub } from '../../pubsub'
 import { slugify } from '../../workspace/manager'
-import {
-  extractPlanFromOutput,
-  type TaskRow,
-} from '../orchestrator'
+import { extractPlanFromOutput } from '../plan-output'
+import type { TaskRow } from '../orchestrator'
 import { findColumnId, findColumnName } from '../columns'
 import type { OutcomeDeps } from './shared'
 
