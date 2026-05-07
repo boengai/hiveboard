@@ -40,6 +40,7 @@ import { continueFailedTaskDb } from '../orchestrator/orchestrator'
 import { wouldCreateCycle } from '../orchestrator/dependencies'
 import * as commentService from '../services/comment-service'
 import * as messageService from '../services/message-service'
+import * as workspaceStateService from '../services/workspace-state-service'
 import {
   archivePlaybook,
   createPlaybook,
@@ -61,7 +62,7 @@ import {
 } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
-import { progressPath, readScratchpad } from '../workspace/agent-state'
+import { progressPath } from '../workspace/agent-state'
 import { parseProgressLines } from '../workspace/progress-watcher'
 import { watchScratchpad } from '../workspace/scratchpad-watcher'
 import {
@@ -2629,9 +2630,7 @@ export const resolvers = {
       return row ? mapTask(row) : null
     },
     async scratchpad(task: ReturnType<typeof mapTask>): Promise<string> {
-      const config = getConfig()
-      if (!config) return ''
-      return readScratchpad(config, task.id)
+      return workspaceStateService.getScratchpad(task.id)
     },
     subtasks(parent: { id: string }) {
       const rows = db
