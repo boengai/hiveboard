@@ -1,9 +1,10 @@
-import type { Database } from 'bun:sqlite'
+
 import { readFile, rename, unlink } from 'node:fs/promises'
 import { consola } from 'consola'
-import { GraphQLError } from 'graphql'
+
 import { runAgent } from '../agent/runner'
 import { transition as taskLifecycleTransition } from '../lifecycle'
+import { mapTaskRow } from '../lifecycle/task-row'
 import { publishTaskMissingSecretsChanged } from '../pubsub'
 import { subtasksPath } from '../workspace/agent-state'
 import { dispatchHumanMessage } from './human-messages'
@@ -17,6 +18,9 @@ import {
 } from './outcomes'
 import { plan as prespawnPlan, type SpawnPlan } from './prespawn'
 import { createSubtasksFromManifest, parseSubtasksManifest } from './subtasks'
+import { findColumnId, findColumnName } from './columns'
+import { calculateRetryDelay } from './retry-policy'
+import { selectSchedulableTasks } from './scheduler'
 
 export { escapeMustacheSyntax } from './mustache-escape'
 
@@ -24,12 +28,12 @@ import type { Config } from '../config/schema'
 import { db, generateId } from '../db'
 import { markMessagesDelivered } from '../db/task-messages'
 import type { GitHubClient } from '../github/client'
-import { getPlaybookByName } from '../playbooks'
 import { publishAgentLog, publishTaskProgress, pubsub } from '../pubsub'
 import { readQuestion } from '../workspace/agent-state'
 import type { WorkspaceManager } from '../workspace/manager'
 import { watchProgress } from '../workspace/progress-watcher'
 import { startSnapshotLoop } from './snapshot-loop'
+import { insertAgentRun } from './agent-runs'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,326 +82,6 @@ type RunState = {
   abortReason?: 'TIMEOUT' | 'REDIRECT' | 'CANCEL'
   /** The pre-spawn plan computed before dispatch; carried into runAgentAsync. */
   spawnPlan: SpawnPlan
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function mapTask(row: TaskRow) {
-  return {
-    ...row,
-    // Internal refs for field resolvers (column, createdBy, updatedBy)
-    _columnId: row.column_id,
-    _createdBy: row.created_by,
-    _updatedBy: row.updated_by,
-    action: row.action,
-    agentError: row.agent_error,
-    agentInstruction: row.agent_instruction,
-    agentOutput: row.agent_output,
-    agentStatus: row.agent_status.toUpperCase(),
-    archived: Boolean(row.archived),
-    archivedAt: row.archived_at,
-    blockReason: row.block_reason,
-    createdAt: row.created_at,
-    parentTaskId: row.parent_task_id,
-    prUrl: row.pr_url,
-    retryCount: row.retry_count,
-    targetBranch: row.target_branch,
-    targetRepo: row.target_repo,
-    timeBoxMs: row.time_box_ms,
-    timeBoxStartedAt: row.time_box_started_at,
-    updatedAt: row.updated_at,
-  }
-}
-
-/**
- * Find the "In Progress" column ID for a board.
- * Looks for a column named "In Progress" (case-insensitive).
- * Falls back to the second column if found, or null.
- */
-export function findColumnId(
-  boardId: string,
-  preferredName: string,
-): string | null {
-  const row = db
-    .query(
-      `SELECT id FROM columns WHERE board_id = ? AND lower(name) = lower(?) ORDER BY position ASC LIMIT 1`,
-    )
-    .get(boardId, preferredName) as { id: string } | null
-  return row?.id ?? null
-}
-
-export function findColumnName(columnId: string): string | null {
-  const row = db
-    .query('SELECT name FROM columns WHERE id = ?')
-    .get(columnId) as { name: string } | null
-  return row?.name ?? null
-}
-
-
-/**
- * Pull the plan text out of a Claude CLI run. Handles both output formats:
- *   - Legacy `--output-format json`: a single JSON blob (array of content
- *     blocks or `{result: ...}` object).
- *   - `--output-format stream-json`: JSONL, with a terminal
- *     `{type:"result", result:"..."}` event carrying the final text.
- *
- * Returns '' when no plan text can be recovered — the caller is expected to
- * return null in that case so we never dump raw CLI bytes into `tasks.body`.
- */
-export function parsePlanText(rawOutput: string): string {
-  // Legacy single-blob JSON first.
-  try {
-    const parsed = JSON.parse(rawOutput)
-    if (typeof parsed === 'string') return parsed
-    if (Array.isArray(parsed)) {
-      let t = ''
-      for (const block of parsed) {
-        if (block?.type === 'text' && typeof block.text === 'string') {
-          t = block.text
-        } else if (
-          block?.type === 'result' &&
-          typeof block.result === 'string'
-        ) {
-          t = block.result
-        }
-      }
-      return t
-    }
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      typeof (parsed as { result?: unknown }).result === 'string' &&
-      (parsed as { is_error?: unknown }).is_error !== true
-    ) {
-      return (parsed as { result: string }).result
-    }
-  } catch {
-    // Fall through to JSONL handling.
-  }
-
-  // stream-json: scan from the tail for the last {type:"result", result:"..."}.
-  const lines = rawOutput.split('\n')
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]?.trim()
-    if (!line) continue
-    try {
-      const evt = JSON.parse(line) as {
-        type?: unknown
-        result?: unknown
-        is_error?: unknown
-      }
-      if (
-        evt?.type === 'result' &&
-        evt.is_error !== true &&
-        typeof evt.result === 'string'
-      ) {
-        return evt.result
-      }
-    } catch {
-      // Skip lines that aren't JSON (e.g. stderr-interleaved garbage).
-    }
-  }
-
-  return ''
-}
-
-/**
- * Merge the Claude CLI plan text into the task body. Returns null when the
- * output contains no recoverable plan — the body is left untouched in that
- * case rather than corrupted with raw event stream bytes.
- */
-export function extractPlanFromOutput(
-  rawOutput: string,
-  existingBody: string,
-): string | null {
-  const planText = parsePlanText(rawOutput).trim()
-  if (!planText) {
-    consola.warn(
-      'extractPlanFromOutput: no plan text recovered from CLI output; leaving task body unchanged.',
-    )
-    return null
-  }
-
-  const planSection = `## Implementation Plan\n\n${planText}`
-  const planRegex = /## Implementation Plan[\s\S]*$/
-  if (planRegex.test(existingBody)) {
-    return existingBody.replace(planRegex, planSection)
-  }
-  return existingBody
-    ? `${existingBody.trimEnd()}\n\n${planSection}`
-    : planSection
-}
-
-/**
- * Calculate retry delay with exponential backoff and jitter.
- *
- * Jitter prevents the "thundering herd" problem: when multiple agents fail
- * simultaneously (e.g. during an API outage), pure exponential backoff causes
- * them all to retry at the exact same instant, potentially overloading the
- * service again. Adding a random multiplier in [0.5, 1.5) spreads retries
- * across the backoff window.
- *
- * Formula: min(baseDelay * 2^retryCount * (0.5 + random()), maxBackoff)
- */
-export function calculateRetryDelay(
-  retryCount: number,
-  maxBackoffMs: number,
-  baseDelay = 10_000,
-  random = Math.random,
-): number {
-  return Math.min(baseDelay * 2 ** retryCount * (0.5 + random()), maxBackoffMs)
-}
-
-/**
- * Pick the next N queued tasks that are eligible to spawn. Dep-aware by
- * default: excludes any task with at least one blocker whose `agent_status`
- * is not `success`. Tie-broken by (direct-blocker count DESC, updated_at ASC)
- * so tasks deeper in the dependency chain are prioritized.
- *
- * `legacyMode=true` falls back to the pre-Plan-E SELECT that ignores
- * dependencies entirely. Kept as an escape hatch behind
- * `config.scheduler.legacy_mode`.
- *
- * Exported for unit tests; production callers should use the `poll()` wrapper.
- */
-export function selectSchedulableTasks(
-  db: Database,
-  opts: { limit: number; legacyMode: boolean },
-): TaskRow[] {
-  if (opts.legacyMode) {
-    return db
-      .query(
-        `SELECT * FROM tasks
-          WHERE agent_status = 'queued'
-            AND action IS NOT NULL
-            AND (queue_after IS NULL OR queue_after <= datetime('now'))
-          ORDER BY updated_at ASC
-          LIMIT ?`,
-      )
-      .all(opts.limit) as TaskRow[]
-  }
-
-  return db
-    .query(
-      `SELECT t.* FROM tasks t
-        WHERE t.agent_status = 'queued'
-          AND t.action IS NOT NULL
-          AND (t.queue_after IS NULL OR t.queue_after <= datetime('now'))
-          AND NOT EXISTS (
-            SELECT 1 FROM task_dependencies d
-              JOIN tasks b ON b.id = d.blocker_id
-             WHERE d.task_id = t.id AND b.agent_status != 'success'
-          )
-        ORDER BY
-          (SELECT COUNT(*) FROM task_dependencies d2 WHERE d2.task_id = t.id) DESC,
-          t.updated_at ASC
-        LIMIT ?`,
-    )
-    .all(opts.limit) as TaskRow[]
-}
-
-// ---------------------------------------------------------------------------
-// Agent-run insert helper (exported for test)
-// ---------------------------------------------------------------------------
-
-export type InsertAgentRunInput = {
-  db: Database
-  runId: string
-  taskId: string
-  action: string
-}
-
-/**
- * Insert a row into `agent_runs` for a dispatch. Looks up the playbook
- * version if the action is `playbook:<name>` and records it as
- * `playbook_version_id` for audit. Missing playbooks degrade to NULL
- * (logged) — the dispatcher will separately reject the action at resolver
- * time, so this path is defensive.
- */
-export function insertAgentRun(input: InsertAgentRunInput): void {
-  let playbookVersionId: string | null = null
-  if (input.action.startsWith('playbook:')) {
-    const name = input.action.slice('playbook:'.length)
-    const pb = getPlaybookByName(input.db, name)
-    if (pb) {
-      playbookVersionId = pb.currentVersion.id
-    } else {
-      consola.warn(
-        `insertAgentRun: playbook "${name}" not found; recording NULL playbook_version_id`,
-      )
-    }
-  }
-
-  input.db.run(
-    `INSERT INTO agent_runs (id, task_id, action, status, started_at, playbook_version_id) VALUES (?, ?, ?, 'running', datetime('now'), ?)`,
-    [input.runId, input.taskId, input.action, playbookVersionId],
-  )
-}
-
-/** Test-only re-export to avoid importing private class internals. */
-export function insertAgentRunForTest(input: InsertAgentRunInput): void {
-  insertAgentRun(input)
-}
-
-// ---------------------------------------------------------------------------
-// Continue Failed Task
-// ---------------------------------------------------------------------------
-
-/**
- * Transitions a task from 'failed' → 'queued', incrementing retry_count.
- * Optionally appends an instruction to the existing agent_instruction.
- * Named `continueFailedTaskDb` to avoid collision with the resolver method.
- */
-export function continueFailedTaskDb(
-  db: Database,
-  taskId: string,
-  instruction?: string,
-): void {
-  const row = db
-    .query(
-      'SELECT agent_status, retry_count, agent_instruction FROM tasks WHERE id = ?',
-    )
-    .get(taskId) as {
-    agent_status: string
-    retry_count: number
-    agent_instruction: string | null
-  } | null
-  if (!row) {
-    throw new GraphQLError('NOT_FOUND: Task not found', {
-      extensions: { code: 'NOT_FOUND' },
-    })
-  }
-  if (row.agent_status !== 'failed') {
-    throw new GraphQLError('TASK_NOT_FAILED: Task is not in FAILED state', {
-      extensions: { code: 'TASK_NOT_FAILED' },
-    })
-  }
-  const nextRetry = (row.retry_count ?? 0) + 1
-  let nextInstruction = row.agent_instruction
-  if (instruction && instruction.trim().length > 0) {
-    nextInstruction =
-      nextInstruction && nextInstruction.trim().length > 0
-        ? `${nextInstruction}, ${instruction.trim()}`
-        : instruction.trim()
-  }
-  taskLifecycleTransition({
-    db,
-    extras: (txDb) => {
-      txDb.run(
-        `UPDATE tasks
-           SET retry_count = ?,
-               agent_instruction = ?,
-               queue_after = datetime('now', '+2 seconds')
-         WHERE id = ?`,
-        [nextRetry, nextInstruction, taskId],
-      )
-    },
-    from: 'failed',
-    taskId,
-    to: 'queued',
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,7 +759,7 @@ export class Orchestrator {
         pubsub.publish(
           'TASK_UPDATED',
           row.board_id,
-          mapTask(row) as unknown as Record<string, unknown>,
+          mapTaskRow(row) as unknown as Record<string, unknown>,
         )
       }
     }

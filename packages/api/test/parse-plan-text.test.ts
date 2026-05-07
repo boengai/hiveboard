@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parsePlanText } from '../src/orchestrator/orchestrator'
+import { parsePlanText } from '../src/orchestrator/plan-output'
 
 describe('parsePlanText — legacy --output-format json', () => {
   it('returns the string itself when the blob is a bare JSON string', () => {

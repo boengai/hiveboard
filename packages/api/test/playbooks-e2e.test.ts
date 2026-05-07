@@ -7,7 +7,7 @@ import {
   createPlaybook,
   updatePlaybook,
 } from '../src/playbooks'
-import { insertAgentRun } from '../src/orchestrator/orchestrator'
+import { insertAgentRun } from '../src/orchestrator/agent-runs'
 
 describe('playbooks end-to-end', () => {
   function seedMinimal(db: Database): void {

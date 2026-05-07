@@ -4,7 +4,7 @@ import { createTables } from '../src/db/schema'
 import {
   insertAgentRunForTest,
   type InsertAgentRunInput,
-} from '../src/orchestrator/orchestrator'
+} from '../src/orchestrator/agent-runs'
 import { createPlaybook } from '../src/playbooks'
 
 describe('agent_runs insert with playbook_version_id', () => {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { Database } from 'bun:sqlite'
 import { createTables } from '../src/db/schema'
-import { continueFailedTaskDb } from '../src/orchestrator/orchestrator'
+import { continueFailedTaskDb } from '../src/orchestrator/agent-runs'
 
 const TASK_ID = '01HYX3KPQR000000000000000A'
 

@@ -29,7 +29,7 @@ import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/age
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
-import { calculateRetryDelay } from '../src/orchestrator/orchestrator'
+import { calculateRetryDelay } from '../src/orchestrator/retry-policy'
 
 // Unique tmp dir for this test suite's agent-state so readQuestion() doesn't
 // warn about undefined paths and so we don't collide with other test suites.
