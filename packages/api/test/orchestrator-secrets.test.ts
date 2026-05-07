@@ -88,8 +88,9 @@ mock.module('../src/agent/runner', () => ({
 // Now import orchestrator + secrets helpers (after mocks)
 // ---------------------------------------------------------------------------
 
-const { Orchestrator, selectSchedulableTasks } = await import(
-  '../src/orchestrator/orchestrator'
+const { Orchestrator } = await import('../src/orchestrator/orchestrator')
+const { selectSchedulableTasks } = await import(
+  '../src/orchestrator/scheduler'
 )
 const { _setKekForTest, _setSecretsEnabledForTest } = await import(
   '../src/secrets/enabled'

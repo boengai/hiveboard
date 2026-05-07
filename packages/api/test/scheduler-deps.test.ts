@@ -2,7 +2,7 @@ import { Database } from 'bun:sqlite'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { addDependencyEdge } from '../src/db/task-dependencies'
-import { selectSchedulableTasks } from '../src/orchestrator/orchestrator'
+import { selectSchedulableTasks } from '../src/orchestrator/scheduler'
 
 function seed(db: Database) {
   db.run(`INSERT INTO users (id, username, display_name) VALUES ('U1','u','u')`)

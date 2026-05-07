@@ -59,8 +59,9 @@ mock.module('../src/agent/runner', () => ({
   runAgent: async () => ({ output: 'ok', success: true, taskId: '' }),
 }))
 
-const { Orchestrator, selectSchedulableTasks } = await import(
-  '../src/orchestrator/orchestrator'
+const { Orchestrator } = await import('../src/orchestrator/orchestrator')
+const { selectSchedulableTasks } = await import(
+  '../src/orchestrator/scheduler'
 )
 const { resolvers } = await import('../src/schema/resolvers')
 

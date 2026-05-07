@@ -5,7 +5,7 @@ import {
   listBlockers,
   unresolvedBlockerCount,
 } from '../src/db/task-dependencies'
-import { selectSchedulableTasks } from '../src/orchestrator/orchestrator'
+import { selectSchedulableTasks } from '../src/orchestrator/scheduler'
 import { createSubtasksFromManifest } from '../src/orchestrator/subtasks'
 
 function seedParent(db: Database) {
