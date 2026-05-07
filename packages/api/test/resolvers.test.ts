@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
-import { getCurrentUser, type UserRow } from './helpers/fixtures'
+import { getCurrentUser } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
