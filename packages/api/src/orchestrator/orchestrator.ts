@@ -6,6 +6,7 @@ import { runAgent } from '../agent/runner'
 import { transition as taskLifecycleTransition } from '../lifecycle'
 import { publishTaskMissingSecretsChanged } from '../pubsub'
 import { subtasksPath } from '../workspace/agent-state'
+import { dispatchHumanMessage } from './human-messages'
 import {
   applyFailure,
   applyQuestion,
@@ -25,7 +26,7 @@ import { markMessagesDelivered } from '../db/task-messages'
 import type { GitHubClient } from '../github/client'
 import { getPlaybookByName } from '../playbooks'
 import { publishAgentLog, publishTaskProgress, pubsub } from '../pubsub'
-import { appendToInbox, readQuestion } from '../workspace/agent-state'
+import { readQuestion } from '../workspace/agent-state'
 import type { WorkspaceManager } from '../workspace/manager'
 import { watchProgress } from '../workspace/progress-watcher'
 import { startSnapshotLoop } from './snapshot-loop'
@@ -1084,71 +1085,19 @@ export class Orchestrator {
   // External API
   // -------------------------------------------------------------------------
 
-  /**
-   * React to a human-authored message for a task. Called by the GraphQL
-   * resolvers (sendHint/sendRedirect) AFTER the task_messages row is
-   * inserted, so the mutation can decide whether the message triggers an
-   * immediate orchestrator action (redirect = abort+requeue; hint = inbox
-   * append). 'answer' messages are handled by the answerQuestion mutation
-   * directly and are a no-op here.
-   */
-  async dispatchHumanMessage(
+  dispatchHumanMessage(
     taskId: string,
     kind: 'hint' | 'redirect' | 'answer',
     body: string,
     messageId?: string,
   ): Promise<void> {
-    if (kind === 'answer') return
-
-    const row = db
-      .query('SELECT agent_status FROM tasks WHERE id = ?')
-      .get(taskId) as { agent_status: string } | null
-    if (!row) return
-    const isRunning = row.agent_status === 'running'
-
-    if (kind === 'redirect') {
-      const runState = this.running.get(taskId)
-      if (runState) {
-        consola.info(`Redirect received for task ${taskId} — aborting agent`)
-        runState.abortReason = 'REDIRECT'
-        runState.abortController.abort()
-      }
-      if (isRunning) {
-        // Requeue with a short grace window so follow-up messages can batch.
-        // Redirect is a human kick: reset verification state so the new run
-        // starts fresh, not mid-retry.
-        taskLifecycleTransition({
-          extras: (txDb) => {
-            txDb.run(
-              `UPDATE tasks SET
-                 queue_after = datetime('now', '+5 seconds'),
-                 verify_attempt_count = 0,
-                 pending_auto_revise_source_run_id = NULL
-               WHERE id = ?`,
-              [taskId],
-            )
-          },
-          from: 'running',
-          taskId,
-          to: 'queued',
-        })
-      }
-      return
-    }
-
-    // kind === 'hint'
-    if (!isRunning) return
-    await appendToInbox(this.config, taskId, `[hint] ${body}`)
-    if (messageId) {
-      // Mark only the specific row just inserted. Prevents a race where two
-      // concurrent hints would each mark ALL undelivered hints delivered,
-      // silently dropping the one that wasn't actually appended.
-      db.run(
-        `UPDATE task_messages SET delivered_at = datetime('now')
-         WHERE id = ? AND delivered_at IS NULL`,
-        [messageId],
-      )
-    }
+    return dispatchHumanMessage(
+      { config: this.config, running: this.running },
+      taskId,
+      kind,
+      body,
+      messageId,
+    )
   }
 
   /** Cancel a running agent for a task. */
