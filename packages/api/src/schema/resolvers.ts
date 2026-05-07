@@ -36,7 +36,7 @@ import {
 } from '../db/workspace-snapshots'
 import { transition as taskLifecycleTransition } from '../lifecycle'
 import { getOrchestrator } from '../orchestrator'
-import { continueFailedTaskDb } from '../orchestrator/orchestrator'
+import { continueFailedTaskDb } from '../orchestrator/agent-runs'
 import { wouldCreateCycle } from '../orchestrator/dependencies'
 import * as commentService from '../services/comment-service'
 import * as messageService from '../services/message-service'
