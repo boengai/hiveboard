@@ -14,24 +14,18 @@ import { migrate } from '../src/db/migrate'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { resolvers } from '../src/schema/resolvers'
+import { getCurrentUser, makeCtx } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UserRow = { id: string; username: string }
 type BoardRow = { id: string }
 type ColumnRow = { id: string }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function getBoard(): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
@@ -46,7 +40,7 @@ function getColumn(boardId: string): ColumnRow {
 }
 
 function insertTask(boardId: string, columnId: string): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by)
@@ -54,20 +48,6 @@ function insertTask(boardId: string, columnId: string): string {
     [id, boardId, columnId, 'Test Task', user.id, user.id],
   )
   return id
-}
-
-function makeCtx() {
-  const user = getCurrentUser()
-  return {
-    user: {
-      displayName: 'Queen Bee',
-      githubId: null,
-      githubUsername: null,
-      id: user.id,
-      role: 'super-admin',
-      username: 'queen-bee',
-    },
-  } as never
 }
 
 // ---------------------------------------------------------------------------
@@ -274,7 +254,7 @@ describe('setTaskVerifyCommands mutation', () => {
         ],
         taskId,
       },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect((result as { id: string }).id).toBe(taskId)
@@ -315,7 +295,7 @@ describe('setTaskVerifyCommands mutation', () => {
           ctx: never,
         ) => Promise<unknown>
       }
-    ).setTaskVerifyCommands({}, { commands: null, taskId }, makeCtx())
+    ).setTaskVerifyCommands({}, { commands: null, taskId }, makeCtx(db))
 
     const row = db
       .query('SELECT verify_commands FROM tasks WHERE id = ?')
@@ -343,7 +323,7 @@ describe('setTaskVerifyCommands mutation', () => {
           ctx: never,
         ) => Promise<unknown>
       }
-    ).setTaskVerifyCommands({}, { commands: [], taskId }, makeCtx())
+    ).setTaskVerifyCommands({}, { commands: [], taskId }, makeCtx(db))
 
     const row = db
       .query('SELECT verify_commands FROM tasks WHERE id = ?')
