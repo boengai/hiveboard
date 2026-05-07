@@ -7,10 +7,9 @@ import { pubsub } from '../../pubsub'
 import { slugify } from '../../workspace/manager'
 import {
   extractPlanFromOutput,
-  findColumnId,
-  findColumnName,
   type TaskRow,
 } from '../orchestrator'
+import { findColumnId, findColumnName } from '../columns'
 import type { OutcomeDeps } from './shared'
 
 /**
