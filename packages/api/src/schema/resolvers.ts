@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GraphQLError } from 'graphql'
 import Mustache from 'mustache'
@@ -62,8 +62,6 @@ import {
 } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
 import { getUploadDir } from '../routes/uploadDir'
-import { progressPath } from '../workspace/agent-state'
-import { parseProgressLines } from '../workspace/progress-watcher'
 import { watchScratchpad } from '../workspace/scratchpad-watcher'
 import {
   HexColorSchema,
@@ -2259,21 +2257,12 @@ export const resolvers = {
     ): Promise<unknown[]> {
       const authUser = requireAuth(ctx)
       requireTaskAccess(taskId, authUser)
-      const config = getConfig()
-      if (!config) return []
-      let buf: Buffer
-      try {
-        buf = await readFile(progressPath(config, taskId))
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return []
-        throw err
-      }
-      const { entries } = parseProgressLines(`${buf.toString('utf8')}\n`)
+      const entries = await workspaceStateService.readProgressEntries(taskId)
       return entries.map((e) => ({
         agentRunId: null,
-        detail: e.detail ?? null,
+        detail: e.detail,
         label: e.label,
-        status: e.status.toUpperCase(),
+        status: e.status,
         step: e.step,
         taskId,
         total: e.total,
