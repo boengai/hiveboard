@@ -16,12 +16,12 @@ import { migrate } from '../src/db/migrate'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { resolvers } from '../src/schema/resolvers'
+import { getCurrentUser, makeCtx } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UserRow = { id: string; username: string }
 type BoardRow = { id: string }
 type ColumnRow = { id: string }
 type DepRow = { task_id: string; blocker_id: string }
@@ -29,12 +29,6 @@ type DepRow = { task_id: string; blocker_id: string }
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function getBoard(): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
@@ -53,7 +47,7 @@ function insertTask(
   columnId: string,
   agentStatus: 'idle' | 'queued' | 'running' | 'blocked' = 'idle',
 ): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by)
@@ -69,7 +63,7 @@ function _insertTaskAt(
   columnId: string,
   createdAt: string,
 ): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by, created_at, updated_at)
@@ -95,7 +89,7 @@ function insertSubtask(
   columnId: string,
   createdAt?: string,
 ): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   const _at = createdAt ?? "datetime('now')"
   if (createdAt) {
@@ -122,20 +116,6 @@ function insertSubtask(
     )
   }
   return id
-}
-
-function makeCtx() {
-  const user = getCurrentUser()
-  return {
-    user: {
-      displayName: 'Queen Bee',
-      githubId: null,
-      githubUsername: null,
-      id: user.id,
-      role: 'super-admin',
-      username: 'queen-bee',
-    },
-  } as never
 }
 
 function getEdge(taskId: string, blockerId: string): DepRow | null {
@@ -170,7 +150,7 @@ describe('Mutation.addTaskDependency', () => {
     const task = resolvers.Mutation.addTaskDependency(
       {},
       { blockerId, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(task.id).toBe(taskId)
@@ -190,7 +170,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskId, taskId },
-        makeCtx(),
+        makeCtx(db),
       ),
     ).toThrow(GraphQLError)
 
@@ -198,7 +178,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskId, taskId },
-        makeCtx(),
+        makeCtx(db),
       )
     } catch (err) {
       expect(err).toBeInstanceOf(GraphQLError)
@@ -207,7 +187,7 @@ describe('Mutation.addTaskDependency', () => {
   })
 
   test('cross-board throws DEPENDENCY_CROSS_BOARD', () => {
-    const user = getCurrentUser()
+    const user = getCurrentUser(db)
 
     // Create a second board with its own column and task
     const board1 = getBoard()
@@ -236,7 +216,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskB, taskId: taskA },
-        makeCtx(),
+        makeCtx(db),
       ),
     ).toThrow(GraphQLError)
 
@@ -244,7 +224,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskB, taskId: taskA },
-        makeCtx(),
+        makeCtx(db),
       )
     } catch (err) {
       expect(err).toBeInstanceOf(GraphQLError)
@@ -264,7 +244,7 @@ describe('Mutation.addTaskDependency', () => {
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId: taskB, taskId: taskA },
-      makeCtx(),
+      makeCtx(db),
     )
 
     // Trying B→A would create a cycle
@@ -272,7 +252,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskA, taskId: taskB },
-        makeCtx(),
+        makeCtx(db),
       ),
     ).toThrow(GraphQLError)
 
@@ -280,7 +260,7 @@ describe('Mutation.addTaskDependency', () => {
       resolvers.Mutation.addTaskDependency(
         {},
         { blockerId: taskA, taskId: taskB },
-        makeCtx(),
+        makeCtx(db),
       )
     } catch (err) {
       expect(err).toBeInstanceOf(GraphQLError)
@@ -297,14 +277,14 @@ describe('Mutation.removeTaskDependency', () => {
     const blockerId = insertTask(board.id, col.id)
 
     // Seed the edge
-    resolvers.Mutation.addTaskDependency({}, { blockerId, taskId }, makeCtx())
+    resolvers.Mutation.addTaskDependency({}, { blockerId, taskId }, makeCtx(db))
     expect(getEdge(taskId, blockerId)).not.toBeNull()
 
     // Remove it
     const task = resolvers.Mutation.removeTaskDependency(
       {},
       { blockerId, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     expect(task.id).toBe(taskId)
@@ -325,17 +305,17 @@ describe('Task.blockers field resolver', () => {
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId: blockerA, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId: blockerB, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId: blockerC, taskId },
-      makeCtx(),
+      makeCtx(db),
     )
 
     const blockers = resolvers.Task.blockers({ id: taskId } as never)
@@ -357,12 +337,12 @@ describe('Task.dependents field resolver', () => {
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId, taskId: dependentA },
-      makeCtx(),
+      makeCtx(db),
     )
     resolvers.Mutation.addTaskDependency(
       {},
       { blockerId, taskId: dependentB },
-      makeCtx(),
+      makeCtx(db),
     )
 
     const dependents = resolvers.Task.dependents({ id: blockerId } as never)

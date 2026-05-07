@@ -3,17 +3,11 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import { getCurrentUser } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type UserRow = {
-  id: string
-  username: string
-  display_name: string
-  role: string
-}
 
 type BoardRow = {
   id: string
@@ -55,12 +49,6 @@ type CommentRow = {
 // ---------------------------------------------------------------------------
 // Helpers mirroring resolver logic
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(db: Database): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function insertTask(
   db: Database,

@@ -5,24 +5,18 @@ import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { pubsub } from '../src/pubsub'
 import { resolvers } from '../src/schema/resolvers'
+import { getCurrentUser } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UserRow = { id: string; username: string }
 type BoardRow = { id: string }
 type ColumnRow = { id: string }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function getBoard(): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
@@ -37,7 +31,7 @@ function getColumn(boardId: string): ColumnRow {
 }
 
 function insertTask(boardId: string, columnId: string): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     `INSERT INTO tasks (id, board_id, column_id, title, body, position, created_by, updated_by)
@@ -48,7 +42,7 @@ function insertTask(boardId: string, columnId: string): string {
 }
 
 function insertComment(taskId: string, body: string): string {
-  const user = getCurrentUser()
+  const user = getCurrentUser(db)
   const id = generateId()
   db.run(
     'INSERT INTO task_comments (id, task_id, parent_id, body, created_by) VALUES (?, ?, ?, ?, ?)',
@@ -76,7 +70,7 @@ describe('updateComment pubsub event', () => {
     const commentId = insertComment(taskId, 'Original body')
 
     // Create a mock auth context with the queen-bee user
-    const user = getCurrentUser()
+    const user = getCurrentUser(db)
     const ctx = {
       user: {
         displayName: 'Queen Bee',

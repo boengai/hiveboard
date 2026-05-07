@@ -3,15 +3,11 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import { getCurrentUser } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type UserRow = {
-  id: string
-  username: string
-}
 
 type BoardRow = {
   id: string
@@ -40,12 +36,6 @@ type EventRow = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getCurrentUser(db: Database): UserRow {
-  return db
-    .query('SELECT * FROM users WHERE username = ?')
-    .get('queen-bee') as UserRow
-}
 
 function getBoard(db: Database): BoardRow {
   return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
