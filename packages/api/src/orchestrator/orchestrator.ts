@@ -4,6 +4,7 @@ import { consola } from 'consola'
 
 import { runAgent } from '../agent/runner'
 import { transition as taskLifecycleTransition } from '../lifecycle'
+import { mapTaskRow } from '../lifecycle/task-row'
 import { publishTaskMissingSecretsChanged } from '../pubsub'
 import { subtasksPath } from '../workspace/agent-state'
 import { dispatchHumanMessage } from './human-messages'
@@ -81,37 +82,6 @@ type RunState = {
   abortReason?: 'TIMEOUT' | 'REDIRECT' | 'CANCEL'
   /** The pre-spawn plan computed before dispatch; carried into runAgentAsync. */
   spawnPlan: SpawnPlan
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function mapTask(row: TaskRow) {
-  return {
-    ...row,
-    // Internal refs for field resolvers (column, createdBy, updatedBy)
-    _columnId: row.column_id,
-    _createdBy: row.created_by,
-    _updatedBy: row.updated_by,
-    action: row.action,
-    agentError: row.agent_error,
-    agentInstruction: row.agent_instruction,
-    agentOutput: row.agent_output,
-    agentStatus: row.agent_status.toUpperCase(),
-    archived: Boolean(row.archived),
-    archivedAt: row.archived_at,
-    blockReason: row.block_reason,
-    createdAt: row.created_at,
-    parentTaskId: row.parent_task_id,
-    prUrl: row.pr_url,
-    retryCount: row.retry_count,
-    targetBranch: row.target_branch,
-    targetRepo: row.target_repo,
-    timeBoxMs: row.time_box_ms,
-    timeBoxStartedAt: row.time_box_started_at,
-    updatedAt: row.updated_at,
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -789,7 +759,7 @@ export class Orchestrator {
         pubsub.publish(
           'TASK_UPDATED',
           row.board_id,
-          mapTask(row) as unknown as Record<string, unknown>,
+          mapTaskRow(row) as unknown as Record<string, unknown>,
         )
       }
     }
