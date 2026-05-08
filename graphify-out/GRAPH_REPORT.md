@@ -1,831 +1,685 @@
-# Graph Report - drawer-two-column  (2026-05-08)
+# Graph Report - hiveboard  (2026-05-08)
 
 ## Corpus Check
-- 333 files · ~161,467 words
+- 337 files · ~167,687 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2483 nodes · 3986 edges · 189 communities (169 shown, 20 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 193 edges (avg confidence: 0.8)
+- 2191 nodes · 3533 edges · 159 communities (140 shown, 19 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 50 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dbed224b`
+- Built from commit: `8416fa37`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Community 0|Community 0]]
-- [[_COMMUNITY_Community 1|Community 1]]
-- [[_COMMUNITY_Community 2|Community 2]]
-- [[_COMMUNITY_Community 3|Community 3]]
-- [[_COMMUNITY_Community 4|Community 4]]
-- [[_COMMUNITY_Community 5|Community 5]]
-- [[_COMMUNITY_Community 6|Community 6]]
-- [[_COMMUNITY_Community 7|Community 7]]
-- [[_COMMUNITY_Community 8|Community 8]]
-- [[_COMMUNITY_Community 9|Community 9]]
-- [[_COMMUNITY_Community 10|Community 10]]
-- [[_COMMUNITY_Community 11|Community 11]]
-- [[_COMMUNITY_Community 12|Community 12]]
-- [[_COMMUNITY_Community 13|Community 13]]
-- [[_COMMUNITY_Community 14|Community 14]]
-- [[_COMMUNITY_Community 15|Community 15]]
-- [[_COMMUNITY_Community 16|Community 16]]
-- [[_COMMUNITY_Community 17|Community 17]]
-- [[_COMMUNITY_Community 18|Community 18]]
-- [[_COMMUNITY_Community 19|Community 19]]
-- [[_COMMUNITY_Community 20|Community 20]]
-- [[_COMMUNITY_Community 21|Community 21]]
-- [[_COMMUNITY_Community 22|Community 22]]
-- [[_COMMUNITY_Community 23|Community 23]]
-- [[_COMMUNITY_Community 24|Community 24]]
-- [[_COMMUNITY_Community 25|Community 25]]
-- [[_COMMUNITY_Community 26|Community 26]]
-- [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 28|Community 28]]
-- [[_COMMUNITY_Community 29|Community 29]]
-- [[_COMMUNITY_Community 30|Community 30]]
-- [[_COMMUNITY_Community 31|Community 31]]
-- [[_COMMUNITY_Community 32|Community 32]]
-- [[_COMMUNITY_Community 33|Community 33]]
-- [[_COMMUNITY_Community 34|Community 34]]
-- [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
-- [[_COMMUNITY_Community 40|Community 40]]
-- [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 42|Community 42]]
-- [[_COMMUNITY_Community 43|Community 43]]
-- [[_COMMUNITY_Community 44|Community 44]]
-- [[_COMMUNITY_Community 45|Community 45]]
-- [[_COMMUNITY_Community 46|Community 46]]
-- [[_COMMUNITY_Community 47|Community 47]]
-- [[_COMMUNITY_Community 48|Community 48]]
-- [[_COMMUNITY_Community 49|Community 49]]
-- [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Community 51|Community 51]]
-- [[_COMMUNITY_Community 52|Community 52]]
-- [[_COMMUNITY_Community 53|Community 53]]
-- [[_COMMUNITY_Community 54|Community 54]]
-- [[_COMMUNITY_Community 55|Community 55]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 57|Community 57]]
-- [[_COMMUNITY_Community 58|Community 58]]
-- [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
-- [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 62|Community 62]]
-- [[_COMMUNITY_Community 63|Community 63]]
-- [[_COMMUNITY_Community 64|Community 64]]
-- [[_COMMUNITY_Community 65|Community 65]]
-- [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 67|Community 67]]
-- [[_COMMUNITY_Community 68|Community 68]]
-- [[_COMMUNITY_Community 69|Community 69]]
-- [[_COMMUNITY_Community 70|Community 70]]
-- [[_COMMUNITY_Community 71|Community 71]]
-- [[_COMMUNITY_Community 72|Community 72]]
-- [[_COMMUNITY_Community 73|Community 73]]
-- [[_COMMUNITY_Community 74|Community 74]]
-- [[_COMMUNITY_Community 75|Community 75]]
-- [[_COMMUNITY_Community 76|Community 76]]
-- [[_COMMUNITY_Community 77|Community 77]]
-- [[_COMMUNITY_Community 78|Community 78]]
-- [[_COMMUNITY_Community 79|Community 79]]
-- [[_COMMUNITY_Community 80|Community 80]]
-- [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 82|Community 82]]
-- [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 84|Community 84]]
-- [[_COMMUNITY_Community 85|Community 85]]
-- [[_COMMUNITY_Community 86|Community 86]]
-- [[_COMMUNITY_Community 87|Community 87]]
-- [[_COMMUNITY_Community 88|Community 88]]
-- [[_COMMUNITY_Community 89|Community 89]]
-- [[_COMMUNITY_Community 90|Community 90]]
-- [[_COMMUNITY_Community 91|Community 91]]
-- [[_COMMUNITY_Community 92|Community 92]]
-- [[_COMMUNITY_Community 93|Community 93]]
-- [[_COMMUNITY_Community 94|Community 94]]
-- [[_COMMUNITY_Community 95|Community 95]]
-- [[_COMMUNITY_Community 96|Community 96]]
-- [[_COMMUNITY_Community 97|Community 97]]
-- [[_COMMUNITY_Community 98|Community 98]]
-- [[_COMMUNITY_Community 99|Community 99]]
-- [[_COMMUNITY_Community 100|Community 100]]
-- [[_COMMUNITY_Community 101|Community 101]]
-- [[_COMMUNITY_Community 102|Community 102]]
-- [[_COMMUNITY_Community 103|Community 103]]
-- [[_COMMUNITY_Community 104|Community 104]]
-- [[_COMMUNITY_Community 105|Community 105]]
-- [[_COMMUNITY_Community 106|Community 106]]
-- [[_COMMUNITY_Community 107|Community 107]]
-- [[_COMMUNITY_Community 108|Community 108]]
-- [[_COMMUNITY_Community 109|Community 109]]
-- [[_COMMUNITY_Community 110|Community 110]]
-- [[_COMMUNITY_Community 111|Community 111]]
-- [[_COMMUNITY_Community 112|Community 112]]
-- [[_COMMUNITY_Community 113|Community 113]]
-- [[_COMMUNITY_Community 114|Community 114]]
-- [[_COMMUNITY_Community 115|Community 115]]
-- [[_COMMUNITY_Community 116|Community 116]]
-- [[_COMMUNITY_Community 117|Community 117]]
-- [[_COMMUNITY_Community 118|Community 118]]
-- [[_COMMUNITY_Community 119|Community 119]]
-- [[_COMMUNITY_Community 120|Community 120]]
-- [[_COMMUNITY_Community 121|Community 121]]
-- [[_COMMUNITY_Community 122|Community 122]]
-- [[_COMMUNITY_Community 123|Community 123]]
-- [[_COMMUNITY_Community 124|Community 124]]
-- [[_COMMUNITY_Community 125|Community 125]]
-- [[_COMMUNITY_Community 126|Community 126]]
-- [[_COMMUNITY_Community 127|Community 127]]
-- [[_COMMUNITY_Community 128|Community 128]]
-- [[_COMMUNITY_Community 129|Community 129]]
-- [[_COMMUNITY_Community 130|Community 130]]
-- [[_COMMUNITY_Community 131|Community 131]]
-- [[_COMMUNITY_Community 132|Community 132]]
-- [[_COMMUNITY_Community 133|Community 133]]
-- [[_COMMUNITY_Community 134|Community 134]]
-- [[_COMMUNITY_Community 135|Community 135]]
-- [[_COMMUNITY_Community 136|Community 136]]
-- [[_COMMUNITY_Community 137|Community 137]]
-- [[_COMMUNITY_Community 138|Community 138]]
-- [[_COMMUNITY_Community 139|Community 139]]
-- [[_COMMUNITY_Community 140|Community 140]]
-- [[_COMMUNITY_Community 141|Community 141]]
-- [[_COMMUNITY_Community 142|Community 142]]
-- [[_COMMUNITY_Community 143|Community 143]]
-- [[_COMMUNITY_Community 144|Community 144]]
-- [[_COMMUNITY_Community 145|Community 145]]
-- [[_COMMUNITY_Community 146|Community 146]]
-- [[_COMMUNITY_Community 147|Community 147]]
-- [[_COMMUNITY_Community 148|Community 148]]
-- [[_COMMUNITY_Community 149|Community 149]]
-- [[_COMMUNITY_Community 150|Community 150]]
-- [[_COMMUNITY_Community 152|Community 152]]
-- [[_COMMUNITY_Community 153|Community 153]]
-- [[_COMMUNITY_Community 154|Community 154]]
-- [[_COMMUNITY_Community 155|Community 155]]
-- [[_COMMUNITY_Community 156|Community 156]]
-- [[_COMMUNITY_Community 159|Community 159]]
-- [[_COMMUNITY_Community 160|Community 160]]
-- [[_COMMUNITY_Community 161|Community 161]]
-- [[_COMMUNITY_Community 162|Community 162]]
-- [[_COMMUNITY_Community 163|Community 163]]
-- [[_COMMUNITY_Community 164|Community 164]]
-- [[_COMMUNITY_Community 165|Community 165]]
-- [[_COMMUNITY_Community 166|Community 166]]
-- [[_COMMUNITY_Community 167|Community 167]]
-- [[_COMMUNITY_Community 168|Community 168]]
-- [[_COMMUNITY_Community 169|Community 169]]
-- [[_COMMUNITY_Community 170|Community 170]]
-- [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_API Server Bootstrap + OAuth Routes|API Server Bootstrap + OAuth Routes]]
+- [[_COMMUNITY_Orchestrator + Outcome Engine|Orchestrator + Outcome Engine]]
+- [[_COMMUNITY_Workspace Manager + Outcome Appliers|Workspace Manager + Outcome Appliers]]
+- [[_COMMUNITY_Workspace Snapshots + Connection Manager|Workspace Snapshots + Connection Manager]]
+- [[_COMMUNITY_Task Drawer Components (View)|Task Drawer Components (View)]]
+- [[_COMMUNITY_Auth + DB Bootstrap|Auth + DB Bootstrap]]
+- [[_COMMUNITY_Web App Shell + Common Components|Web App Shell + Common Components]]
+- [[_COMMUNITY_Prompt Rendering Pipeline|Prompt Rendering Pipeline]]
+- [[_COMMUNITY_Resolver Tests + DB Migrate|Resolver Tests + DB Migrate]]
+- [[_COMMUNITY_Human Messages Dispatch + Tests|Human Messages Dispatch + Tests]]
+- [[_COMMUNITY_Pre-spawn Plan + Playbook Resolution|Pre-spawn Plan + Playbook Resolution]]
+- [[_COMMUNITY_PubSub + Task Messaging|Pub/Sub + Task Messaging]]
+- [[_COMMUNITY_Task Drawer + Color Hashing|Task Drawer + Color Hashing]]
+- [[_COMMUNITY_GraphQL Resolver Mappers|GraphQL Resolver Mappers]]
+- [[_COMMUNITY_Task Comments + Composer|Task Comments + Composer]]
+- [[_COMMUNITY_Verification Run Execution|Verification Run Execution]]
+- [[_COMMUNITY_API Server + GitHub Client|API Server + GitHub Client]]
+- [[_COMMUNITY_Verify Pipeline + Verification Runs DB|Verify Pipeline + Verification Runs DB]]
+- [[_COMMUNITY_Common UI Primitives (InputIcon)|Common UI Primitives (Input/Icon)]]
+- [[_COMMUNITY_Playbook Web Module|Playbook Web Module]]
+- [[_COMMUNITY_Runner + Checkpoint Replay|Runner + Checkpoint Replay]]
+- [[_COMMUNITY_Domain Models (TaskBoardStatus)|Domain Models (Task/Board/Status)]]
+- [[_COMMUNITY_Rate Limiter|Rate Limiter]]
+- [[_COMMUNITY_Icon Family (Lucide-style)|Icon Family (Lucide-style)]]
+- [[_COMMUNITY_Playbook CRUD Module|Playbook CRUD Module]]
+- [[_COMMUNITY_Agent Runner + Checkpoint Capture|Agent Runner + Checkpoint Capture]]
+- [[_COMMUNITY_GraphQL Schema Module|GraphQL Schema Module]]
+- [[_COMMUNITY_Pre-spawn Loaders + Mustache Escape|Pre-spawn Loaders + Mustache Escape]]
+- [[_COMMUNITY_Verify-Gate Test Fixtures|Verify-Gate Test Fixtures]]
+- [[_COMMUNITY_Event Summarization|Event Summarization]]
+- [[_COMMUNITY_Architecture Concepts (state machine + pipelines)|Architecture Concepts (state machine + pipelines)]]
+- [[_COMMUNITY_Playbook Run + E2E Tests|Playbook Run + E2E Tests]]
+- [[_COMMUNITY_Secrets Encryption + KEK|Secrets Encryption + KEK]]
+- [[_COMMUNITY_Outcome Decision + Time-box Tests|Outcome Decision + Time-box Tests]]
+- [[_COMMUNITY_Subtasks + Scheduler Tests|Subtasks + Scheduler Tests]]
+- [[_COMMUNITY_Dependency DAG + Scheduler|Dependency DAG + Scheduler]]
+- [[_COMMUNITY_Board Settings GraphQL Surface|Board Settings GraphQL Surface]]
+- [[_COMMUNITY_Cancel Test|Cancel Test]]
+- [[_COMMUNITY_Secrets Init + Resolution|Secrets Init + Resolution]]
+- [[_COMMUNITY_Task Messages DB|Task Messages DB]]
+- [[_COMMUNITY_Comment Service|Comment Service]]
+- [[_COMMUNITY_Architecture Concepts (EncryptionPlaybookChannel)|Architecture Concepts (Encryption/Playbook/Channel)]]
+- [[_COMMUNITY_Orchestrator Test (main)|Orchestrator Test (main)]]
+- [[_COMMUNITY_Image Upload + Path-Safety|Image Upload + Path-Safety]]
+- [[_COMMUNITY_Task Messages Schema|Task Messages Schema]]
+- [[_COMMUNITY_MapTask Test|MapTask Test]]
+- [[_COMMUNITY_Task Dependencies + Subtasks Tests|Task Dependencies + Subtasks Tests]]
+- [[_COMMUNITY_SSE Subscription Runtime|SSE Subscription Runtime]]
+- [[_COMMUNITY_Playbook UI Types|Playbook UI Types]]
+- [[_COMMUNITY_Markdown Editor + Preview|Markdown Editor + Preview]]
+- [[_COMMUNITY_Events Test|Events Test]]
+- [[_COMMUNITY_NDJSON Line Parser|NDJSON Line Parser]]
+- [[_COMMUNITY_Project Docs (OverviewAPIArch)|Project Docs (Overview/API/Arch)]]
+- [[_COMMUNITY_Playbook Tools Test|Playbook Tools Test]]
+- [[_COMMUNITY_Introspection Test|Introspection Test]]
+- [[_COMMUNITY_Failure Cascade + Retry|Failure Cascade + Retry]]
+- [[_COMMUNITY_Agent Run Log UI|Agent Run Log UI]]
+- [[_COMMUNITY_Board Drag-and-Drop|Board Drag-and-Drop]]
+- [[_COMMUNITY_Pre-spawn Plan Module|Pre-spawn Plan Module]]
+- [[_COMMUNITY_Validation RepoBranchPlaybook|Validation: Repo/Branch/Playbook]]
+- [[_COMMUNITY_Agent Env + Secret Envelope|Agent Env + Secret Envelope]]
+- [[_COMMUNITY_OAuth State CSRF|OAuth State CSRF]]
+- [[_COMMUNITY_Lifecycle Module|Lifecycle Module]]
+- [[_COMMUNITY_PubSub Comment Topics|PubSub Comment Topics]]
+- [[_COMMUNITY_Dependency DB Tests|Dependency DB Tests]]
+- [[_COMMUNITY_Subtasks Manifest|Subtasks Manifest]]
+- [[_COMMUNITY_GitHub OAuth Web Flow|GitHub OAuth Web Flow]]
+- [[_COMMUNITY_ComboboxInput Component|ComboboxInput Component]]
+- [[_COMMUNITY_DB SchemaSeed + Playbook Tests|DB Schema/Seed + Playbook Tests]]
+- [[_COMMUNITY_Secrets Init + KEK|Secrets Init + KEK]]
+- [[_COMMUNITY_Message Service Mutations|Message Service Mutations]]
+- [[_COMMUNITY_Comment Models + Props|Comment Models + Props]]
+- [[_COMMUNITY_Drawer Prop Types|Drawer Prop Types]]
+- [[_COMMUNITY_Image Upload Hook|Image Upload Hook]]
+- [[_COMMUNITY_Task Dependencies UI|Task Dependencies UI]]
+- [[_COMMUNITY_Task Secrets UI|Task Secrets UI]]
+- [[_COMMUNITY_Playbooks Page|Playbooks Page]]
+- [[_COMMUNITY_DB Foreign Key Tests|DB Foreign Key Tests]]
+- [[_COMMUNITY_Secret Set + Encrypt|Secret Set + Encrypt]]
+- [[_COMMUNITY_Secret Resolution|Secret Resolution]]
+- [[_COMMUNITY_Comment CRUD Events|Comment CRUD Events]]
+- [[_COMMUNITY_Periodic Cleanup Tick|Periodic Cleanup Tick]]
+- [[_COMMUNITY_SSE Ping|SSE Ping]]
+- [[_COMMUNITY_Message GraphQL Mutations|Message GraphQL Mutations]]
+- [[_COMMUNITY_Playbook Form Validation|Playbook Form Validation]]
+- [[_COMMUNITY_Board Store + Drawer State|Board Store + Drawer State]]
+- [[_COMMUNITY_Verification Run UI Types|Verification Run UI Types]]
+- [[_COMMUNITY_AgentStatusBadge|AgentStatusBadge]]
+- [[_COMMUNITY_TaskVerification UI|TaskVerification UI]]
+- [[_COMMUNITY_TaskTimeBox UI|TaskTimeBox UI]]
+- [[_COMMUNITY_Playbook Version List|Playbook Version List]]
+- [[_COMMUNITY_Users Admin Page|Users Admin Page]]
+- [[_COMMUNITY_Login Button + OAuth URL|Login Button + OAuth URL]]
+- [[_COMMUNITY_Orchestrator Singleton|Orchestrator Singleton]]
+- [[_COMMUNITY_Playbook Defaults Merge|Playbook Defaults Merge]]
+- [[_COMMUNITY_Shell-metachar Input Validation|Shell-metachar Input Validation]]
+- [[_COMMUNITY_Playbook Tool Allowlist|Playbook Tool Allowlist]]
+- [[_COMMUNITY_Secrets Module Surface|Secrets Module Surface]]
+- [[_COMMUNITY_Services Barrel|Services Barrel]]
+- [[_COMMUNITY_Drawer Variants|Drawer Variants]]
+- [[_COMMUNITY_SelectInput Types|SelectInput Types]]
+- [[_COMMUNITY_Task Form Schema|Task Form Schema]]
+- [[_COMMUNITY_TaskMessage Types|TaskMessage Types]]
+- [[_COMMUNITY_Color Hash Utils|Color Hash Utils]]
+- [[_COMMUNITY_Tailwind Variant Helpers|Tailwind Variant Helpers]]
+- [[_COMMUNITY_Cluster 106|Cluster 106]]
+- [[_COMMUNITY_Cluster 107|Cluster 107]]
+- [[_COMMUNITY_Cluster 108|Cluster 108]]
+- [[_COMMUNITY_Cluster 109|Cluster 109]]
+- [[_COMMUNITY_Cluster 110|Cluster 110]]
+- [[_COMMUNITY_Cluster 111|Cluster 111]]
+- [[_COMMUNITY_Cluster 112|Cluster 112]]
+- [[_COMMUNITY_Cluster 113|Cluster 113]]
+- [[_COMMUNITY_Cluster 114|Cluster 114]]
+- [[_COMMUNITY_Cluster 115|Cluster 115]]
+- [[_COMMUNITY_Cluster 116|Cluster 116]]
+- [[_COMMUNITY_Cluster 117|Cluster 117]]
+- [[_COMMUNITY_Cluster 118|Cluster 118]]
+- [[_COMMUNITY_Cluster 119|Cluster 119]]
+- [[_COMMUNITY_Cluster 120|Cluster 120]]
+- [[_COMMUNITY_Cluster 121|Cluster 121]]
+- [[_COMMUNITY_Cluster 122|Cluster 122]]
+- [[_COMMUNITY_Cluster 123|Cluster 123]]
+- [[_COMMUNITY_Cluster 124|Cluster 124]]
+- [[_COMMUNITY_Cluster 125|Cluster 125]]
+- [[_COMMUNITY_Cluster 126|Cluster 126]]
+- [[_COMMUNITY_Cluster 129|Cluster 129]]
+- [[_COMMUNITY_Cluster 130|Cluster 130]]
+- [[_COMMUNITY_Cluster 131|Cluster 131]]
+- [[_COMMUNITY_Cluster 132|Cluster 132]]
+- [[_COMMUNITY_Cluster 133|Cluster 133]]
+- [[_COMMUNITY_Cluster 134|Cluster 134]]
+- [[_COMMUNITY_Cluster 135|Cluster 135]]
+- [[_COMMUNITY_Cluster 136|Cluster 136]]
+- [[_COMMUNITY_Cluster 137|Cluster 137]]
+- [[_COMMUNITY_Cluster 138|Cluster 138]]
+- [[_COMMUNITY_Cluster 139|Cluster 139]]
+- [[_COMMUNITY_Cluster 140|Cluster 140]]
+- [[_COMMUNITY_Cluster 141|Cluster 141]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `generateId()` - 66 edges
 2. `createTables()` - 62 edges
-3. `getCurrentUser()` - 29 edges
-4. `seed()` - 27 edges
-5. `HiveBoard GraphQL API Skill` - 25 edges
-6. `HiveBoard GraphQL API Skill` - 25 edges
-7. `HiveBoard GraphQL API Skill` - 25 edges
-8. `Orchestrator` - 22 edges
-9. `5. Types` - 21 edges
-10. `agentStateDir()` - 18 edges
+3. `seed()` - 27 edges
+4. `HiveBoard GraphQL API Skill` - 25 edges
+5. `5. Types` - 21 edges
+6. `Orchestrator` - 20 edges
+7. `agentStateDir()` - 18 edges
+8. `Architecture` - 18 edges
+9. `Config` - 16 edges
+10. `Maintainer Guide` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `getCurrentUser()` --calls--> `insertTask()`  [INFERRED]
-  packages/api/test/helpers/fixtures.ts → test/resolvers.test.ts
-- `insertQueuedTaskWithAction()` --calls--> `generateId()`  [INFERRED]
-  packages/api/test/orchestrator-playbook-tools.test.ts → packages/api/src/db/ulid.ts
-- `setup()` --calls--> `createTables()`  [INFERRED]
-  packages/api/test/workspace-snapshots-db.test.ts → packages/api/src/db/schema.ts
-- `setup()` --calls--> `createTables()`  [INFERRED]
-  packages/api/test/verification-runs-db.test.ts → packages/api/src/db/schema.ts
-- `setup()` --calls--> `createTables()`  [INFERRED]
-  packages/api/test/task-messages-db.test.ts → packages/api/src/db/schema.ts
+- `insertQuestion()` --calls--> `generateId()`  [INFERRED]
+  packages/api/test/resolvers-messages.test.ts → packages/api/src/db/ulid.ts
+- `Board()` --calls--> `useBoardStore`  [INFERRED]
+  packages/web/src/components/feature/board/Board.tsx → packages/web/src/store/boardStore.ts
+- `MessageBubble()` --calls--> `timeAgo()`  [EXTRACTED]
+  packages/web/src/components/feature/task/TaskMessages.tsx → packages/web/src/components/feature/task/TaskEventHistory.tsx
+- `TaskEventHistory()` --calls--> `useTaskSubscription()`  [INFERRED]
+  packages/web/src/components/feature/task/TaskEventHistory.tsx → packages/web/src/hooks/useTaskSubscription.ts
+- `TaskDrawer()` --calls--> `useBoardStore`  [INFERRED]
+  packages/web/src/components/feature/task/TaskDrawer.tsx → packages/web/src/store/boardStore.ts
 
-## Communities (189 total, 20 thin omitted)
+## Communities (159 total, 19 thin omitted)
 
-### Community 1 - "Community 1"
+### Community 0 - "API Server Bootstrap + OAuth Routes"
 Cohesion: 0.05
-Nodes (43): DbListRow, getLastStatHashForTask(), getSnapshotById(), getSnapshotPatch(), insertSnapshot(), listSnapshotsForTask(), mapListRow(), sumPatchBytesForTask() (+35 more)
+Nodes (71): ALLOWED_ENV_VARS, buildAgentEnv(), DENIED_ENV_VARS, LoadedWorkflow, loadWorkflow(), splitFrontMatter(), AgentConfig, AgentSchema (+63 more)
 
-### Community 2 - "Community 2"
+### Community 1 - "Orchestrator + Outcome Engine"
+Cohesion: 0.05
+Nodes (52): VerifyCommand, listUndeliveredHumanMessages(), insertVerificationRun(), listFailingRunsForAgentRun(), GitIdentity, ReviewComment, escapeMustacheSyntax(), formatScratchpadSummary() (+44 more)
+
+### Community 3 - "Workspace Manager + Outcome Appliers"
 Cohesion: 0.04
 Nodes (48): Agent Messages (Spec B), Agent Runs (History), Archive / Unarchive, Cancel a Running Agent, code:graphql (query {), code:graphql (mutation ArchiveTask($id: ID!) {), code:graphql (query Tags($boardId: ID!) { tags(boardId: $boardId) { id nam), code:graphql (query Comments($taskId: ID!) {) (+40 more)
 
-### Community 3 - "Community 3"
-Cohesion: 0.04
-Nodes (48): Agent Messages (Spec B), Agent Runs (History), Archive / Unarchive, Cancel a Running Agent, code:graphql (query {), code:graphql (mutation ArchiveTask($id: ID!) {), code:graphql (query Tags($boardId: ID!) { tags(boardId: $boardId) { id nam), code:graphql (query Comments($taskId: ID!) {) (+40 more)
-
-### Community 4 - "Community 4"
-Cohesion: 0.04
-Nodes (48): Agent Messages (Spec B), Agent Runs (History), Archive / Unarchive, Cancel a Running Agent, code:graphql (query {), code:graphql (mutation ArchiveTask($id: ID!) {), code:graphql (query Tags($boardId: ID!) { tags(boardId: $boardId) { id nam), code:graphql (query Comments($taskId: ID!) {) (+40 more)
-
-### Community 5 - "Community 5"
+### Community 4 - "Workspace Snapshots + Connection Manager"
 Cohesion: 0.04
 Nodes (45): 1. Naming Conventions, 2. Biome Configuration, 3. File Structure, 4. Styling, 5. Commit Messages, 6. GraphQL, 7. Database, 8. Runtime Singletons & Agent State (+37 more)
 
-### Community 6 - "Community 6"
+### Community 5 - "Task Drawer Components (View)"
+Cohesion: 0.07
+Nodes (17): AuthCallbackPage(), LoginButton(), LoginPage(), MarkdownPreview(), AuthProvider(), App(), HeaderUserMenu(), root (+9 more)
+
+### Community 6 - "Auth + DB Bootstrap"
 Cohesion: 0.05
 Nodes (41): ActionColor, AgentPanelProps, Comment, CommentBlockProps, CommentUser, ComposerMode, ComposerProps, CreateModeProps (+33 more)
 
-### Community 7 - "Community 7"
+### Community 7 - "Web App Shell + Common Components"
+Cohesion: 0.05
+Nodes (41): Actions, Architecture, Authentication, Available Commands, Build from source, code:block1 (┌──────────────────────────────────────────────────────┐), code:yaml (# docker-compose.yml), code:bash (docker compose exec hiveboard bash -lc ') (+33 more)
+
+### Community 8 - "Prompt Rendering Pipeline"
 Cohesion: 0.05
 Nodes (41): 5. Types, `AgentLogChunk`, `AgentRun`, `AgentRunCheckpoint` (Spec G), `AuthConfig`, `Board`, `BoardSecret` & `TaskSecret` (Spec H), code:graphql (type User {) (+33 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.09
-Nodes (38): listPlaybookVersions(), Playbook, AgentRunRow, BoardRow, ColumnRow, CommentRow, getColumnsForBoard(), getRepliesForComment() (+30 more)
+### Community 9 - "Resolver Tests + DB Migrate"
+Cohesion: 0.07
+Nodes (33): BoardRow, ColumnRow, ConfigOverrides, flushMicrotasks(), getColumn(), InsertTaskOpts, makeConfig(), makeGitHubStub() (+25 more)
 
-### Community 9 - "Community 9"
+### Community 10 - "Human Messages Dispatch + Tests"
+Cohesion: 0.1
+Nodes (18): AgentRunLog(), KIND_ICON, STATE_CONFIG, useTaskSubscription(), CommentBlock(), ReplyBlock(), TaskComments(), CollapsibleSection() (+10 more)
+
+### Community 11 - "Pre-spawn Plan + Playbook Resolution"
+Cohesion: 0.06
+Nodes (27): addMissingColumns(), ensureColumn(), migrate(), normalizeLegacyVerifyCommands(), renameColumn(), makeCtx(), UserRow, resolvers (+19 more)
+
+### Community 12 - "Pub/Sub + Task Messaging"
+Cohesion: 0.06
+Nodes (22): AgentRunRow, BoardRow, ColumnRow, CommentRow, getTaskById(), getUserById(), mapPlaybook(), mapPlaybookVersion() (+14 more)
+
+### Community 13 - "Task Drawer + Color Hashing"
+Cohesion: 0.08
+Nodes (34): DbListRow, getLastStatHashForTask(), getSnapshotById(), getSnapshotPatch(), insertSnapshot(), listSnapshotsForTask(), mapListRow(), sumPatchBytesForTask() (+26 more)
+
+### Community 14 - "GraphQL Resolver Mappers"
 Cohesion: 0.05
 Nodes (36): 10. Secrets: Encryption and Scrubbing, 11. Scheduling: Dependencies + Time-Boxing, 12. Database ER Diagram, 13. Position Strategy, 14.1 Local mode (auto-admin), 14.2 Remote mode (GitHub OAuth + invitations), 14.3 Authorization (ownership), 14.4 Threat-model limits (+28 more)
 
-### Community 10 - "Community 10"
-Cohesion: 0.07
-Nodes (27): data, delay, delays, event, failingWorkspaceStub, failOrchestrator, firstWave, fixed() (+19 more)
-
-### Community 11 - "Community 11"
-Cohesion: 0.08
-Nodes (13): AgentRunLog(), KIND_ICON, agentDot, AgentPanel(), agentStatusColor(), CollapsibleSection(), handleContinueTask(), handleCreateTag() (+5 more)
-
-### Community 12 - "Community 12"
-Cohesion: 0.06
-Nodes (32): Actions, Architecture, Authentication, Available Commands, Build from source, code:block1 (┌──────────────────────────────────────────────────────┐), code:block2 (hiveboard/), code:bash (git clone https://github.com/boengai/hiveboard.git) (+24 more)
-
-### Community 13 - "Community 13"
+### Community 15 - "Task Comments + Composer"
 Cohesion: 0.06
 Nodes (31): after, before, board, board1, board2Id, BoardRow, boards, col (+23 more)
 
-### Community 14 - "Community 14"
-Cohesion: 0.09
-Nodes (27): seed(), SEEDED_PLAYBOOKS, seedPlaybooks(), generateId(), colNames, cols, id, invitation (+19 more)
+### Community 16 - "Verification Run Execution"
+Cohesion: 0.08
+Nodes (14): createApiYoga(), getClientIp(), mutationRateLimiter, RateLimiter, useMutationRateLimit(), INTROSPECTION_QUERY, json, yoga (+6 more)
 
-### Community 15 - "Community 15"
+### Community 17 - "API Server + GitHub Client"
 Cohesion: 0.1
-Nodes (13): AgentStatusBadge(), agentStatusColor(), useTaskSubscription(), CommentBlock(), ReplyBlock(), TaskComments(), ViewMode(), timeAgo() (+5 more)
+Nodes (25): archivePlaybook(), createPlaybook(), CreatePlaybookInput, fetchCurrent(), getPlaybookById(), getPlaybookVersionById(), listPlaybooks(), listPlaybookVersions() (+17 more)
 
-### Community 16 - "Community 16"
+### Community 18 - "Verify Pipeline + Verification Runs DB"
+Cohesion: 0.06
+Nodes (26): blockerA, blockerB, blockerC, blockerId, blockers, board, board1, board2Id (+18 more)
+
+### Community 19 - "Common UI Primitives (Input/Icon)"
 Cohesion: 0.11
 Nodes (25): requireSecretsEnabled(), reResolveAfterSecretChange(), getKek(), InitResult, initSecretsFromEnv(), secretsEnabled(), decrypt(), deriveKek() (+17 more)
 
-### Community 17 - "Community 17"
-Cohesion: 0.12
-Nodes (23): archivePlaybook(), createPlaybook(), CreatePlaybookInput, fetchCurrent(), getPlaybookById(), getPlaybookByName(), getPlaybookVersionById(), listPlaybooks() (+15 more)
-
-### Community 18 - "Community 18"
-Cohesion: 0.16
-Nodes (13): mapTaskRow(), findColumnId(), findColumnName(), RunState, TaskRow, calculateRetryDelay(), createSubtasksFromManifest(), parseSubtasksManifest() (+5 more)
-
-### Community 19 - "Community 19"
-Cohesion: 0.07
-Nodes (26): blockerA, blockerB, blockerC, blockerId, blockers, board, board1, board2Id (+18 more)
-
-### Community 20 - "Community 20"
-Cohesion: 0.09
-Nodes (8): STATE_CONFIG, usePlaybooks(), UsePlaybooksResult, PlaybooksPage(), drawerTitle(), PlaybookEditor(), Secrets(), TaskSecrets()
-
-### Community 21 - "Community 21"
+### Community 20 - "Playbook Web Module"
 Cohesion: 0.11
-Nodes (18): continueFailedTaskDb(), insertAgentRun(), insertAgentRunForTest(), InsertAgentRunInput, row, seedTask(), db, input (+10 more)
+Nodes (12): AgentStatusBadge(), agentStatusColor(), Board(), Column(), actionBadge, TaskCard, BoardState, useBoardStore (+4 more)
 
-### Community 22 - "Community 22"
-Cohesion: 0.17
-Nodes (22): ALLOWED_ENV_VARS, buildAgentEnv(), DENIED_ENV_VARS, big, cfg, config, content, dir (+14 more)
+### Community 21 - "Runner + Checkpoint Replay"
+Cohesion: 0.07
+Nodes (24): data, delay, delays, event, failingWorkspaceStub, failOrchestrator, firstWave, githubStub (+16 more)
 
-### Community 23 - "Community 23"
-Cohesion: 0.08
+### Community 22 - "Domain Models (Task/Board/Status)"
+Cohesion: 0.07
 Nodes (25): actionData, actionEvent, actionSetEvent, archiveEvent, board, bodyEvent, clearedEvent, col (+17 more)
 
-### Community 24 - "Community 24"
-Cohesion: 0.14
-Nodes (7): AuthCallbackPage(), LoginButton(), LoginPage(), AuthProvider(), HeaderUserMenu(), useAuthStore, UsersPage()
-
-### Community 25 - "Community 25"
+### Community 23 - "Rate Limiter"
 Cohesion: 0.09
-Nodes (14): flushMicrotasks(), makeConfig(), makeGitHubStub(), memDb, PublishedEvent, publishedEvents, stateRoot, { task } (+6 more)
+Nodes (15): RunState, calculateRetryDelay(), publishTaskProgress(), pubsub, result, after, before, board (+7 more)
 
-### Community 26 - "Community 26"
-Cohesion: 0.08
-Nodes (24): [0.2.19] and earlier, Added, Changed, Changelog, Fixed, Security, [Unreleased], Upgrade notes (+16 more)
+### Community 24 - "Icon Family (Lucide-style)"
+Cohesion: 0.12
+Nodes (22): seed(), SEEDED_PLAYBOOKS, seedPlaybooks(), generateId(), getCurrentUser(), insertTask(), PlaybookVersion, mergePlaybookDefaultsIntoTask() (+14 more)
 
-### Community 27 - "Community 27"
-Cohesion: 0.09
-Nodes (20): AgentConfig, AgentSchema, ClaudeConfig, ClaudeSchema, ConfigSchema, HooksConfig, HooksSchema, PollingConfig (+12 more)
+### Community 25 - "Playbook CRUD Module"
+Cohesion: 0.12
+Nodes (9): drawerTitle(), PlaybookEditor(), PlaybookList(), PlaybookVersionList(), Secrets(), TaskSecrets(), formatRemaining(), TaskTimeBox() (+1 more)
 
-### Community 28 - "Community 28"
-Cohesion: 0.09
-Nodes (22): blockRow, board, col, DispatchCall, dispatchCalls, getBoard(), getColumn(), huge (+14 more)
+### Community 26 - "Agent Runner + Checkpoint Capture"
+Cohesion: 0.1
+Nodes (19): ColumnRow, createSubtasksFromManifest(), ParentRow, ParsedSubtask, ParseResult, parseSubtasksManifest(), SubtaskManifest, SubtaskManifestValidationError (+11 more)
 
-### Community 29 - "Community 29"
+### Community 27 - "GraphQL Schema Module"
 Cohesion: 0.09
 Nodes (17): TaskPickerOption, TaskPickerProps, AgentLogChunk, AgentLogStreamProps, AgentRunLogProps, AgentStatus, AgentStatusBadgeProps, BadgeColor (+9 more)
 
-### Community 30 - "Community 30"
+### Community 28 - "Pre-spawn Loaders + Mustache Escape"
+Cohesion: 0.09
+Nodes (19): blockRow, board, col, DispatchCall, dispatchCalls, huge, insertQuestion(), message (+11 more)
+
+### Community 29 - "Verify-Gate Test Fixtures"
 Cohesion: 0.11
+Nodes (17): continueFailedTaskDb(), insertAgentRun(), insertAgentRunForTest(), InsertAgentRunInput, row, db, input, pb (+9 more)
+
+### Community 30 - "Event Summarization"
+Cohesion: 0.12
 Nodes (16): getBoard(), getColumn(), getUser(), insertAgentRun(), insertTask(), memDb, reviewCol, run (+8 more)
 
-### Community 31 - "Community 31"
-Cohesion: 0.13
-Nodes (9): Board(), findTaskById(), handleDragStart(), Column(), actionBadge, TaskCard, BoardState, useBoardStore (+1 more)
+### Community 31 - "Architecture Concepts (state machine + pipelines)"
+Cohesion: 0.22
+Nodes (11): findColumnId(), findColumnName(), CASCADE_SKIP_STATUSES, cascadeDependencyFailure(), applyFailure(), applySuccess(), applyVerificationFailure(), finalizeSuccess() (+3 more)
 
-### Community 32 - "Community 32"
-Cohesion: 0.13
-Nodes (14): avatar, Badge(), badgeVariants, Button(), buttonVariants, contentVariants, Drawer(), overlayVariants (+6 more)
+### Community 32 - "Playbook Run + E2E Tests"
+Cohesion: 0.17
+Nodes (12): addDependencyEdge(), listBlockers(), listDependents(), removeDependencyEdge(), sameBoard(), unresolvedBlockerCount(), selectSchedulableTasks(), [idA, idB] (+4 more)
 
-### Community 33 - "Community 33"
+### Community 33 - "Secrets Encryption + KEK"
 Cohesion: 0.1
-Nodes (14): cancelAgent(), data, event, events, id, insertTask(), latch, memDb (+6 more)
+Nodes (18): buildClaudeArgsForTest(), edge, insertRunningAgentRun(), insertTask(), memDb, publishedEvents, runAId, stateRoot (+10 more)
 
-### Community 34 - "Community 34"
-Cohesion: 0.12
-Nodes (17): addColumnIfMissing(), createTables(), db, row, task, cols, db, names (+9 more)
-
-### Community 35 - "Community 35"
-Cohesion: 0.12
-Nodes (10): getClientIp(), mutationRateLimiter, RateLimiter, useMutationRateLimit(), createTestYoga(), req, resolvers, result (+2 more)
-
-### Community 36 - "Community 36"
-Cohesion: 0.14
-Nodes (17): getConfig(), getScratchpad(), ProgressEntry, readProgressEntries(), dispose, events, dispose, { entries } (+9 more)
-
-### Community 37 - "Community 37"
-Cohesion: 0.1
-Nodes (15): abortController, after, before, contents, firstId, firstRow, inboxFile, memDb (+7 more)
-
-### Community 38 - "Community 38"
-Cohesion: 0.1
-Nodes (17): ColumnRow, ParentRow, ParsedSubtask, ParseResult, SubtaskManifest, SubtaskManifestValidationError, TagRow, VALID_ACTIONS (+9 more)
-
-### Community 39 - "Community 39"
+### Community 34 - "Outcome Decision + Time-box Tests"
 Cohesion: 0.13
-Nodes (5): Orchestrator, setOrchestrator(), applyQuestion(), applyTimeout(), installOrchestratorStub()
+Nodes (5): Orchestrator, applyQuestion(), applyTimeout(), publishAgentLog(), publishTaskMissingSecretsChanged()
 
-### Community 40 - "Community 40"
-Cohesion: 0.16
-Nodes (14): getCurrentUser(), makeCtx(), getEventsForTask(), insertTask(), getBoard(), getColumn(), getEdge(), insertSubtask() (+6 more)
+### Community 35 - "Subtasks + Scheduler Tests"
+Cohesion: 0.18
+Nodes (16): insertMessage(), mapTaskRow(), TaskRow, getOrchestrator(), answerQuestion(), EmptyMessageBodyError, fetchMessage(), MappedMessage (+8 more)
 
-### Community 41 - "Community 41"
-Cohesion: 0.13
-Nodes (18): addMissingColumns(), ensureColumn(), migrate(), normalizeLegacyVerifyCommands(), renameColumn(), addedCalls, board, col (+10 more)
-
-### Community 42 - "Community 42"
+### Community 36 - "Dependency DAG + Scheduler"
 Cohesion: 0.1
 Nodes (19): ac, authCtx, blocked, board, col, ev, fakeRunState, memDb (+11 more)
 
-### Community 43 - "Community 43"
+### Community 37 - "Board Settings GraphQL Surface"
+Cohesion: 0.1
+Nodes (17): abortController, after, before, contents, firstId, firstRow, inboxFile, insertHintMessage() (+9 more)
+
+### Community 38 - "Cancel Test"
+Cohesion: 0.12
+Nodes (14): cancelAgent(), data, event, events, id, insertTask(), latch, memDb (+6 more)
+
+### Community 39 - "Secrets Init + Resolution"
 Cohesion: 0.17
 Nodes (14): consumeInvitation(), createInvitation(), generateInvitationToken(), InvitationRow, validateInvitation(), exchangeCodeForUser(), GitHubUser, handleInvitationOAuth() (+6 more)
 
-### Community 44 - "Community 44"
+### Community 40 - "Task Messages DB"
+Cohesion: 0.14
+Nodes (14): createTables(), DbRow, listVerificationRunsForTask(), VerificationRunRow, db, first, id, rows (+6 more)
+
+### Community 41 - "Comment Service"
 Cohesion: 0.11
-Nodes (12): makeWorkspaceStub(), event, failedEvent, insertQueuedTask(), memDb, msg, qPath, row (+4 more)
+Nodes (14): addColumnIfMissing(), db, row, task, byName, cols, db, idx (+6 more)
 
-### Community 45 - "Community 45"
-Cohesion: 0.18
-Nodes (12): buildPreviousAttemptReplay(), isWriteOrEdit(), selectCheckpointsForReplay(), CheckpointKind, CheckpointRow, countTurnsForRun(), insertCheckpoint(), InsertCheckpointInput (+4 more)
+### Community 42 - "Architecture Concepts (Encryption/Playbook/Channel)"
+Cohesion: 0.2
+Nodes (11): buildPreviousAttemptReplay(), isWriteOrEdit(), selectCheckpointsForReplay(), CheckpointRow, countTurnsForRun(), insertCheckpoint(), InsertCheckpointInput, listCheckpointsForRun() (+3 more)
 
-### Community 46 - "Community 46"
-Cohesion: 0.12
-Nodes (15): detectCheckpointSupport(), _setCheckpointSupportForTest(), SpawnLike, args, env, events, fmtIdx, GIT_IDENTITY (+7 more)
-
-### Community 47 - "Community 47"
-Cohesion: 0.11
-Nodes (18): code:block1 (transition({ taskId, to, blockReason?, event: { type, actor,), code:block2 (plan(task, deps) → { kind: 'ok', plan: SpawnPlan }), HiveBoard — Domain Language, Outcome, Pre-spawn / Post-exit Pipeline, Task Lifecycle, code:block1 (transition({ taskId, to, blockReason?, event: { type, actor,), code:block2 (plan(task, deps) → { kind: 'ok', plan: SpawnPlan }) (+10 more)
-
-### Community 48 - "Community 48"
-Cohesion: 0.12
-Nodes (17): BoardRow, ColumnRow, ConfigOverrides, getBoard(), getColumn(), insertTask(), InsertTaskOpts, UserRow (+9 more)
-
-### Community 49 - "Community 49"
-Cohesion: 0.11
-Nodes (13): blockers, children, event, eventData, manifestPath, memDb, parent, parentId (+5 more)
-
-### Community 50 - "Community 50"
-Cohesion: 0.11
-Nodes (13): edge, insertRunningAgentRun(), insertTask(), memDb, publishedEvents, runAId, stateRoot, taskA (+5 more)
-
-### Community 51 - "Community 51"
-Cohesion: 0.16
-Nodes (12): ALLOWED_MIME_TYPES, cleanupUnusedImages(), handleImageServe(), handleImageUpload(), isValidPathSegment(), MIME_TO_EXT, fd, { handleImageUpload } (+4 more)
-
-### Community 52 - "Community 52"
-Cohesion: 0.15
-Nodes (13): GitIdentity, ReviewComment, formatReviewComments(), loadReviewComments(), GitHubReviewCommentsAdapter, board, byName, column (+5 more)
-
-### Community 53 - "Community 53"
+### Community 43 - "Orchestrator Test (main)"
 Cohesion: 0.12
 Nodes (16): AgentRun, AgentRunCheckpoint, AgentStatus, BlockReason, Board, BoardSecretSummary, Column, SnapshotFileEntry (+8 more)
 
-### Community 54 - "Community 54"
-Cohesion: 0.21
-Nodes (13): buildPromptContext(), CONTINUATION_PROMPT, renderPrompt(), RenderPromptResolver, buildPlaybookTemplate(), renderPlaybookPrompt(), RenderPlaybookPromptInput, loadPromptPartials() (+5 more)
+### Community 44 - "Image Upload + Path-Safety"
+Cohesion: 0.17
+Nodes (11): avatar, Badge(), badgeVariants, Button(), buttonVariants, contentVariants, Drawer(), overlayVariants (+3 more)
 
-### Community 55 - "Community 55"
-Cohesion: 0.25
-Nodes (7): CASCADE_SKIP_STATUSES, cascadeDependencyFailure(), wouldCreateCycle(), applyFailure(), applySuccess(), applyVerificationFailure(), OutcomeDeps
+### Community 45 - "Task Messages Schema"
+Cohesion: 0.12
+Nodes (15): blockers, children, event, eventData, insertRunningAgentRun(), insertRunningTask(), manifestPath, memDb (+7 more)
 
-### Community 56 - "Community 56"
-Cohesion: 0.21
-Nodes (13): insertMessage(), getOrchestrator(), answerQuestion(), EmptyMessageBodyError, fetchMessage(), MappedMessage, mapTaskMessageRow(), MessageBodyTooLongError (+5 more)
+### Community 46 - "MapTask Test"
+Cohesion: 0.17
+Nodes (11): ALLOWED_MIME_TYPES, cleanupUnusedImages(), handleImageUpload(), isValidPathSegment(), MIME_TO_EXT, fd, { handleImageUpload }, invalid (+3 more)
 
-### Community 57 - "Community 57"
-Cohesion: 0.15
-Nodes (15): board, BoardRow, col, ColumnRow, getBoard(), getColumn(), getTaskRow(), insertTask() (+7 more)
+### Community 47 - "Task Dependencies + Subtasks Tests"
+Cohesion: 0.18
+Nodes (10): setConfig(), setOrchestrator(), startOrchestrator(), getUploadDir(), PROJECT_ROOT, installOrchestratorStub(), sweepOrphanAgentStateDirs(), cleanupTempUploads() (+2 more)
 
-### Community 58 - "Community 58"
-Cohesion: 0.21
-Nodes (6): expandTilde(), shellEscape(), slugify(), TaskForWorkspace, WorkspaceManager, WorkspaceResult
-
-### Community 59 - "Community 59"
+### Community 48 - "SSE Subscription Runtime"
 Cohesion: 0.2
 Nodes (14): AuthContext, AuthUser, getAuthContext(), mapUserRow(), requireAuth(), requireSuperAdmin(), UserRow, isDockerNetwork() (+6 more)
 
-### Community 60 - "Community 60"
-Cohesion: 0.19
-Nodes (13): ALL_STATUSES, ALLOWED, BlockReason, IllegalLifecycleEdgeError, isAllowedEdge(), isValidStatus(), TaskStatus, LifecycleEvent (+5 more)
-
-### Community 61 - "Community 61"
-Cohesion: 0.12
-Nodes (16): Architecture, Authentication, Available Commands, code:block1 (┌──────────────────────────────────────────────────────┐), code:block2 (hiveboard/), code:bash (# ── GitHub Auth (required — choose one) ───────────────), Contributing, Environment Setup (+8 more)
-
-### Community 62 - "Community 62"
-Cohesion: 0.25
-Nodes (11): ClusterRow(), eventDescription(), eventGroupKey(), eventIcon(), EventRow(), flush(), groupConsecutiveEvents(), parseData() (+3 more)
-
-### Community 63 - "Community 63"
+### Community 49 - "Playbook UI Types"
 Cohesion: 0.16
-Nodes (9): NDJSONCallback, NDJSONLineParser, NDJSONParseErrorCallback, NDJSONParserOptions, TEXT_ENCODER, byteSizes, events, parser (+1 more)
+Nodes (14): DbRow, getCurrentQuestion(), listMessagesForTask(), mapMessageRow(), markMessagesDelivered(), MessageAuthorType, MessageKind, TaskMessageRow (+6 more)
 
-### Community 64 - "Community 64"
+### Community 50 - "Markdown Editor + Preview"
+Cohesion: 0.21
+Nodes (6): expandTilde(), shellEscape(), slugify(), TaskForWorkspace, WorkspaceManager, WorkspaceResult
+
+### Community 51 - "Events Test"
 Cohesion: 0.16
 Nodes (12): HexColorSchema, PlaybookInput, VALID_TOOL_NAMES, validatePlaybookInput(), validateTargetBranch(), validateTargetRepo(), invalid, valid (+4 more)
 
-### Community 65 - "Community 65"
-Cohesion: 0.19
-Nodes (12): VerifyCommand, formatScratchpadSummary(), resolveCommands(), runVerificationCommand(), sanitizedEnv(), tailLines(), VerificationFailureContext, VerificationRunRecord (+4 more)
+### Community 52 - "NDJSON Line Parser"
+Cohesion: 0.16
+Nodes (9): NDJSONCallback, NDJSONLineParser, NDJSONParseErrorCallback, NDJSONParserOptions, TEXT_ENCODER, byteSizes, events, parser (+1 more)
 
-### Community 66 - "Community 66"
-Cohesion: 0.19
-Nodes (12): DbRow, insertVerificationRun(), listFailingRunsForAgentRun(), listVerificationRunsForTask(), mapVerificationRunRow(), VerificationRunRow, db, first (+4 more)
+### Community 53 - "Project Docs (Overview/API/Arch)"
+Cohesion: 0.2
+Nodes (12): ALL_STATUSES, ALLOWED, BlockReason, IllegalLifecycleEdgeError, isAllowedEdge(), isValidStatus(), TaskStatus, LifecycleEvent (+4 more)
 
-### Community 67 - "Community 67"
+### Community 54 - "Playbook Tools Test"
+Cohesion: 0.27
+Nodes (11): ClusterRow(), eventDescription(), eventGroupKey(), eventIcon(), EventRow(), flush(), groupConsecutiveEvents(), parseData() (+3 more)
+
+### Community 55 - "Introspection Test"
+Cohesion: 0.14
+Nodes (8): activeDisposers, BACKOFF_INTERVALS, ConnectionState, ConnectionStateListener, ConnectionStateManager, ReconnectCallback, reconnectCallbacks, sseClient
+
+### Community 56 - "Failure Cascade + Retry"
 Cohesion: 0.14
 Nodes (13): board, boards, col, columns, comments, events, expected, freshDb (+5 more)
 
-### Community 68 - "Community 68"
-Cohesion: 0.16
-Nodes (10): peerIPs, setPeerIP(), cleanExpiredSessions(), generateSecureToken(), UserRow, allowedOrigins, apiPort, orchestrator (+2 more)
-
-### Community 69 - "Community 69"
+### Community 57 - "Agent Run Log UI"
 Cohesion: 0.14
-Nodes (13): Authentication, Available Commands, code:bash (# ── GitHub Auth (required — choose one) ───────────────), Contributing, Environment Setup, Feature highlights, HiveBoard, Invitations (+5 more)
+Nodes (10): getBoard(), addedCalls, board, col, commentId, ctx, spy, taskId (+2 more)
 
-### Community 70 - "Community 70"
+### Community 58 - "Board Drag-and-Drop"
+Cohesion: 0.3
+Nodes (12): capRow(), CheckpointKind, firstBlockOfType(), firstTextBlock(), summarizeAssistant(), summarizeError(), summarizeEvent(), summarizeToolResult() (+4 more)
+
+### Community 59 - "Pre-spawn Plan Module"
+Cohesion: 0.22
+Nodes (12): checkpointsSupported(), AgentResult, buildClaudeArgs(), buildScrubPairs(), PreviousAttemptReplay, runAgent(), RunAgentOptions, TaskForAgent (+4 more)
+
+### Community 60 - "Validation: Repo/Branch/Playbook"
+Cohesion: 0.3
+Nodes (12): buildOAuthStateCookie(), clearOAuthStateCookieHeader(), DecodedState, generateOAuthState(), getSecret(), hmac(), randomHex(), readOAuthStateCookie() (+4 more)
+
+### Community 61 - "Agent Env + Secret Envelope"
+Cohesion: 0.26
+Nodes (11): buildPromptContext(), CONTINUATION_PROMPT, renderPrompt(), RenderPromptResolver, buildPlaybookTemplate(), renderPlaybookPrompt(), RenderPlaybookPromptInput, loadPromptPartials() (+3 more)
+
+### Community 62 - "OAuth State CSRF"
 Cohesion: 0.14
-Nodes (14): 3. Mutations, `answerQuestion(taskId: ID!, body: String!): TaskMessage!`, `archivePlaybook(id: ID!): Playbook!` / `unarchivePlaybook(id: ID!): Playbook!`, Bidirectional channel (Spec B), `createPlaybook(input: CreatePlaybookInput!): Playbook!`, `generateInvitation(githubUsername: String!): Invitation!`, Invitations & revocation, Playbooks (Spec F) (+6 more)
+Nodes (14): 3. Mutations, `answerQuestion(taskId: ID!, body: String!): TaskMessage!`, Bidirectional channel (Spec B), `createTag(input: CreateTagInput!): Tag!`, `deleteTag(id: ID!, boardId: ID!): Boolean!`, `generateInvitation(githubUsername: String!): Invitation!`, Invitations & revocation, `revokeUser(userId: ID!): User!` (+6 more)
 
-### Community 71 - "Community 71"
+### Community 63 - "Lifecycle Module"
 Cohesion: 0.15
-Nodes (10): after, before, board, column, fakeGh, ghThatThrows, id, row (+2 more)
+Nodes (12): args, env, events, fmtIdx, GIT_IDENTITY, MIN_CONFIG, parser, rows (+4 more)
 
-### Community 72 - "Community 72"
-Cohesion: 0.24
-Nodes (7): addDependencyEdge(), selectSchedulableTasks(), seedParent(), pick, seedChain(), rows, seed()
-
-### Community 73 - "Community 73"
-Cohesion: 0.31
-Nodes (11): buildOAuthStateCookie(), clearOAuthStateCookieHeader(), DecodedState, generateOAuthState(), getSecret(), hmac(), randomHex(), readOAuthStateCookie() (+3 more)
-
-### Community 74 - "Community 74"
-Cohesion: 0.33
-Nodes (11): capRow(), firstBlockOfType(), firstTextBlock(), summarizeAssistant(), summarizeError(), summarizeEvent(), summarizeToolResult(), summarizeToolUse() (+3 more)
-
-### Community 75 - "Community 75"
+### Community 64 - "PubSub Comment Topics"
 Cohesion: 0.22
 Nodes (10): addComment(), CommentDepthError, CommentNotFoundError, CommentRow, deleteComment(), fetchTaskEventForPublish(), mapCommentRow(), MappedComment (+2 more)
 
-### Community 76 - "Community 76"
+### Community 65 - "Dependency DB Tests"
 Cohesion: 0.15
 Nodes (12): Capability Gating (Spec G), code:bash (claude --help | grep stream-json     # should print a line; ), code:ts (process.on('SIGTERM', async () => {), Cross-References, Feature Flags and Escape Hatches, Graceful Shutdown, Maintainer Guide, Module Responsibility Table (+4 more)
 
-### Community 77 - "Community 77"
-Cohesion: 0.17
-Nodes (5): UserRow, resolvers, INTROSPECTION_QUERY, json, yoga
-
-### Community 78 - "Community 78"
+### Community 66 - "Subtasks Manifest"
 Cohesion: 0.17
 Nodes (11): ComboboxInputBaseProps, ComboboxInputProps, ComboboxOption, FieldErrorProps, FieldLabelProps, SelectInputProps, SelectOption, SelectOptionGroup (+3 more)
 
-### Community 79 - "Community 79"
-Cohesion: 0.23
-Nodes (8): handleSubmit(), KIND_LABEL, KIND_STYLE, KindStyle, reset(), sendAnswer(), sendHint(), sendRedirect()
-
-### Community 80 - "Community 80"
-Cohesion: 0.27
-Nodes (10): checkpointsSupported(), AgentResult, buildClaudeArgs(), buildScrubPairs(), runAgent(), RunAgentOptions, TaskForAgent, Checkpoint (+2 more)
-
-### Community 81 - "Community 81"
-Cohesion: 0.26
-Nodes (6): getUploadDir(), PROJECT_ROOT, sweepOrphanAgentStateDirs(), cleanupTempUploads(), runCleanupTick(), startCleanupInterval()
-
-### Community 82 - "Community 82"
+### Community 67 - "GitHub OAuth Web Flow"
 Cohesion: 0.17
 Nodes (12): 2. Queries, Auth, users, and invitations, `authConfig: AuthConfig!`, `invitations: [Invitation!]!`, `me: User!`, `playbooks: [Playbook!]!`, Playbooks (Spec F), Progress & workspace snapshots (Spec D) (+4 more)
 
-### Community 83 - "Community 83"
-Cohesion: 0.2
-Nodes (9): App(), root, authCallbackRoute, boardSettingsRoute, homeRoute, playbooksRoute, rootRoute, router (+1 more)
+### Community 68 - "ComboboxInput Component"
+Cohesion: 0.18
+Nodes (10): colNames, cols, id, invitation, InvitationRow, session, SessionRow, user (+2 more)
 
-### Community 84 - "Community 84"
-Cohesion: 0.29
-Nodes (7): listBlockers(), listDependents(), removeDependencyEdge(), sameBoard(), unresolvedBlockerCount(), [idA, idB], kids
-
-### Community 85 - "Community 85"
+### Community 69 - "DB Schema/Seed + Playbook Tests"
 Cohesion: 0.18
 Nodes (10): args, big, cp, decoded, edit, emojiCmd, encoded, evt (+2 more)
 
-### Community 86 - "Community 86"
-Cohesion: 0.22
-Nodes (9): PlaybookVersion, mergePlaybookDefaultsIntoTask(), parseDefaults(), PlaybookDefaults, names, pb, row, t1 (+1 more)
+### Community 70 - "Secrets Init + KEK"
+Cohesion: 0.24
+Nodes (9): peerIPs, setPeerIP(), handleImageServe(), allowedOrigins, apiPort, fetch(), orchestrator, webPort (+1 more)
 
-### Community 87 - "Community 87"
-Cohesion: 0.18
-Nodes (11): 6. Enums, `AgentStatus`, `BlockReason` (Spec B/E), code:graphql (enum AgentStatus {), code:graphql (enum BlockReason {), code:graphql (enum MessageKind {), code:graphql (enum MessageAuthorType {), code:graphql (enum ProgressStatus {) (+3 more)
-
-### Community 88 - "Community 88"
+### Community 71 - "Message Service Mutations"
 Cohesion: 0.18
 Nodes (11): 7. Input Types, code:graphql (input CreateTaskInput {), code:graphql (input UpdateTaskInput {), code:graphql (input CreateTagInput {), code:graphql (input VerifyCommandInput {), code:graphql (input CreatePlaybookInput {), `CreatePlaybookInput` & `UpdatePlaybookInput` (Spec F), `CreateTagInput` (+3 more)
 
-### Community 89 - "Community 89"
-Cohesion: 0.27
-Nodes (9): PreviousAttemptReplay, plan(), taskSubset(), PrespawnDeps, PrespawnResult, RequiredSecretMeta, SpawnPlan, SpawnPlanCommits (+1 more)
+### Community 72 - "Comment Models + Props"
+Cohesion: 0.18
+Nodes (11): 6. Enums, `AgentStatus`, `BlockReason` (Spec B/E), code:graphql (enum AgentStatus {), code:graphql (enum BlockReason {), code:graphql (enum MessageKind {), code:graphql (enum MessageAuthorType {), code:graphql (enum ProgressStatus {) (+3 more)
 
-### Community 90 - "Community 90"
-Cohesion: 0.29
-Nodes (8): DbRow, getCurrentQuestion(), listMessagesForTask(), mapMessageRow(), markMessagesDelivered(), MessageAuthorType, MessageKind, TaskMessageRow
-
-### Community 91 - "Community 91"
+### Community 73 - "Drawer Prop Types"
 Cohesion: 0.2
 Nodes (9): baseInput, iBody, iMessages, iProgress, iQuestion, iScratchpad, iSubtasks, out (+1 more)
 
-### Community 92 - "Community 92"
-Cohesion: 0.2
-Nodes (8): PromptContext, PromptInput, PreviousAttemptReplayForPrompt, VerificationFailureForPrompt, BASE, ctx, legacyShape, newShape
-
-### Community 93 - "Community 93"
-Cohesion: 0.24
-Nodes (6): LoadedWorkflow, loadWorkflow(), splitFrontMatter(), Config, setConfig(), startOrchestrator()
-
-### Community 94 - "Community 94"
-Cohesion: 0.36
-Nodes (8): publishAgentLog(), publishCheckpointAdded(), publishCommentAdded(), publishScratchpadUpdated(), publishTaskEvent(), publishTaskMissingSecretsChanged(), publishTaskProgress(), publishVerificationRun()
-
-### Community 95 - "Community 95"
+### Community 75 - "Task Dependencies UI"
 Cohesion: 0.2
 Nodes (9): Action: implement, Action: plan, Action: revise, code:block1 ({{ output }}), {{ label }} — exit {{ exit_code }}, Previous attempt replay, Review Comments to Address, Secrets available for this task (+1 more)
 
-### Community 97 - "Community 97"
+### Community 76 - "Task Secrets UI"
 Cohesion: 0.22
 Nodes (8): col, cols, db, idx, names, pks, row, rows
 
-### Community 98 - "Community 98"
+### Community 77 - "Playbooks Page"
 Cohesion: 0.22
-Nodes (7): TaskForPrompt, out, TASK, TEMPLATE, out, TASK, TEMPLATE
+Nodes (7): TaskForPrompt, body, out, TASK, out, TASK, TEMPLATE
 
-### Community 99 - "Community 99"
-Cohesion: 0.36
-Nodes (4): extractPlanFromOutput(), parsePlanText(), blob, raw
-
-### Community 100 - "Community 100"
+### Community 78 - "DB Foreign Key Tests"
 Cohesion: 0.22
-Nodes (9): 1. Add a DB column, code:ts (// packages/api/src/db/schema.ts), code:ts (// packages/api/src/db/schema.ts), code:sql (UPDATE tasks SET block_reason = 'QUESTION'), code:graphql (type Task {), Step 1 --- Add to `schema.ts`, Step 2 --- Add idempotent migration, Step 3 --- Expose in GraphQL schema (+1 more)
+Nodes (8): [0.2.19] and earlier, Added, Changed, Changelog, Fixed, Security, [Unreleased], Upgrade notes
 
-### Community 101 - "Community 101"
+### Community 79 - "Secret Set + Encrypt"
 Cohesion: 0.22
 Nodes (9): `agent.*` (Spec A), code:yaml (agent:), code:yaml (verify:), code:yaml (progress:), code:yaml (scheduler:), Config Reference (WORKFLOW.md front matter), `progress.*` (Spec D), `scheduler.*` (Spec E) (+1 more)
 
-### Community 102 - "Community 102"
+### Community 80 - "Secret Resolution"
 Cohesion: 0.22
 Nodes (9): "Agent timed out but didn't BLOCK", "Auto-REVISE loop exhausted", "Checkpoint replay missing for a retry", code:bash (printenv HIVEBOARD_SECRETS_KEY | head -c 8), code:graphql (query { task(id: "...") { missingSecrets requiredSecrets } }), code:sql (SELECT COUNT(*) FROM agent_run_checkpoints), Operational Runbooks, "Playbook version history grew large" (+1 more)
 
-### Community 103 - "Community 103"
+### Community 81 - "Comment CRUD Events"
+Cohesion: 0.22
+Nodes (9): 1. Add a DB column, code:ts (// packages/api/src/db/schema.ts), code:ts (// packages/api/src/db/schema.ts), code:sql (UPDATE tasks SET block_reason = 'QUESTION'), code:graphql (type Task {), Step 1 --- Add to `schema.ts`, Step 2 --- Add idempotent migration, Step 3 --- Expose in GraphQL schema (+1 more)
+
+### Community 82 - "Periodic Cleanup Tick"
 Cohesion: 0.25
-Nodes (7): formatVerificationFailureForAgent(), loadVerificationFailures(), LoadVerificationFailuresResult, VerificationFailureForAgent, ctx, FAIL_RUN, trick
+Nodes (4): KIND_LABEL, KIND_STYLE, KindStyle, MessageBubble()
 
-### Community 104 - "Community 104"
-Cohesion: 0.28
-Nodes (7): listUndeliveredHumanMessages(), escapeMustacheSyntax(), DELIVERABLE_KINDS, DeliverableKind, loadUndeliveredMessages(), LoadUndeliveredMessagesResult, PromptMessage
-
-### Community 105 - "Community 105"
-Cohesion: 0.32
-Nodes (4): computeTransitiveDependents(), DEPENDENCY_ERROR_CODES, TaskDependencies(), useMemoSyncBlockers()
-
-### Community 107 - "Community 107"
+### Community 83 - "SSE Ping"
 Cohesion: 0.25
 Nodes (6): after1, after2, cols, db, row, setup()
 
-### Community 108 - "Community 108"
+### Community 84 - "Message GraphQL Mutations"
+Cohesion: 0.25
+Nodes (6): wouldCreateCycle(), affected, first, row, rows, second
+
+### Community 85 - "Playbook Form Validation"
 Cohesion: 0.25
 Nodes (6): errors, firstSixtyToolUses, lastTwenty, out, rows, turns
 
-### Community 109 - "Community 109"
+### Community 86 - "Board Store + Drawer State"
 Cohesion: 0.25
 Nodes (6): RunAgentMessage, BASE_TASK, FIXTURE_DIR, messages, out, WORKFLOW_PATH
 
-### Community 110 - "Community 110"
+### Community 87 - "Verification Run UI Types"
 Cohesion: 0.25
 Nodes (8): code:ts (export const db = new Database(dbPath)), Database Notes, Migration approach, Schema changes introduced by Specs A-H, Seeded data, SQLite WAL mode, Task positions, ULID generation
 
-### Community 111 - "Community 111"
+### Community 88 - "AgentStatusBadge"
 Cohesion: 0.25
 Nodes (8): 2. Add a GraphQL mutation, 3. Add a subscription, 4. Add a config field, 5. Add an agent action, 6. Add a web component, 7. Swap agent runtime, code:ts (Mutation: {), How-To Recipes
 
-### Community 112 - "Community 112"
+### Community 89 - "TaskVerification UI"
 Cohesion: 0.25
 Nodes (8): `agentRuns(taskId: ID!): [AgentRun!]!`, `board(id: ID!): Board`, `boards: [Board!]!`, Boards, tasks, and events, `comments(taskId: ID!): [Comment!]!`, `tags(boardId: ID!): [Tag!]!`, `task(id: ID!): Task`, `taskTimeline(taskId: ID!): [TaskEvent!]!`
 
-### Community 113 - "Community 113"
+### Community 90 - "TaskTimeBox UI"
 Cohesion: 0.33
 Nodes (5): ALLOWED_TYPES, useImageUpload(), UseImageUploadOptions, TaskDrawer(), resizeImage()
 
-### Community 114 - "Community 114"
+### Community 91 - "Playbook Version List"
 Cohesion: 0.29
-Nodes (6): askpass, client, dir, hosts, origEnv, tokenDir
+Nodes (6): usePlaybooks(), UsePlaybooksResult, PlaybooksPage(), agentDot, AgentPanel(), agentStatusColor()
 
-### Community 115 - "Community 115"
-Cohesion: 0.29
-Nodes (5): chunks, { readable }, { readable, getPingTimer }, reader, upstream
-
-### Community 116 - "Community 116"
-Cohesion: 0.29
-Nodes (5): affected, first, row, rows, second
-
-### Community 117 - "Community 117"
+### Community 92 - "Users Admin Page"
 Cohesion: 0.29
 Nodes (6): col, cols, db, idx, names, rows
 
-### Community 118 - "Community 118"
-Cohesion: 0.29
-Nodes (6): db, id, q, rows, setup(), undelivered
-
-### Community 119 - "Community 119"
+### Community 93 - "Login Button + OAuth URL"
 Cohesion: 0.29
 Nodes (6): db, PB, pbs, PV, rows, v
 
-### Community 120 - "Community 120"
+### Community 94 - "Orchestrator Singleton"
+Cohesion: 0.29
+Nodes (6): askpass, client, dir, hosts, origEnv, tokenDir
+
+### Community 95 - "Playbook Defaults Merge"
+Cohesion: 0.29
+Nodes (5): chunks, { readable }, { readable, getPingTimer }, reader, upstream
+
+### Community 96 - "Shell-metachar Input Validation"
 Cohesion: 0.29
 Nodes (4): PARTIALS_DIR, a, b, partials
 
-### Community 121 - "Community 121"
+### Community 97 - "Playbook Tool Allowlist"
 Cohesion: 0.29
 Nodes (6): ctx, empty, full, off, on, TASK
 
-### Community 122 - "Community 122"
-Cohesion: 0.29
-Nodes (7): Build from source, code:bash (docker pull ghcr.io/boengai/hiveboard:latest), code:yaml (services:), code:bash (docker compose up --build    # build and start), Docker, Pull from GHCR, Run with Docker Compose
+### Community 98 - "Secrets Module Surface"
+Cohesion: 0.43
+Nodes (4): extractPlanFromOutput(), parsePlanText(), blob, raw
 
-### Community 123 - "Community 123"
+### Community 99 - "Services Barrel"
 Cohesion: 0.29
-Nodes (7): Build from source, code:bash (docker pull ghcr.io/boengai/hiveboard:latest), code:yaml (services:), code:bash (docker compose up --build    # build and start), Docker, Pull from GHCR, Run with Docker Compose
+Nodes (6): code:block1 (transition({ taskId, to, blockReason?, event: { type, actor,), code:block2 (plan(task, deps) → { kind: 'ok', plan: SpawnPlan }), HiveBoard — Domain Language, Outcome, Pre-spawn / Post-exit Pipeline, Task Lifecycle
 
-### Community 124 - "Community 124"
+### Community 100 - "Drawer Variants"
 Cohesion: 0.29
 Nodes (6): 1. Endpoint Info, 4. Subscriptions, 8. Error Codes, 9. PubSub Channels (Internal Reference), Helper functions (exported from `pubsub.ts`), HiveBoard API Reference
 
-### Community 125 - "Community 125"
+### Community 101 - "SelectInput Types"
 Cohesion: 0.29
 Nodes (7): `archiveTask(id: ID!): Task!`, Boards, tasks, and columns, `createBoard(name: String!): Board!`, `createTask(input: CreateTaskInput!): Task!`, `moveTask(id: ID!, columnId: ID!, position: Float!): Task!`, `unarchiveTask(id: ID!): Task!`, `updateTask(id: ID!, input: UpdateTaskInput!): Task!`
 
-### Community 126 - "Community 126"
-Cohesion: 0.47
-Nodes (3): handleCreate(), handleKeyDown(), selectOption()
-
-### Community 127 - "Community 127"
+### Community 102 - "Task Form Schema"
 Cohesion: 0.33
-Nodes (5): buildClaudeArgsForTest(), args, CONFIG, idx, noTools
+Nodes (5): col, cols, db, idx, names
 
-### Community 128 - "Community 128"
+### Community 103 - "TaskMessage Types"
 Cohesion: 0.33
-Nodes (5): byName, cols, db, idx, rows
+Nodes (5): names, pb, row, t1, t2
 
-### Community 129 - "Community 129"
-Cohesion: 0.33
-Nodes (5): cols, db, idx, names, row
-
-### Community 130 - "Community 130"
+### Community 104 - "Color Hash Utils"
 Cohesion: 0.4
 Nodes (4): decideOutcome(), Outcome, OutcomeSignals, out
 
-### Community 131 - "Community 131"
-Cohesion: 0.4
-Nodes (4): dispose, events, Disposer, watchScratchpad()
+### Community 105 - "Tailwind Variant Helpers"
+Cohesion: 0.47
+Nodes (3): detectCheckpointSupport(), _setCheckpointSupportForTest(), SpawnLike
 
-### Community 132 - "Community 132"
-Cohesion: 0.33
-Nodes (6): `addTaskDependency(taskId: ID!, blockerId: ID!): Task!`, Dependencies, time-boxing, and kill (Spec E), `extendTimeBox(taskId: ID!, additionalMs: Int!): Task!`, `killTask(taskId: ID!): Task!`, `removeTaskDependency(taskId: ID!, blockerId: ID!): Task!`, `setTimeBox(taskId: ID!, timeBoxMs: Int): Task!`
-
-### Community 133 - "Community 133"
+### Community 106 - "Cluster 106"
 Cohesion: 0.33
 Nodes (6): `deleteBoardSecret(boardId: ID!, name: String!): Boolean!`, `deleteTaskSecret(taskId: ID!, name: String!): Boolean!`, Secrets (Spec H), `setBoardSecret(boardId: ID!, name: String!, value: String!, description: String): BoardSecret!`, `setTaskRequiredSecrets(taskId: ID!, names: [String!]!): Task!`, `setTaskSecret(taskId: ID!, name: String!, value: String!): TaskSecret!`
 
-### Community 134 - "Community 134"
-Cohesion: 0.5
-Nodes (4): AbortableRunState, dispatchHumanMessage(), HumanMessageDeps, appendToInbox()
+### Community 107 - "Cluster 107"
+Cohesion: 0.33
+Nodes (6): `addTaskDependency(taskId: ID!, blockerId: ID!): Task!`, Dependencies, time-boxing, and kill (Spec E), `extendTimeBox(taskId: ID!, additionalMs: Int!): Task!`, `killTask(taskId: ID!): Task!`, `removeTaskDependency(taskId: ID!, blockerId: ID!): Task!`, `setTimeBox(taskId: ID!, timeBoxMs: Int): Task!`
 
-### Community 135 - "Community 135"
+### Community 108 - "Cluster 108"
 Cohesion: 0.4
-Nodes (5): Actions, code:block8 (┌──────────┐), How Agents Work, Human Gates, Task State Machine
+Nodes (4): BASE, ctx, legacyShape, newShape
 
-### Community 136 - "Community 136"
+### Community 109 - "Cluster 109"
 Cohesion: 0.4
-Nodes (5): Actions, code:block8 (┌──────────┐), How Agents Work, Human Gates, Task State Machine
+Nodes (4): PromptContext, PromptInput, PreviousAttemptReplayForPrompt, VerificationFailureForPrompt
 
-### Community 137 - "Community 137"
+### Community 110 - "Cluster 110"
 Cohesion: 0.4
 Nodes (5): code:bash (bun test                                       # all), Conventions, macOS test suite, Running tests, Testing
 
-### Community 138 - "Community 138"
+### Community 111 - "Cluster 111"
 Cohesion: 0.5
 Nodes (3): Playbook, PlaybookUser, PlaybookVersion
 
-### Community 140 - "Community 140"
+### Community 113 - "Cluster 113"
 Cohesion: 0.5
 Nodes (3): jsonObjectString, playbookFormSchema, PlaybookFormValues
 
-### Community 141 - "Community 141"
+### Community 114 - "Cluster 114"
 Cohesion: 0.5
-Nodes (3): body, out, TASK
+Nodes (3): cols, db, names
 
-### Community 142 - "Community 142"
+### Community 115 - "Cluster 115"
 Cohesion: 0.5
-Nodes (4): code:bash (git clone https://github.com/boengai/hiveboard.git), Install and run, Prerequisites, Quick Start
+Nodes (3): out, TASK, TEMPLATE
 
-### Community 143 - "Community 143"
-Cohesion: 0.5
-Nodes (4): code:bash (git clone https://github.com/boengai/hiveboard.git), Install and run, Prerequisites, Quick Start
-
-### Community 144 - "Community 144"
-Cohesion: 0.5
-Nodes (3): graphify, graphify, graphify
-
-### Community 145 - "Community 145"
+### Community 116 - "Cluster 116"
 Cohesion: 0.5
 Nodes (4): `addComment(taskId: ID!, body: String!, parentId: ID): Comment!`, Comments, `deleteComment(id: ID!): Boolean!`, `updateComment(id: ID!, body: String!): Comment!`
 
-### Community 146 - "Community 146"
+### Community 117 - "Cluster 117"
+Cohesion: 0.5
+Nodes (4): `archivePlaybook(id: ID!): Playbook!` / `unarchivePlaybook(id: ID!): Playbook!`, `createPlaybook(input: CreatePlaybookInput!): Playbook!`, Playbooks (Spec F), `updatePlaybook(id: ID!, input: UpdatePlaybookInput!): Playbook!`
+
+### Community 118 - "Cluster 118"
 Cohesion: 0.5
 Nodes (4): Agent dispatch & control, `cancelAgent(taskId: ID!): Task!`, `continueFailedTask(taskId: ID!, instruction: String): Task!` (Spec G), `runAgent(taskId: ID!, action: String!, instruction: String): Task!`
 
-### Community 147 - "Community 147"
-Cohesion: 0.5
-Nodes (4): `createTag(input: CreateTagInput!): Tag!`, `deleteTag(id: ID!, boardId: ID!): Boolean!`, `setTaskTags(taskId: ID!, tagIds: [ID!]!): Task!`, Tags
-
-### Community 148 - "Community 148"
+### Community 119 - "Cluster 119"
 Cohesion: 0.5
 Nodes (3): Answer, Q: Why does Orchestrator connect 7 communities (post-prune2)?, Source Nodes
 
-### Community 149 - "Community 149"
+### Community 120 - "Cluster 120"
 Cohesion: 0.5
 Nodes (3): Answer, Q: Why does handleImageUpload bridge Orchestrator Core and Checkpoint Replay?, Source Nodes
 
-### Community 150 - "Community 150"
+### Community 121 - "Cluster 121"
 Cohesion: 0.5
 Nodes (3): Answer, Q: Why does Orchestrator connect Auth to Lifecycle, GraphQL Resolvers, Web App Shell, Domain Models?, Source Nodes
 
-### Community 159 - "Community 159"
-Cohesion: 0.67
-Nodes (3): Architecture, code:block1 (┌──────────────────────────────────────────────────────┐), code:block2 (hiveboard/)
-
-### Community 160 - "Community 160"
+### Community 129 - "Cluster 129"
 Cohesion: 0.67
 Nodes (3): CI order, CI Scripts, code:bash (bun install)
 
 ## Knowledge Gaps
-- **1164 isolated node(s):** `env`, `root`, `rootRoute`, `homeRoute`, `authCallbackRoute` (+1159 more)
+- **1059 isolated node(s):** `env`, `root`, `rootRoute`, `homeRoute`, `authCallbackRoute` (+1054 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **19 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createTables()` connect `Community 34` to `Community 128`, `Community 1`, `Community 129`, `Community 10`, `Community 13`, `Community 14`, `Community 17`, `Community 19`, `Community 21`, `Community 23`, `Community 25`, `Community 28`, `Community 30`, `Community 33`, `Community 36`, `Community 37`, `Community 38`, `Community 41`, `Community 42`, `Community 44`, `Community 45`, `Community 46`, `Community 48`, `Community 49`, `Community 50`, `Community 52`, `Community 54`, `Community 57`, `Community 66`, `Community 67`, `Community 71`, `Community 72`, `Community 84`, `Community 86`, `Community 97`, `Community 107`, `Community 116`, `Community 117`, `Community 118`, `Community 119`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
-- **Why does `generateId()` connect `Community 14` to `Community 1`, `Community 10`, `Community 13`, `Community 16`, `Community 17`, `Community 18`, `Community 23`, `Community 25`, `Community 28`, `Community 30`, `Community 33`, `Community 37`, `Community 38`, `Community 39`, `Community 40`, `Community 41`, `Community 42`, `Community 43`, `Community 44`, `Community 46`, `Community 48`, `Community 49`, `Community 50`, `Community 51`, `Community 52`, `Community 56`, `Community 57`, `Community 66`, `Community 67`, `Community 71`, `Community 75`, `Community 80`, `Community 86`, `Community 90`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
-- **Why does `decideOutcome()` connect `Community 130` to `Community 39`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
-- **Are the 38 inferred relationships involving `generateId()` (e.g. with `insertQueuedTask()` and `insertRunningTask()`) actually correct?**
-  _`generateId()` has 38 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 6 inferred relationships involving `createTables()` (e.g. with `seedDb()` and `setup()`) actually correct?**
-  _`createTables()` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 10 inferred relationships involving `getCurrentUser()` (e.g. with `insertTask()` and `insertComment()`) actually correct?**
-  _`getCurrentUser()` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `createTables()` connect `Task Messages DB` to `API Server Bootstrap + OAuth Routes`, `Orchestrator + Outcome Engine`, `Resolver Tests + DB Migrate`, `Pre-spawn Plan + Playbook Resolution`, `Task Drawer + Color Hashing`, `Task Comments + Composer`, `API Server + GitHub Client`, `Verify Pipeline + Verification Runs DB`, `Runner + Checkpoint Replay`, `Domain Models (Task/Board/Status)`, `Rate Limiter`, `Icon Family (Lucide-style)`, `Agent Runner + Checkpoint Capture`, `Pre-spawn Loaders + Mustache Escape`, `Verify-Gate Test Fixtures`, `Event Summarization`, `Playbook Run + E2E Tests`, `Secrets Encryption + KEK`, `Dependency DAG + Scheduler`, `Board Settings GraphQL Surface`, `Cancel Test`, `Comment Service`, `Architecture Concepts (Encryption/Playbook/Channel)`, `Task Messages Schema`, `Playbook UI Types`, `Failure Cascade + Retry`, `Agent Run Log UI`, `Lifecycle Module`, `ComboboxInput Component`, `Task Secrets UI`, `SSE Ping`, `Message GraphQL Mutations`, `Users Admin Page`, `Login Button + OAuth URL`, `Task Form Schema`, `TaskMessage Types`, `Cluster 114`?**
+  _High betweenness centrality (0.058) - this node is a cross-community bridge._
+- **Why does `generateId()` connect `Icon Family (Lucide-style)` to `Orchestrator + Outcome Engine`, `Resolver Tests + DB Migrate`, `Task Drawer + Color Hashing`, `Task Comments + Composer`, `API Server + GitHub Client`, `Common UI Primitives (Input/Icon)`, `Runner + Checkpoint Replay`, `Domain Models (Task/Board/Status)`, `Rate Limiter`, `Agent Runner + Checkpoint Capture`, `Pre-spawn Loaders + Mustache Escape`, `Event Summarization`, `Secrets Encryption + KEK`, `Outcome Decision + Time-box Tests`, `Subtasks + Scheduler Tests`, `Dependency DAG + Scheduler`, `Board Settings GraphQL Surface`, `Cancel Test`, `Secrets Init + Resolution`, `Task Messages Schema`, `MapTask Test`, `Playbook UI Types`, `Failure Cascade + Retry`, `Pre-spawn Plan Module`, `Lifecycle Module`, `PubSub Comment Topics`, `ComboboxInput Component`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Why does `decideOutcome()` connect `Color Hash Utils` to `Outcome Decision + Time-box Tests`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Are the 15 inferred relationships involving `generateId()` (e.g. with `insertTask()` and `insertComment()`) actually correct?**
+  _`generateId()` has 15 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `env`, `root`, `rootRoute` to the rest of the system?**
-  _1164 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1059 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `API Server Bootstrap + OAuth Routes` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+- **Should `Orchestrator + Outcome Engine` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
