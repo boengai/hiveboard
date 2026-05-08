@@ -20,14 +20,18 @@ import { seed } from '../src/db/seed'
 import { setOrchestrator } from '../src/orchestrator'
 import type { Orchestrator } from '../src/orchestrator/orchestrator'
 import { resolvers } from '../src/schema/resolvers'
-import { getCurrentUser, makeCtx } from './helpers/fixtures'
+import {
+  getBoard as getBoardRow,
+  getColumn as getColumnRow,
+  getCurrentUser,
+  insertTask as insertTaskShared,
+  makeCtx,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type BoardRow = { id: string }
-type ColumnRow = { id: string }
 type TaskRow = {
   id: string
   agent_status: string
@@ -43,35 +47,16 @@ type MessageRow = {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers (thin local wrappers over the shared `db` singleton)
 // ---------------------------------------------------------------------------
 
-function getBoard(): BoardRow {
-  return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-}
-
-function getColumn(boardId: string): ColumnRow {
-  return db
-    .query(
-      'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
-    )
-    .get(boardId) as ColumnRow
-}
-
-function insertTask(
+const getBoard = () => getBoardRow(db)
+const getColumn = (boardId: string) => getColumnRow(db, boardId)
+const insertTask = (
   boardId: string,
   columnId: string,
   agentStatus: 'idle' | 'queued' | 'running' | 'blocked' = 'idle',
-): string {
-  const user = getCurrentUser(db)
-  const id = generateId()
-  db.run(
-    `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by)
-     VALUES (?, ?, ?, ?, '', 0, ?, ?, ?)`,
-    [id, boardId, columnId, 'Test Task', agentStatus, user.id, user.id],
-  )
-  return id
-}
+) => insertTaskShared(db, { boardId, columnId, agentStatus })
 
 function insertQuestion(taskId: string, body: string): string {
   const id = generateId()

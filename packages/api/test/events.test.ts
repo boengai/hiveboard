@@ -3,20 +3,16 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
-import { getCurrentUser } from './helpers/fixtures'
+import {
+  getBoard,
+  getColumn,
+  getCurrentUser,
+  insertTask as insertTaskShared,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type BoardRow = {
-  id: string
-}
-
-type ColumnRow = {
-  id: string
-  name: string
-}
 
 type TaskRow = {
   id: string
@@ -37,33 +33,12 @@ type EventRow = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getBoard(db: Database): BoardRow {
-  return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-}
-
-function getColumn(db: Database, boardId: string, position = 0): ColumnRow {
-  return db
-    .query(
-      'SELECT id, name FROM columns WHERE board_id = ? ORDER BY position ASC',
-    )
-    .all(boardId)[position] as ColumnRow
-}
-
-function insertTask(
+const insertTask = (
   db: Database,
   boardId: string,
   columnId: string,
   title = 'Test Task',
-): string {
-  const user = getCurrentUser(db)
-  const id = generateId()
-  db.run(
-    `INSERT INTO tasks (id, board_id, column_id, title, body, position, created_by, updated_by)
-     VALUES (?, ?, ?, ?, '', 0, ?, ?)`,
-    [id, boardId, columnId, title, user.id, user.id],
-  )
-  return id
-}
+) => insertTaskShared(db, { boardId, columnId, title })
 
 function getEventsForTask(db: Database, taskId: string): EventRow[] {
   return db

@@ -14,41 +14,21 @@ import { migrate } from '../src/db/migrate'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { resolvers } from '../src/schema/resolvers'
-import { getCurrentUser, makeCtx } from './helpers/fixtures'
+import {
+  getBoard as getBoardRow,
+  getColumn as getColumnRow,
+  insertTask as insertTaskShared,
+  makeCtx,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
-// Types
+// Helpers (thin local wrappers that close over the shared `db` singleton)
 // ---------------------------------------------------------------------------
 
-type BoardRow = { id: string }
-type ColumnRow = { id: string }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getBoard(): BoardRow {
-  return db.query('SELECT id FROM boards LIMIT 1').get() as BoardRow
-}
-
-function getColumn(boardId: string): ColumnRow {
-  return db
-    .query(
-      'SELECT id FROM columns WHERE board_id = ? ORDER BY position ASC LIMIT 1',
-    )
-    .get(boardId) as ColumnRow
-}
-
-function insertTask(boardId: string, columnId: string): string {
-  const user = getCurrentUser(db)
-  const id = generateId()
-  db.run(
-    `INSERT INTO tasks (id, board_id, column_id, title, body, position, agent_status, created_by, updated_by)
-     VALUES (?, ?, ?, ?, '', 0, 'idle', ?, ?)`,
-    [id, boardId, columnId, 'Test Task', user.id, user.id],
-  )
-  return id
-}
+const getBoard = () => getBoardRow(db)
+const getColumn = (boardId: string) => getColumnRow(db, boardId)
+const insertTask = (boardId: string, columnId: string) =>
+  insertTaskShared(db, { boardId, columnId })
 
 // ---------------------------------------------------------------------------
 // Setup

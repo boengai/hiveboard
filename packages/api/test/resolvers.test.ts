@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
-import { getCurrentUser } from './helpers/fixtures'
+import { getCurrentUser, insertTask } from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,38 +49,6 @@ type CommentRow = {
 // ---------------------------------------------------------------------------
 // Helpers mirroring resolver logic
 // ---------------------------------------------------------------------------
-
-function insertTask(
-  db: Database,
-  opts: {
-    boardId: string
-    columnId: string
-    title: string
-    body?: string
-    action?: string | null
-    position?: number
-  },
-): string {
-  const user = getCurrentUser(db)
-  const id = generateId()
-  const position = opts.position ?? 0
-  db.run(
-    `INSERT INTO tasks (id, board_id, column_id, title, body, position, action, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      opts.boardId,
-      opts.columnId,
-      opts.title,
-      opts.body ?? '',
-      position,
-      opts.action ?? null,
-      user.id,
-      user.id,
-    ],
-  )
-  return id
-}
 
 // ---------------------------------------------------------------------------
 // Setup
