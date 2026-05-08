@@ -125,6 +125,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     title: String!
     body: String!
+    plan: String
     column: Column!
     position: Float!
     action: String
@@ -390,6 +391,7 @@ export const typeDefs = /* GraphQL */ `
   input UpdateTaskInput {
     title: String
     body: String
+    plan: String
     agentInstruction: String
     targetRepo: String
     targetBranch: String
