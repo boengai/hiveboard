@@ -73,28 +73,17 @@ export function parsePlanText(rawOutput: string): string {
 }
 
 /**
- * Merge the Claude CLI plan text into the task body. Returns null when the
- * output contains no recoverable plan — the body is left untouched in that
- * case rather than corrupted with raw event stream bytes.
+ * Pull the plan text out of a Claude CLI run. Returns null when no plan can
+ * be recovered (garbage output, empty result) — caller should leave the
+ * existing tasks.plan column untouched in that case.
  */
-export function extractPlanFromOutput(
-  rawOutput: string,
-  existingBody: string,
-): string | null {
+export function extractPlanFromOutput(rawOutput: string): string | null {
   const planText = parsePlanText(rawOutput).trim()
   if (!planText) {
     consola.warn(
-      'extractPlanFromOutput: no plan text recovered from CLI output; leaving task body unchanged.',
+      'extractPlanFromOutput: no plan text recovered from CLI output; leaving plan unchanged.',
     )
     return null
   }
-
-  const planSection = `## Implementation Plan\n\n${planText}`
-  const planRegex = /## Implementation Plan[\s\S]*$/
-  if (planRegex.test(existingBody)) {
-    return existingBody.replace(planRegex, planSection)
-  }
-  return existingBody
-    ? `${existingBody.trimEnd()}\n\n${planSection}`
-    : planSection
+  return planText
 }
