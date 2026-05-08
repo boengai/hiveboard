@@ -22,6 +22,7 @@ export type TaskForAgent = {
   id: string
   title: string
   body: string
+  plan: string | null
   action: string | null
   agentInstruction: string | null
   targetRepo: string | null

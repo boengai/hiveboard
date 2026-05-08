@@ -15,6 +15,7 @@ const BASE_TASK = {
   action: 'plan' as string | null,
   agentInstruction: 'Investigate observability',
   body: 'Add Prometheus metrics to the request handler.',
+  plan: null,
   id: '01HYX3KPQR000000000000000Z',
   prUrl: null,
   targetBranch: 'main',

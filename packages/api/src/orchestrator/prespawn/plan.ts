@@ -14,6 +14,7 @@ function taskSubset(task: TaskRow): TaskSubsetForRun {
     id: task.id,
     title: task.title,
     body: task.body,
+    plan: task.plan,
     action: task.action,
     agentInstruction: task.agent_instruction,
     targetRepo: task.target_repo,

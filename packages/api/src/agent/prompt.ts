@@ -15,6 +15,7 @@ export type TaskForPrompt = {
   id: string
   title: string
   body: string
+  plan: string | null
   action: string | null
   agentInstruction: string | null
   targetRepo: string | null
