@@ -4,6 +4,7 @@ const TASK_BOARD_FIELDS = /* GraphQL */ `
   id
   title
   body
+  plan
   position
   action
   agentInstruction

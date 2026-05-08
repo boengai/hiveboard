@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const taskFormSchema = z.object({
   agentInstruction: z.string(),
   body: z.string(),
+  plan: z.string(),
   tagIds: z.array(z.string()),
   targetBranch: z.string().min(1, 'Branch is required'),
   targetRepo: z.string().min(1, 'Repository is required'),

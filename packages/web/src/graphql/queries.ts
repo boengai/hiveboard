@@ -24,6 +24,7 @@ export const GET_BOARDS = /* GraphQL */ `
           id
           title
           body
+          plan
           position
           action
           agentInstruction
@@ -107,6 +108,7 @@ export const GET_BOARD = /* GraphQL */ `
           id
           title
           body
+          plan
           position
           action
           agentInstruction
@@ -164,6 +166,7 @@ export const GET_TASK = /* GraphQL */ `
       id
       title
       body
+      plan
       position
       action
       agentInstruction

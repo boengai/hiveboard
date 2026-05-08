@@ -132,6 +132,7 @@ export type Task = {
   id: string
   title: string
   body: string
+  plan: string | null
   position: number
   action: string | null
   agentInstruction: string | null

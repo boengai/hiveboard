@@ -197,6 +197,7 @@ const CreateMode = ({
     defaultValues: {
       agentInstruction: '',
       body: '## Description\n',
+      plan: '',
       tagIds: [] as string[],
       targetBranch: 'main',
       targetRepo: '',
@@ -525,6 +526,23 @@ const ViewMode = ({
       ) : (
         <p className="text-body-sm text-text-tertiary italic">No description</p>
       )}
+
+      {/* Plan (agent-generated, editable) */}
+      <div className="mt-4">
+        <h3 className="text-body-sm font-medium text-text-secondary mb-2">
+          Plan
+          <span className="text-text-tertiary font-normal ml-2">
+            (agent-generated)
+          </span>
+        </h3>
+        {task.plan ? (
+          <MarkdownPreview content={task.plan} />
+        ) : (
+          <p className="text-body-sm text-text-tertiary italic">
+            No plan yet — run the <code>plan</code> action to generate one.
+          </p>
+        )}
+      </div>
 
       {/* Timestamp */}
       <div className="flex items-center gap-1.5 text-body-xs text-text-tertiary">
@@ -856,6 +874,22 @@ const EditMode = ({
         )}
       </form.Field>
 
+      {/* Plan (agent-generated, editable) */}
+      <form.Field name="plan">
+        {(field) => (
+          <div className="flex flex-col gap-2">
+            <FieldLabel>Plan (agent-generated)</FieldLabel>
+            <MarkdownEditor
+              onChange={field.handleChange}
+              onImageUpload={onImageUpload}
+              rows={8}
+              uploading={uploading}
+              value={field.state.value}
+            />
+          </div>
+        )}
+      </form.Field>
+
       {/* Configuration section */}
       <div className="flex flex-col gap-3">
         <SectionLabel>Configuration</SectionLabel>
@@ -1119,6 +1153,7 @@ export const TaskDrawer = () => {
             input: {
               agentInstruction: values.agentInstruction || null,
               body: values.body,
+              plan: values.plan,
               tagIds: values.tagIds,
               targetBranch: values.targetBranch.trim() || null,
               targetRepo: values.targetRepo.trim() || null,
@@ -1252,6 +1287,7 @@ export const TaskDrawer = () => {
     ? {
         agentInstruction: task.agentInstruction ?? '',
         body: task.body ?? '',
+        plan: task.plan ?? '',
         tagIds: task.tags?.map((t) => t.id) ?? [],
         targetBranch: task.targetBranch ?? 'main',
         targetRepo: task.targetRepo ?? '',
