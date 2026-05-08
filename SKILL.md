@@ -75,7 +75,8 @@ query GetTask($id: ID!) {
   task(id: $id) {
     id
     title
-    body
+    body                     # requirement (human/agent-authored, never written by orchestrator)
+    plan                     # agent-generated plan from the `plan` action; also human-editable
     position
     action                   # "plan" | "implement" | "revise" | "playbook:<name>"
     agentInstruction
@@ -163,6 +164,7 @@ mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
     id
     title
     body
+    plan
     agentInstruction
     targetRepo
     targetBranch
@@ -170,7 +172,9 @@ mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) {
 }
 ```
 
-`action` is NOT part of `UpdateTaskInput` — use `runAgent` to set the action and trigger the agent. Required secrets and time-box are set via their own mutations (see below).
+`UpdateTaskInput` accepts: `title`, `body`, `plan`, `agentInstruction`, `targetRepo`, `targetBranch`, `tagIds`. `action` is NOT included — use `runAgent` to set the action and trigger the agent. Required secrets and time-box are set via their own mutations (see below).
+
+**`body` vs `plan`:** `body` holds the task requirement (human-written or authored by an external agent like hermes-agent — the orchestrator never writes it). `plan` is the artifact produced by the `plan` action and persisted on the task; it is also editable here for human refinement, but the next `plan` action run overwrites human edits. The agent prompt always sees `body + plan` concatenated, so consumers don't need to compose anything.
 
 ## Move a Task Between Columns
 
