@@ -32,6 +32,11 @@ import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/age
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import {
+  makeConfig as makeSharedConfig,
+  makeGitHubStub as makeSharedGitHubStub,
+  makeWorkspaceStub as makeSharedWorkspaceStub,
+} from './helpers/fixtures'
 import { listVerificationRunsForTask } from '../src/db/verification-runs'
 
 // ---------------------------------------------------------------------------
@@ -99,49 +104,19 @@ type TaskDbRow = {
 }
 
 function makeConfig(verifyOverrides: Record<string, unknown> = {}) {
-  return {
-    agent: {
-      max_concurrent_agents: 5,
-      max_retry_backoff_ms: 300_000,
-      state_root: stateRoot,
-    },
-    claude: {
-      allowed_tools: [],
-      command: 'claude',
-      max_turns: 5,
-      model: undefined,
-      permission_mode: undefined,
-    },
-    hooks: { timeout_ms: 5_000 },
-    polling: { interval_ms: 60_000 },
-    scheduler: { legacy_mode: false },
-    verify: {
-      commands: [],
-      enabled: true,
-      max_auto_revises: 1,
-      ...verifyOverrides,
-    },
-    workspace: { root: wsRoot, ttl_ms: 0 },
-  }
+  return makeSharedConfig(stateRoot, {
+    workspaceRoot: wsRoot,
+    verify: { commands: [], enabled: true, max_auto_revises: 1, ...verifyOverrides },
+  })
 }
 
 function makeGitHubStub() {
-  return {
-    fetchReviewComments: async () => [],
-    findPrByHead: async () => null,
-    getAccessToken: async () => 'fake-token',
-    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
-    getTokenDir: () => '/tmp/hiveboard-vg-tokens',
-  }
+  return makeSharedGitHubStub({ tokenDir: '/tmp/hiveboard-vg-tokens' })
 }
 
 /** Real workspace path so Bun.spawn cwd is valid */
 function makeWorkspaceStub(path: string) {
-  return {
-    createForTask: async () => ({ created: true, path }),
-    sweepExpired: async () => {},
-    ttlMs: 0,
-  }
+  return makeSharedWorkspaceStub({ path })
 }
 
 function getUser() {

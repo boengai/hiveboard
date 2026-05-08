@@ -30,6 +30,12 @@ import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/age
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import {
+  flushMicrotasks,
+  makeConfig,
+  makeGitHubStub,
+  makeWorkspaceStub,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // In-memory DB + filesystem setup
@@ -84,46 +90,6 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeConfig() {
-  return {
-    agent: {
-      max_concurrent_agents: 5,
-      max_retry_backoff_ms: 300_000,
-      state_root: stateRoot,
-    },
-    claude: {
-      allowed_tools: [],
-      command: 'claude',
-      max_turns: 5,
-      model: undefined,
-      permission_mode: undefined,
-    },
-    hooks: { timeout_ms: 5_000 },
-    polling: { interval_ms: 60_000 },
-    scheduler: { legacy_mode: false },
-    verify: { commands: [], enabled: false, max_auto_revises: 1 },
-    workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
-  }
-}
-
-function makeGitHubStub() {
-  return {
-    fetchReviewComments: async () => [],
-    findPrByHead: async () => null,
-    getAccessToken: async () => 'fake-token',
-    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
-    getTokenDir: () => '/tmp/hiveboard-tokens-test',
-  }
-}
-
-function makeWorkspaceStub() {
-  return {
-    createForTask: async () => ({ created: true, path: '/tmp/fake-workspace' }),
-    sweepExpired: async () => {},
-    ttlMs: 0,
-  }
-}
-
 function insertQueuedTask(): string {
   const user = memDb.query('SELECT id FROM users LIMIT 1').get() as {
     id: string
@@ -153,10 +119,6 @@ function writeQuestionFile(taskId: string, body: string): string {
   return p
 }
 
-async function flushMicrotasks(ms = 100) {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms))
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -166,7 +128,7 @@ describe('Orchestrator – BLOCKED on agent question', () => {
 
   beforeEach(() => {
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',

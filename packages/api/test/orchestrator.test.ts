@@ -30,6 +30,12 @@ import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
 import { calculateRetryDelay } from '../src/orchestrator/retry-policy'
+import {
+  flushMicrotasks,
+  makeConfig,
+  makeGitHubStub,
+  makeWorkspaceStub,
+} from './helpers/fixtures'
 
 // Unique tmp dir for this test suite's agent-state so readQuestion() doesn't
 // warn about undefined paths and so we don't collide with other test suites.
@@ -89,50 +95,6 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Build the minimal Config object the orchestrator needs. */
-function makeConfig(
-  overrides: { maxAgents?: number; maxRetryBackoffMs?: number } = {},
-) {
-  return {
-    agent: {
-      max_concurrent_agents: overrides.maxAgents ?? 5,
-      max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
-      state_root: stateRoot,
-    },
-    claude: {
-      allowed_tools: [],
-      command: 'claude',
-      max_turns: 5,
-      model: undefined,
-      permission_mode: undefined,
-    },
-    hooks: { timeout_ms: 5_000 },
-    polling: { interval_ms: 60_000 },
-    scheduler: { legacy_mode: false },
-    verify: { commands: [], enabled: false, max_auto_revises: 1 },
-    workspace: { root: '/tmp/hiveboard-test-workspaces', ttl_ms: 0 },
-  }
-}
-
-function makeGitHubStub() {
-  return {
-    fetchReviewComments: async () => [],
-    findPrByHead: async () => null,
-    getAccessToken: async () => 'fake-token',
-    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
-    getTokenDir: () => '/tmp/hiveboard-tokens-test',
-  }
-}
-
-/** Build a WorkspaceManager stub that immediately resolves. */
-function makeWorkspaceStub() {
-  return {
-    createForTask: async () => ({ created: true, path: '/tmp/fake-workspace' }),
-    sweepExpired: async () => {},
-    ttlMs: 0,
-  }
-}
 
 type TaskRow = {
   id: string
@@ -196,11 +158,6 @@ function getTask(id: string): TaskRow | null {
     .get(id) as TaskRow | null
 }
 
-/** Wait for all currently running async operations to flush. */
-async function flushMicrotasks(ms = 50) {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms))
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -224,7 +181,7 @@ describe('Orchestrator – dispatch flow', () => {
       return { output: 'agent output', success: true, taskId: task.id }
     }
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -321,7 +278,7 @@ describe('Orchestrator – dispatch flow', () => {
       ttlMs: 0,
     }
     const failOrchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       failingWorkspaceStub as never,
       'prompt template',
@@ -379,7 +336,7 @@ describe('Orchestrator – concurrency limit', () => {
   beforeEach(() => {
     releaseLatch = () => {}
     orchestrator = new Orchestrator(
-      makeConfig({ maxAgents: 2 }) as never,
+      makeConfig(stateRoot, { maxAgents: 2 }) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -482,7 +439,7 @@ describe('Orchestrator – retry scheduling', () => {
       }
     }
     orchestrator = new Orchestrator(
-      makeConfig({ maxRetryBackoffMs: 50 }) as never,
+      makeConfig(stateRoot, { maxRetryBackoffMs: 50 }) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -532,7 +489,7 @@ describe('Orchestrator – retry scheduling', () => {
     // Use a much longer backoff so the timer does NOT fire before we cancel.
     // We need a separate orchestrator instance with a longer backoff for this test.
     const longBackoffOrchestrator = new Orchestrator(
-      makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
+      makeConfig(stateRoot, { maxRetryBackoffMs: 60_000 }) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -576,7 +533,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
       }
     }
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -605,7 +562,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
       }
     }
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -639,7 +596,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
       }
     }
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -671,7 +628,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
     githubStub.findPrByHead = async () =>
       'https://github.com/acme/webapp/pull/77'
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       githubStub as never,
       makeWorkspaceStub() as never,
       'prompt template',
@@ -700,7 +657,7 @@ describe('Orchestrator – PR URL target repo verification', () => {
       }
     }
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',

@@ -26,6 +26,12 @@ import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/age
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import {
+  flushMicrotasks,
+  makeConfig,
+  makeGitHubStub,
+  makeWorkspaceStub,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // In-memory DB + tmp state_root
@@ -92,46 +98,6 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeConfig() {
-  return {
-    agent: {
-      max_concurrent_agents: 5,
-      max_retry_backoff_ms: 300_000,
-      state_root: stateRoot,
-    },
-    claude: {
-      allowed_tools: [],
-      command: 'claude',
-      max_turns: 5,
-      model: undefined,
-      permission_mode: undefined,
-    },
-    hooks: { timeout_ms: 5_000 },
-    polling: { interval_ms: 60_000 },
-    scheduler: { legacy_mode: false },
-    verify: { commands: [], enabled: false, max_auto_revises: 1 },
-    workspace: { root: '/tmp/hiveboard-maptask-ws', ttl_ms: 0 },
-  }
-}
-
-function makeGitHubStub() {
-  return {
-    fetchReviewComments: async () => [],
-    findPrByHead: async () => null,
-    getAccessToken: async () => 'fake-token',
-    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
-    getTokenDir: () => '/tmp/hiveboard-maptask-tokens',
-  }
-}
-
-function makeWorkspaceStub() {
-  return {
-    createForTask: async () => ({ created: true, path: '/tmp/fake-workspace' }),
-    sweepExpired: async () => {},
-    ttlMs: 0,
-  }
-}
-
 function insertQueuedTaskWithAction(action: string): string {
   const user = memDb.query('SELECT id FROM users LIMIT 1').get() as {
     id: string
@@ -149,10 +115,6 @@ function insertQueuedTaskWithAction(action: string): string {
     [id, board.id, col.id, 'MapTask Test', 'body', action, user.id, user.id],
   )
   return id
-}
-
-async function flushMicrotasks(ms = 100) {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
 // ---------------------------------------------------------------------------
@@ -173,8 +135,8 @@ describe('Orchestrator – mapTask preserves verbatim action', () => {
   beforeEach(() => {
     publishedEvents.length = 0
     orchestrator = new Orchestrator(
-      makeConfig() as never,
-      makeGitHubStub() as never,
+      makeConfig(stateRoot, { workspaceRoot: '/tmp/hiveboard-maptask-ws' }) as never,
+      makeGitHubStub({ tokenDir: '/tmp/hiveboard-maptask-tokens' }) as never,
       makeWorkspaceStub() as never,
       'prompt template',
     )

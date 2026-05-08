@@ -13,10 +13,18 @@
 
 import { Database } from 'bun:sqlite'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/agent/runner'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import {
+  makeConfig,
+  makeGitHubStub,
+  makeWorkspaceStub,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // In-memory database
@@ -27,6 +35,8 @@ memDb.exec('PRAGMA journal_mode = WAL')
 memDb.exec('PRAGMA foreign_keys = ON')
 createTables(memDb)
 seed(memDb)
+
+const stateRoot = mkdtempSync(join(tmpdir(), 'hb-cancel-'))
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -69,44 +79,6 @@ const { Orchestrator } = await import('../src/orchestrator/orchestrator')
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function makeConfig(overrides: { maxRetryBackoffMs?: number } = {}) {
-  return {
-    agent: {
-      max_concurrent_agents: 5,
-      max_retry_backoff_ms: overrides.maxRetryBackoffMs ?? 300_000,
-    },
-    claude: {
-      allowed_tools: [],
-      command: 'claude',
-      max_turns: 5,
-      model: undefined,
-      permission_mode: undefined,
-    },
-    hooks: { timeout_ms: 5_000 },
-    polling: { interval_ms: 60_000 },
-    scheduler: { legacy_mode: false },
-    verify: { commands: [], enabled: false, max_auto_revises: 1 },
-    workspace: { root: '/tmp/hiveboard-cancel-test', ttl_ms: 0 },
-  }
-}
-
-function makeGitHubStub() {
-  return {
-    fetchReviewComments: async () => [],
-    getAccessToken: async () => 'fake-token',
-    getIdentity: async () => ({ email: 'test@test.com', name: 'test[bot]' }),
-    getTokenDir: () => '/tmp/hiveboard-tokens-test',
-  }
-}
-
-function makeWorkspaceStub() {
-  return {
-    createForTask: async () => ({ created: true, path: '/tmp/fake-ws' }),
-    sweepExpired: async () => {},
-    ttlMs: 0,
-  }
-}
 
 type TaskRow = {
   id: string
@@ -244,9 +216,9 @@ describe('cancelAgent – running task', () => {
 
   beforeEach(() => {
     orchestrator = new Orchestrator(
-      makeConfig() as never,
+      makeConfig(stateRoot, { workspaceRoot: '/tmp/hiveboard-cancel-test' }) as never,
       makeGitHubStub() as never,
-      makeWorkspaceStub() as never,
+      makeWorkspaceStub({ path: '/tmp/fake-ws' }) as never,
       'prompt template',
     )
   })
@@ -339,9 +311,12 @@ describe('cancelAgent – retry timer cleared', () => {
 
     // Use a long backoff so the timer does NOT fire before we call cancel
     const orchestrator = new Orchestrator(
-      makeConfig({ maxRetryBackoffMs: 60_000 }) as never,
+      makeConfig(stateRoot, {
+        maxRetryBackoffMs: 60_000,
+        workspaceRoot: '/tmp/hiveboard-cancel-test',
+      }) as never,
       makeGitHubStub() as never,
-      makeWorkspaceStub() as never,
+      makeWorkspaceStub({ path: '/tmp/fake-ws' }) as never,
       'prompt template',
     )
 
