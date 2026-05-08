@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -392,257 +393,293 @@ const ViewMode = ({
     }
   }
 
+  const headerRef = useRef<HTMLDivElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+
+  useLayoutEffect(() => {
+    const node = headerRef.current
+    if (!node) return
+    const measure = () => {
+      setHeaderHeight(node.clientHeight)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [])
+
   return (
-    <div className="flex grow flex-col gap-6">
-      {/* Header area */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="font-semibold text-heading-3 text-text-primary leading-tight">
-            {task.title}
-          </h2>
-          <div className="flex shrink-0 items-center gap-1 pt-0.5">
-            <Button
-              aria-label={copied ? 'Task ID copied' : 'Copy task ID'}
-              onClick={handleCopyTaskId}
-              size="small"
-              title={copied ? 'Copied!' : 'Copy full task ID'}
-              variant="ghost"
-            >
-              {copied ? (
-                <span className="text-success-400">
-                  <CheckIcon size={12} />
-                </span>
-              ) : (
-                <CopyIcon size={12} />
-              )}
-            </Button>
-            {task.column?.name !== 'Done' && (
+    <div className="flex grow flex-col">
+      {/* Sticky header — title, meta, tags, agent panel, continue-from-failure */}
+      <div
+        className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-default pb-6 border-b border-border-default"
+        ref={headerRef}
+      >
+        {/* Header area */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="font-semibold text-heading-3 text-text-primary leading-tight">
+              {task.title}
+            </h2>
+            <div className="flex shrink-0 items-center gap-1 pt-0.5">
               <Button
-                onClick={onEdit}
+                aria-label={copied ? 'Task ID copied' : 'Copy task ID'}
+                onClick={handleCopyTaskId}
                 size="small"
-                title="Edit task"
+                title={copied ? 'Copied!' : 'Copy full task ID'}
                 variant="ghost"
               >
-                <PencilIcon size={16} />
+                {copied ? (
+                  <span className="text-success-400">
+                    <CheckIcon size={12} />
+                  </span>
+                ) : (
+                  <CopyIcon size={12} />
+                )}
               </Button>
-            )}
-            <Button
-              disabled={loading}
-              onClick={onArchive}
-              size="small"
-              title={task.archived ? 'Unarchive task' : 'Archive task'}
-              variant="ghost"
-            >
-              {task.archived ? (
-                <RefreshIcon size={16} />
-              ) : (
-                <ArchiveIcon size={16} />
+              {task.column?.name !== 'Done' && (
+                <Button
+                  onClick={onEdit}
+                  size="small"
+                  title="Edit task"
+                  variant="ghost"
+                >
+                  <PencilIcon size={16} />
+                </Button>
               )}
-            </Button>
+              <Button
+                disabled={loading}
+                onClick={onArchive}
+                size="small"
+                title={task.archived ? 'Unarchive task' : 'Archive task'}
+                variant="ghost"
+              >
+                {task.archived ? (
+                  <RefreshIcon size={16} />
+                ) : (
+                  <ArchiveIcon size={16} />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-        {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-2">
-          {task.targetRepo && (
-            <div className="flex items-center gap-2">
+          {/* Meta row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {task.targetRepo && (
+              <div className="flex items-center gap-2">
+                <a
+                  className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary"
+                  href={`https://github.com/${task.targetRepo}`}
+                  rel="noopener"
+                  target="_blank"
+                >
+                  <GitHubIcon />
+                  <span>{task.targetRepo}</span>
+                </a>
+              </div>
+            )}
+            {task.prUrl && (
               <a
-                className="inline-flex items-center gap-1 rounded-md bg-surface-overlay px-2 py-0.5 font-mono text-body-xs text-text-tertiary"
-                href={`https://github.com/${task.targetRepo}`}
-                rel="noopener"
+                className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 font-medium text-body-xs text-info-400 transition-colors hover:bg-info-400/20"
+                href={task.prUrl}
+                rel="noopener noreferrer"
                 target="_blank"
               >
-                <GitHubIcon />
-                <span>{task.targetRepo}</span>
+                PR #{task.prUrl.match(/\/pull\/(\d+)/)?.[1] ?? '?'}
               </a>
-            </div>
-          )}
-          {task.prUrl && (
-            <a
-              className="inline-flex items-center gap-1 rounded-md bg-info-400/10 px-2 py-0.5 font-medium text-body-xs text-info-400 transition-colors hover:bg-info-400/20"
-              href={task.prUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              PR #{task.prUrl.match(/\/pull\/(\d+)/)?.[1] ?? '?'}
-            </a>
-          )}
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {task.tags?.map((tag) => {
+              const bg = `${tag.color}20`
+              return (
+                <span
+                  className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-body-xs"
+                  key={tag.id}
+                  style={{ backgroundColor: bg, color: tag.color }}
+                >
+                  {tag.name}
+                </span>
+              )
+            })}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {task.tags?.map((tag) => {
-            const bg = `${tag.color}20`
-            return (
-              <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-body-xs"
-                key={tag.id}
-                style={{ backgroundColor: bg, color: tag.color }}
-              >
-                {tag.name}
-              </span>
-            )
-          })}
-        </div>
-      </div>
 
-      {/* Agent panel */}
-      {task.column?.name !== 'Done' && (
-        <AgentPanel
-          loading={loading}
-          onInterruptAgent={onInterruptAgent}
-          onUpdateAction={onUpdateAction}
-          task={task}
-        />
-      )}
-
-      {/* Continue from failure */}
-      {task.agentStatus === 'FAILED' && (
-        <div className="flex flex-col gap-2 rounded-md border border-border-default bg-surface-2 p-3">
-          <SectionLabel>Continue from failure</SectionLabel>
-          <textarea
-            className="rounded border border-border-default bg-surface-1 p-2 font-mono text-body-xs"
-            onChange={(e) => setContinueInstruction(e.target.value)}
-            placeholder="Optional: extra guidance for the next attempt"
-            rows={2}
-            value={continueInstruction}
+        {/* Agent panel */}
+        {task.column?.name !== 'Done' && (
+          <AgentPanel
+            loading={loading}
+            onInterruptAgent={onInterruptAgent}
+            onUpdateAction={onUpdateAction}
+            task={task}
           />
-          <span className="self-start">
-            <Button
-              color="primary"
-              disabled={continuing || loading}
-              onClick={handleContinue}
-              size="small"
-              type="button"
-              variant="solid"
-            >
-              {continuing ? 'Continuing…' : 'Continue'}
-            </Button>
-          </span>
-        </div>
-      )}
+        )}
 
-      {/* Body */}
-
-      {task.body ? (
-        <MarkdownPreview content={task.body} />
-      ) : (
-        <p className="text-body-sm text-text-tertiary italic">No description</p>
-      )}
-
-      {/* Plan (agent-generated, editable) */}
-      <div className="mt-4">
-        <h3 className="text-body-sm font-medium text-text-secondary mb-2">
-          Plan
-          <span className="text-text-tertiary font-normal ml-2">
-            (agent-generated)
-          </span>
-        </h3>
-        {task.plan ? (
-          <MarkdownPreview content={task.plan} />
-        ) : (
-          <p className="text-body-sm text-text-tertiary italic">
-            No plan yet — run the <code>plan</code> action to generate one.
-          </p>
+        {/* Continue from failure */}
+        {task.agentStatus === 'FAILED' && (
+          <div className="flex flex-col gap-2 rounded-md border border-border-default bg-surface-2 p-3">
+            <SectionLabel>Continue from failure</SectionLabel>
+            <textarea
+              className="rounded border border-border-default bg-surface-1 p-2 font-mono text-body-xs"
+              onChange={(e) => setContinueInstruction(e.target.value)}
+              placeholder="Optional: extra guidance for the next attempt"
+              rows={2}
+              value={continueInstruction}
+            />
+            <span className="self-start">
+              <Button
+                color="primary"
+                disabled={continuing || loading}
+                onClick={handleContinue}
+                size="small"
+                type="button"
+                variant="solid"
+              >
+                {continuing ? 'Continuing…' : 'Continue'}
+              </Button>
+            </span>
+          </div>
         )}
       </div>
 
-      {/* Timestamp */}
-      <div className="flex items-center gap-1.5 text-body-xs text-text-tertiary">
-        <Avatar name={task.createdBy.username} size="sm" />
-        <span>
-          <span className="font-medium text-text-secondary">
-            {task.createdBy.username}
-          </span>
-          {' · '}
-          {timeAgo(task.createdAt)}
-          {task.updatedAt !== task.createdAt &&
-            ` · updated ${timeAgo(task.updatedAt)}`}
-        </span>
-      </div>
-
-      <CollapsibleSection defaultOpen label="Dependencies" name="dependencies">
-        <TaskDependencies
-          agentStatus={task.agentStatus}
-          blockers={task.blockers ?? []}
-          blockReason={task.blockReason ?? null}
-          dependents={task.dependents ?? []}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Subtasks" name="subtasks">
-        <TaskSubtasks
-          parentTask={task.parentTask ?? null}
-          subtasks={task.subtasks ?? []}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Time Box" name="time-box">
-        <TaskTimeBox
-          agentStatus={task.agentStatus}
-          blockReason={task.blockReason ?? null}
-          taskId={task.id}
-          timeBoxMs={task.timeBoxMs ?? null}
-          timeBoxRemainingMs={task.timeBoxRemainingMs ?? null}
-          timeBoxStartedAt={task.timeBoxStartedAt ?? null}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Secrets" name="secrets">
-        <TaskSecrets
-          boardSecrets={boardSecrets}
-          onRequiredChanged={onRequiredSecretsChanged}
-          task={task}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Scratchpad" name="scratchpad">
-        <TaskScratchpad
-          initialContent={task.scratchpad ?? ''}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Run Log" name="run-log">
-        <AgentRunLog agentRuns={task.agentRuns ?? []} taskId={task.id} />
-      </CollapsibleSection>
-      <CollapsibleSection defaultOpen label="Messages" name="messages">
-        <TaskMessages
-          agentStatus={task.agentStatus}
-          currentQuestion={task.currentQuestion ?? null}
-          initialMessages={task.messages ?? []}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Progress" name="progress">
-        <TaskProgress
-          agentStatus={task.agentStatus}
-          initialEntries={[]}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Timeline" name="timeline">
-        <TaskTimeline
-          initialSnapshots={task.workspaceSnapshots ?? []}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection label="Verification" name="verification">
-        <TaskVerification
-          initialRuns={task.verificationRuns ?? []}
-          taskId={task.id}
-          verifyAttemptCount={task.verifyAttemptCount ?? 0}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection
-        defaultOpen
-        label="Event History"
-        name="event-history"
+      {/* Body grid — single column below xl, two columns at xl+ */}
+      <div
+        className="grid grid-cols-1 gap-6 pt-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:gap-x-6"
+        style={
+          { '--col-max-h': `calc(100vh - ${headerHeight}px)` } as React.CSSProperties
+        }
       >
-        <TaskEventHistory
-          initialEntries={initialTimelineEntries ?? []}
-          taskId={task.id}
-        />
-      </CollapsibleSection>
-      {task.column?.name !== 'Done' && (
-        <CollapsibleSection label="Comments" name="comments">
-          <TaskComments initialComments={task.comments} taskId={task.id} />
-        </CollapsibleSection>
-      )}
+        {/* LEFT COLUMN — writing surfaces */}
+        <div className="flex flex-col gap-6 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
+          {/* Body */}
+          {task.body ? (
+            <MarkdownPreview content={task.body} />
+          ) : (
+            <p className="text-body-sm text-text-tertiary italic">No description</p>
+          )}
+
+          {/* Plan (agent-generated, editable) */}
+          <div>
+            <h3 className="text-body-sm font-medium text-text-secondary mb-2">
+              Plan
+              <span className="text-text-tertiary font-normal ml-2">
+                (agent-generated)
+              </span>
+            </h3>
+            {task.plan ? (
+              <MarkdownPreview content={task.plan} />
+            ) : (
+              <p className="text-body-sm text-text-tertiary italic">
+                No plan yet — run the <code>plan</code> action to generate one.
+              </p>
+            )}
+          </div>
+
+          {/* Timestamp */}
+          <div className="flex items-center gap-1.5 text-body-xs text-text-tertiary">
+            <Avatar name={task.createdBy.username} size="sm" />
+            <span>
+              <span className="font-medium text-text-secondary">
+                {task.createdBy.username}
+              </span>
+              {' · '}
+              {timeAgo(task.createdAt)}
+              {task.updatedAt !== task.createdAt &&
+                ` · updated ${timeAgo(task.updatedAt)}`}
+            </span>
+          </div>
+
+          <CollapsibleSection defaultOpen label="Messages" name="messages">
+            <TaskMessages
+              agentStatus={task.agentStatus}
+              currentQuestion={task.currentQuestion ?? null}
+              initialMessages={task.messages ?? []}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+
+          {task.column?.name !== 'Done' && (
+            <CollapsibleSection label="Comments" name="comments">
+              <TaskComments initialComments={task.comments} taskId={task.id} />
+            </CollapsibleSection>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN — metadata + telemetry */}
+        <div className="flex flex-col gap-6 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
+          <CollapsibleSection defaultOpen label="Dependencies" name="dependencies">
+            <TaskDependencies
+              agentStatus={task.agentStatus}
+              blockers={task.blockers ?? []}
+              blockReason={task.blockReason ?? null}
+              dependents={task.dependents ?? []}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Subtasks" name="subtasks">
+            <TaskSubtasks
+              parentTask={task.parentTask ?? null}
+              subtasks={task.subtasks ?? []}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Time Box" name="time-box">
+            <TaskTimeBox
+              agentStatus={task.agentStatus}
+              blockReason={task.blockReason ?? null}
+              taskId={task.id}
+              timeBoxMs={task.timeBoxMs ?? null}
+              timeBoxRemainingMs={task.timeBoxRemainingMs ?? null}
+              timeBoxStartedAt={task.timeBoxStartedAt ?? null}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Secrets" name="secrets">
+            <TaskSecrets
+              boardSecrets={boardSecrets}
+              onRequiredChanged={onRequiredSecretsChanged}
+              task={task}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Scratchpad" name="scratchpad">
+            <TaskScratchpad
+              initialContent={task.scratchpad ?? ''}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Run Log" name="run-log">
+            <AgentRunLog agentRuns={task.agentRuns ?? []} taskId={task.id} />
+          </CollapsibleSection>
+          <CollapsibleSection label="Progress" name="progress">
+            <TaskProgress
+              agentStatus={task.agentStatus}
+              initialEntries={[]}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Timeline" name="timeline">
+            <TaskTimeline
+              initialSnapshots={task.workspaceSnapshots ?? []}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection label="Verification" name="verification">
+            <TaskVerification
+              initialRuns={task.verificationRuns ?? []}
+              taskId={task.id}
+              verifyAttemptCount={task.verifyAttemptCount ?? 0}
+            />
+          </CollapsibleSection>
+          <CollapsibleSection
+            defaultOpen
+            label="Event History"
+            name="event-history"
+          >
+            <TaskEventHistory
+              initialEntries={initialTimelineEntries ?? []}
+              taskId={task.id}
+            />
+          </CollapsibleSection>
+        </div>
+      </div>
     </div>
   )
 }
