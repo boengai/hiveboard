@@ -1,9 +1,18 @@
 import { Database } from 'bun:sqlite'
 import { beforeEach, describe, expect, test } from 'bun:test'
+import { db as sharedDb } from '../src/db'
+import { migrate } from '../src/db/migrate'
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
-import { getCurrentUser, insertTask } from './helpers/fixtures'
+import { resolvers } from '../src/schema/resolvers'
+import {
+  getBoard as getBoardRow,
+  getColumn as getColumnRow,
+  getCurrentUser,
+  insertTask,
+  makeCtx,
+} from './helpers/fixtures'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,6 +229,37 @@ describe('updateTask', () => {
       .query('SELECT * FROM tasks WHERE id = ?')
       .get(taskId) as TaskRow
     expect(task.body).toBe('New body content')
+  })
+
+  test('updates plan field', async () => {
+    // This test exercises the actual resolver (unlike the raw-SQL tests
+    // above), so it uses the shared `db` singleton imported by resolvers.ts.
+    migrate(sharedDb)
+    const board = getBoardRow(sharedDb)
+    const col = getColumnRow(sharedDb, board.id)
+
+    const taskId = insertTask(sharedDb, {
+      boardId: board.id,
+      columnId: col.id,
+      body: 'req',
+      title: 'Task',
+    })
+
+    const result = await resolvers.Mutation.updateTask(
+      null,
+      { id: taskId, input: { plan: 'New plan content.' } },
+      makeCtx(sharedDb) as never,
+    )
+    expect(result.plan).toBe('New plan content.')
+    // Body must be untouched.
+    expect(result.body).toBe('req')
+
+    // Verify DB persistence directly.
+    const row = sharedDb
+      .query('SELECT body, plan FROM tasks WHERE id = ?')
+      .get(taskId) as { body: string; plan: string | null }
+    expect(row.body).toBe('req')
+    expect(row.plan).toBe('New plan content.')
   })
 })
 

@@ -122,6 +122,7 @@ type TaskRow = {
   column_id: string
   title: string
   body: string
+  plan: string | null
   position: number
   action: string | null
   agent_instruction: string | null
@@ -1988,6 +1989,7 @@ export const resolvers = {
         input: {
           title?: string | null
           body?: string | null
+          plan?: string | null
           agentInstruction?: string | null
           targetRepo?: string | null
           targetBranch?: string | null
@@ -2036,6 +2038,16 @@ export const resolvers = {
         setClauses.push('body = ?')
         values.push(input.body)
         events.push([generateId(), 'body_changed', null])
+      }
+
+      if (
+        input.plan !== undefined &&
+        input.plan !== null &&
+        input.plan !== existing.plan
+      ) {
+        setClauses.push('plan = ?')
+        values.push(input.plan)
+        events.push([generateId(), 'plan_changed', null])
       }
 
       if (input.agentInstruction !== undefined) {
