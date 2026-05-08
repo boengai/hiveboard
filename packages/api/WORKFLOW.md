@@ -143,7 +143,7 @@ If the action is "plan", do NOT write any code. Instead:
    g. Check for an existing end-to-end test setup (Playwright, Cypress, etc.). If one exists, the plan MUST include e2e tests covering the feature's key user flows and edge cases.
 - Write a detailed implementation plan covering: findings from research, approach, files to create/modify, key decisions, risks, and estimated complexity.
 - The plan MUST include a **Verification** section listing the exact commands to run for linting, testing, and building — discovered from the project, not assumed.
-- Output the plan as plain text in your final message — this is how the orchestrator captures it for the task body. Do NOT use the Write tool or any skill to save the plan to a file. Do NOT commit, push, or create a PR.
+- Output the plan as plain text in your final message — this is how the orchestrator captures it into the task's `plan` field (separate from the requirement in `body`). Do NOT use the Write tool or any skill to save the plan to a file. Do NOT commit, push, or create a PR.
 
 ### Action: implement
 If the action is "implement":
