@@ -177,6 +177,111 @@ docker compose down          # stop
 
 The compose file mounts `tmp/database`, `tmp/workspaces`, `tmp/agent-state`, and agent Claude config as volumes so data persists across container restarts.
 
+### Customizing the runtime
+
+The published image is intentionally minimal — it ships only what the HiveBoard server itself uses:
+
+- `bun` (base image) — the API runtime
+- `git` + `openssh-client` + `ca-certificates` + `curl` — cloning task workspaces
+- `gh` — the orchestrator calls `gh pr create` after a successful `implement` / `revise`
+
+**The Claude CLI and any language toolchains agents need are NOT pre-installed.** This is deliberate: every team's agent workflows use a different mix of Node / Python / Rust / Go / system packages, so we leave that choice to you. Pick one of the three patterns below.
+
+> **Note:** Without the `claude` CLI on `PATH` inside the container, agent runs fail at spawn time with `ENOENT`. If you intend to dispatch agents (`runAgent` mutation, the Plan/Implement/Revise buttons in the drawer), you need at least pattern 1 or 2.
+
+#### Pattern 1 — Derived image (recommended for stable setups)
+
+Build your own image on top of `hiveboard:latest`. This is the cleanest option: every container start has the same toolchain, no first-run setup, no manual steps.
+
+```dockerfile
+# Dockerfile.hiveboard
+FROM ghcr.io/boengai/hiveboard:latest
+
+USER root
+
+# Build toolchain + Python (only if your agents compile native modules / use Python)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config \
+      python3 python3-pip python3-venv \
+      jq ripgrep fd-find && \
+    rm -rf /var/lib/apt/lists/*
+
+# Node.js LTS (required for npm/npx and for installing the Claude CLI)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Claude CLI (required to actually run agents)
+RUN npm install -g @anthropic-ai/claude-code tsx typescript && \
+    npm cache clean --force
+
+USER hiveboard
+```
+
+```bash
+docker build -t my-hiveboard -f Dockerfile.hiveboard .
+docker run -p 8080:8080 --env-file .env -v hiveboard-data:/app/tmp my-hiveboard
+```
+
+Or in compose, replace the `image:` line with `build: { context: ., dockerfile: Dockerfile.hiveboard }`.
+
+#### Pattern 2 — Volume-persisted manual install
+
+Run the slim image as-is, then `docker exec` in to install npm-based tools. Mount a volume on `/usr/local/lib/node_modules` and `/usr/local/bin` so the install survives container recreation.
+
+```yaml
+# docker-compose.yml
+services:
+  hiveboard:
+    image: ghcr.io/boengai/hiveboard:latest
+    user: root             # only needed for the install step; revert to hiveboard after
+    volumes:
+      - hiveboard-data:/app/tmp
+      - hiveboard-bin:/usr/local/bin
+      - hiveboard-npm:/usr/local/lib/node_modules
+volumes:
+  hiveboard-data:
+  hiveboard-bin:
+  hiveboard-npm:
+```
+
+First-time install (run once):
+
+```bash
+docker compose exec hiveboard bash -lc '
+  apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config python3 python3-pip jq ripgrep && \
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+  apt-get install -y nodejs && \
+  npm install -g @anthropic-ai/claude-code tsx typescript
+'
+```
+
+**Caveat:** `apt`-installed packages (`build-essential`, `python3`, `nodejs` itself) live under `/usr/bin`, `/usr/lib`, `/var/lib/dpkg`, etc. — they do NOT survive container recreation even with the volumes above. Only the **npm globals** persist. If you destroy the container (`docker compose down -v` or a fresh pull), you'll need to re-run the apt step. Pattern 1 is more durable; this pattern is best when you only need a few npm globals (e.g., just the Claude CLI on top of an already-Node-friendly image).
+
+#### Pattern 3 — Entrypoint hook (for fully-automated provisioning)
+
+Bind-mount a shell script that runs on every container start, reads a list of packages from a config file, and installs anything missing. Heavier to set up; only worth it if you want zero-config first-boot provisioning across many environments. Sketch:
+
+```yaml
+# docker-compose.yml fragment
+services:
+  hiveboard:
+    image: ghcr.io/boengai/hiveboard:latest
+    entrypoint: ["/setup/entrypoint.sh"]
+    volumes:
+      - ./setup:/setup:ro       # your script + package list
+      - hiveboard-data:/app/tmp
+      - hiveboard-bin:/usr/local/bin
+      - hiveboard-npm:/usr/local/lib/node_modules
+```
+
+Your `entrypoint.sh` would `apt update && apt install -y …` on each start (idempotent), then `exec bun run packages/api/dist/index.js`. Same persistence caveat as pattern 2 applies.
+
+---
+
+If your agents are pure-bun and don't need any of the above (no native modules, no Python, no Node-based tooling), the slim image works as-is — just be aware that `runAgent` mutations will fail without `claude` on `PATH`.
+
 ## How Agents Work
 
 1. **Create a task** on the board — set the target repository and branch.
