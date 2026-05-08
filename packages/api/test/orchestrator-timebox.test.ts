@@ -65,9 +65,7 @@ mock.module('../src/agent/runner', () => ({
 }))
 
 const { Orchestrator } = await import('../src/orchestrator/orchestrator')
-const { selectSchedulableTasks } = await import(
-  '../src/orchestrator/scheduler'
-)
+const { selectSchedulableTasks } = await import('../src/orchestrator/scheduler')
 const { resolvers } = await import('../src/schema/resolvers')
 
 // ---------------------------------------------------------------------------

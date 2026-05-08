@@ -18,7 +18,15 @@
  */
 
 import { Database } from 'bun:sqlite'
-import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -74,11 +82,7 @@ mock.module('../src/pubsub', () => ({
   publishVerificationRun: () => {},
   publishWorkspaceSnapshot: () => {},
   pubsub: {
-    publish: (
-      topic: string,
-      key: string,
-      payload: Record<string, unknown>,
-    ) => {
+    publish: (topic: string, key: string, payload: Record<string, unknown>) => {
       publishedEvents.push({ key, payload, topic })
     },
   },
@@ -135,7 +139,9 @@ describe('Orchestrator – mapTask preserves verbatim action', () => {
   beforeEach(() => {
     publishedEvents.length = 0
     orchestrator = new Orchestrator(
-      makeConfig(stateRoot, { workspaceRoot: '/tmp/hiveboard-maptask-ws' }) as never,
+      makeConfig(stateRoot, {
+        workspaceRoot: '/tmp/hiveboard-maptask-ws',
+      }) as never,
       makeGitHubStub({ tokenDir: '/tmp/hiveboard-maptask-tokens' }) as never,
       makeWorkspaceStub() as never,
       'prompt template',

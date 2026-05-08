@@ -40,7 +40,7 @@ const insertTask = (
   boardId: string,
   columnId: string,
   agentStatus: 'idle' | 'queued' | 'running' | 'blocked' = 'idle',
-) => insertTaskShared(db, { boardId, columnId, agentStatus })
+) => insertTaskShared(db, { agentStatus, boardId, columnId })
 
 /** Insert a task with an explicit created_at timestamp for ordering tests. */
 function _insertTaskAt(

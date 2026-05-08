@@ -23,7 +23,6 @@ import { resolvers } from '../src/schema/resolvers'
 import {
   getBoard as getBoardRow,
   getColumn as getColumnRow,
-  getCurrentUser,
   insertTask as insertTaskShared,
   makeCtx,
 } from './helpers/fixtures'
@@ -56,7 +55,7 @@ const insertTask = (
   boardId: string,
   columnId: string,
   agentStatus: 'idle' | 'queued' | 'running' | 'blocked' = 'idle',
-) => insertTaskShared(db, { boardId, columnId, agentStatus })
+) => insertTaskShared(db, { agentStatus, boardId, columnId })
 
 function insertQuestion(taskId: string, body: string): string {
   const id = generateId()
@@ -296,7 +295,11 @@ describe('Mutation.answerQuestion', () => {
     const huge = 'x'.repeat(8 * 1024 + 1)
 
     expect(() =>
-      resolvers.Mutation.answerQuestion({}, { body: huge, taskId }, makeCtx(db)),
+      resolvers.Mutation.answerQuestion(
+        {},
+        { body: huge, taskId },
+        makeCtx(db),
+      ),
     ).toThrow(/too long/i)
 
     // Only the seeded question row exists; no answer was persisted.

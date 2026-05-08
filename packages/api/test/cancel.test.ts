@@ -216,7 +216,9 @@ describe('cancelAgent – running task', () => {
 
   beforeEach(() => {
     orchestrator = new Orchestrator(
-      makeConfig(stateRoot, { workspaceRoot: '/tmp/hiveboard-cancel-test' }) as never,
+      makeConfig(stateRoot, {
+        workspaceRoot: '/tmp/hiveboard-cancel-test',
+      }) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub({ path: '/tmp/fake-ws' }) as never,
       'prompt template',

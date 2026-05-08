@@ -177,7 +177,9 @@ describe('Orchestrator.dispatchHumanMessage', () => {
 
   beforeEach(() => {
     orchestrator = new Orchestrator(
-      makeConfig(stateRoot, { workspaceRoot: '/tmp/hiveboard-dispatch-ws' }) as never,
+      makeConfig(stateRoot, {
+        workspaceRoot: '/tmp/hiveboard-dispatch-ws',
+      }) as never,
       makeGitHubStub() as never,
       makeWorkspaceStub() as never,
       'prompt template',

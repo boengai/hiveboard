@@ -32,12 +32,12 @@ import { buildClaudeArgsForTest as realBuildClaudeArgsForTest } from '../src/age
 import { createTables } from '../src/db/schema'
 import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
+import { listVerificationRunsForTask } from '../src/db/verification-runs'
 import {
   makeConfig as makeSharedConfig,
   makeGitHubStub as makeSharedGitHubStub,
   makeWorkspaceStub as makeSharedWorkspaceStub,
 } from './helpers/fixtures'
-import { listVerificationRunsForTask } from '../src/db/verification-runs'
 
 // ---------------------------------------------------------------------------
 // In-memory DB + filesystem setup
@@ -105,8 +105,13 @@ type TaskDbRow = {
 
 function makeConfig(verifyOverrides: Record<string, unknown> = {}) {
   return makeSharedConfig(stateRoot, {
+    verify: {
+      commands: [],
+      enabled: true,
+      max_auto_revises: 1,
+      ...verifyOverrides,
+    },
     workspaceRoot: wsRoot,
-    verify: { commands: [], enabled: true, max_auto_revises: 1, ...verifyOverrides },
   })
 }
 
