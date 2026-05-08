@@ -54,6 +54,7 @@ export function createTables(db: Database): void {
       column_id      TEXT NOT NULL REFERENCES columns(id),
       title          TEXT NOT NULL,
       body           TEXT NOT NULL DEFAULT '',
+      plan           TEXT,
       position       REAL NOT NULL DEFAULT 0,
       action              TEXT,
       agent_instruction   TEXT,
@@ -280,6 +281,31 @@ export function createTables(db: Database): void {
     'required_secrets',
     `TEXT NOT NULL DEFAULT '[]'`,
   )
+
+  addColumnIfMissing(db, 'tasks', 'plan', 'TEXT')
+
+  // One-time backfill: split any row whose body still contains the legacy
+  // "## Implementation Plan" markdown section produced by old plan-action
+  // runs. Idempotent: after the first run the regex no longer matches because
+  // the heading has been stripped from body. The `AND plan IS NULL` guard
+  // ensures we never overwrite a column that's already been populated by a
+  // real plan run after the migration.
+  const PLAN_SECTION_RE = /\n*## Implementation Plan\n+([\s\S]*)$/
+  for (const row of db
+    .query<{ id: string; body: string }, []>(
+      "SELECT id, body FROM tasks WHERE body LIKE '%## Implementation Plan%' AND plan IS NULL",
+    )
+    .all()) {
+    const m = row.body.match(PLAN_SECTION_RE)
+    if (!m) continue
+    const planText = m[1].trim()
+    const newBody = row.body.replace(PLAN_SECTION_RE, '').trimEnd()
+    db.run('UPDATE tasks SET body = ?, plan = ? WHERE id = ?', [
+      newBody,
+      planText,
+      row.id,
+    ])
+  }
 
   // Backfill Plan B BLOCKED rows (written before block_reason existed) to
   // block_reason='QUESTION'. Safe to run on every startup: only touches rows
