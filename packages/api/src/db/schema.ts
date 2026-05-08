@@ -297,7 +297,7 @@ export function createTables(db: Database): void {
     )
     .all()) {
     const m = row.body.match(PLAN_SECTION_RE)
-    if (!m) continue
+    if (!m || m[1] === undefined) continue
     const planText = m[1].trim()
     const newBody = row.body.replace(PLAN_SECTION_RE, '').trimEnd()
     db.run('UPDATE tasks SET body = ?, plan = ? WHERE id = ?', [
