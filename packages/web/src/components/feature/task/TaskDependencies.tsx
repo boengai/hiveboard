@@ -13,6 +13,7 @@ import type {
   TaskDependenciesProps,
   TaskPickerOption,
 } from '@/types'
+import { parseGraphQLError } from '@/utils'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,25 +40,10 @@ function computeTransitiveDependents(
   return visited
 }
 
-function parseGraphQLError(err: unknown): string {
-  // graphql-request throws ClientError with response.errors[].message
-  const e = err as {
-    response?: {
-      errors?: Array<{ message: string; extensions?: { code?: string } }>
-    }
-    message?: string
-  }
-  const gqlErr = e.response?.errors?.[0]
-  if (gqlErr) {
-    const code = gqlErr.extensions?.code
-    if (code === 'DEPENDENCY_CYCLE')
-      return 'Adding this dependency would create a cycle.'
-    if (code === 'DEPENDENCY_SELF') return 'A task cannot depend on itself.'
-    if (code === 'DEPENDENCY_CROSS_BOARD')
-      return 'Cross-board dependencies are not supported.'
-    return gqlErr.message
-  }
-  return (e as { message?: string }).message ?? 'Failed to update dependency.'
+const DEPENDENCY_ERROR_CODES: Record<string, string> = {
+  DEPENDENCY_CROSS_BOARD: 'Cross-board dependencies are not supported.',
+  DEPENDENCY_CYCLE: 'Adding this dependency would create a cycle.',
+  DEPENDENCY_SELF: 'A task cannot depend on itself.',
 }
 
 // React hook: sync chips when parent prop changes (subscription push).
@@ -193,7 +179,10 @@ export function TaskDependencies({
         setPendingBlockers(result.addTaskDependency.blockers)
         setAdding(false)
       } catch (err) {
-        const message = parseGraphQLError(err)
+        const message = parseGraphQLError(err, {
+          codeMap: DEPENDENCY_ERROR_CODES,
+          defaultMessage: 'Failed to update dependency.',
+        })
         setError(message)
         setTimeout(() => setError(null), 5_000)
       }
@@ -215,7 +204,12 @@ export function TaskDependencies({
       } catch (err) {
         // Roll back on failure
         setPendingBlockers(prev)
-        setError(parseGraphQLError(err))
+        setError(
+          parseGraphQLError(err, {
+            codeMap: DEPENDENCY_ERROR_CODES,
+            defaultMessage: 'Failed to update dependency.',
+          }),
+        )
         setTimeout(() => setError(null), 5_000)
       }
     },

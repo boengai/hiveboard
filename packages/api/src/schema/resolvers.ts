@@ -58,6 +58,7 @@ import { mergePlaybookDefaultsIntoTask } from '../playbooks/merge-defaults'
 import {
   publishScratchpadUpdated,
   publishTaskMissingSecretsChanged,
+  publishTaskUpdated,
   pubsub,
 } from '../pubsub'
 import { cleanupUnusedImages } from '../routes/images'
@@ -526,16 +527,12 @@ function requireTagAccess(
   return { boardId: row.board_id }
 }
 
-function publishTaskUpdated(task: ReturnType<typeof mapTask>) {
+function publishTaskUpdatedById(task: ReturnType<typeof mapTask>) {
   const boardRow = db
     .query('SELECT board_id FROM tasks WHERE id = ?')
     .get(task.id) as { board_id: string } | null
   if (boardRow) {
-    pubsub.publish(
-      'TASK_UPDATED',
-      boardRow.board_id,
-      task as unknown as Record<string, unknown>,
-    )
+    publishTaskUpdated(boardRow.board_id, task)
   }
 }
 
@@ -724,7 +721,7 @@ export const resolvers = {
         .get(taskId) as TaskRow | null
       if (!row) throw notFound('Task', taskId)
       const task = mapTask(row)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
       return task
     },
 
@@ -779,7 +776,7 @@ export const resolvers = {
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
 
       // Publish TASK_EVENT for the 'archived' event
       const archivedEvent = db
@@ -1321,7 +1318,7 @@ export const resolvers = {
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
 
       // Publish TASK_EVENT for the 'moved' event
       const movedEvent = db
@@ -1364,7 +1361,7 @@ export const resolvers = {
         .get(taskId) as TaskRow | null
       if (!row) throw notFound('Task', taskId)
       const task = mapTask(row)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
       return task
     },
 
@@ -1556,7 +1553,7 @@ export const resolvers = {
         .get(taskId) as TaskRow | null
       if (!row) throw new GraphQLError('Task not found', { extensions: { code: 'NOT_FOUND' } })
       const task = mapTask(row)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
       return task
     },
 
@@ -1613,7 +1610,7 @@ export const resolvers = {
 
       const task = getTaskById(taskId)
       if (!task) throw new Error(`Task ${taskId} not found`)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
 
       const ev = db
         .query('SELECT * FROM task_events WHERE id = ?')
@@ -1801,7 +1798,7 @@ export const resolvers = {
       const row = db.query('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow | null
       if (!row) throw notFound('Task', taskId)
       const task = mapTask(row)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
       return task
     },
 
@@ -1826,7 +1823,7 @@ export const resolvers = {
         .get(taskId) as TaskRow | null
       if (!row) throw notFound('Task', taskId)
       const task = mapTask(row)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
       return task
     },
 
@@ -1866,7 +1863,7 @@ export const resolvers = {
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
 
       // Publish TASK_EVENT for the 'unarchived' event
       const unarchivedEvent = db
@@ -2114,7 +2111,7 @@ export const resolvers = {
 
       const task = getTaskById(id)
       if (!task) throw new Error(`Task ${id} not found`)
-      publishTaskUpdated(task)
+      publishTaskUpdatedById(task)
 
       // Publish TASK_EVENT for each change event recorded
       for (const [eventId] of events) {

@@ -26,7 +26,7 @@ type DbRow = {
   created_at: string
 }
 
-function mapRow(r: DbRow): TaskMessageRow {
+function mapMessageRow(r: DbRow): TaskMessageRow {
   return {
     authorType: r.author_type,
     body: r.body,
@@ -74,7 +74,7 @@ export function listMessagesForTask(
       `SELECT * FROM task_messages WHERE task_id = ? ORDER BY created_at ASC`,
     )
     .all(taskId) as DbRow[]
-  return rows.map(mapRow)
+  return rows.map(mapMessageRow)
 }
 
 export function listUndeliveredHumanMessages(
@@ -88,7 +88,7 @@ export function listUndeliveredHumanMessages(
        ORDER BY created_at ASC`,
     )
     .all(taskId) as DbRow[]
-  return rows.map(mapRow)
+  return rows.map(mapMessageRow)
 }
 
 export function markMessagesDelivered(db: Database, ids: string[]): void {
@@ -111,5 +111,5 @@ export function getCurrentQuestion(
        ORDER BY created_at DESC LIMIT 1`,
     )
     .get(taskId) as DbRow | null
-  return row ? mapRow(row) : null
+  return row ? mapMessageRow(row) : null
 }

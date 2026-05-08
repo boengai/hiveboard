@@ -25,7 +25,7 @@ type DbRow = {
   finished_at: string
 }
 
-function mapRow(r: DbRow): VerificationRunRow {
+function mapVerificationRunRow(r: DbRow): VerificationRunRow {
   return {
     agentRunId: r.agent_run_id,
     command: r.command,
@@ -83,7 +83,7 @@ export function listVerificationRunsForTask(
        ORDER BY started_at DESC`,
     )
     .all(taskId) as DbRow[]
-  return rows.map(mapRow)
+  return rows.map(mapVerificationRunRow)
 }
 
 export function listFailingRunsForAgentRun(
@@ -97,5 +97,5 @@ export function listFailingRunsForAgentRun(
        ORDER BY started_at ASC`,
     )
     .all(agentRunId) as DbRow[]
-  return rows.map(mapRow)
+  return rows.map(mapVerificationRunRow)
 }

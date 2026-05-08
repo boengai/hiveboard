@@ -7,6 +7,7 @@ import {
   SET_TIME_BOX,
 } from '@/graphql'
 import type { TaskTimeBoxProps } from '@/types'
+import { parseGraphQLError } from '@/utils'
 
 const PRESETS = [
   { label: 'None', ms: null },
@@ -28,21 +29,8 @@ function formatRemaining(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-function parseGraphQLError(err: unknown): string {
-  const e = err as {
-    response?: {
-      errors?: Array<{ message: string; extensions?: { code?: string } }>
-    }
-    message?: string
-  }
-  const gqlErr = e.response?.errors?.[0]
-  if (gqlErr) {
-    const code = gqlErr.extensions?.code
-    if (code === 'TIME_BOX_NOT_EXPIRED') return 'Time box has not expired yet.'
-    if (code === 'BAD_USER_INPUT') return gqlErr.message
-    return gqlErr.message
-  }
-  return e.message ?? 'Failed to update time box.'
+const TIME_BOX_ERROR_CODES: Record<string, string> = {
+  TIME_BOX_NOT_EXPIRED: 'Time box has not expired yet.',
 }
 
 export function TaskTimeBox({
@@ -92,7 +80,12 @@ export function TaskTimeBox({
           timeBoxMs: ms,
         })
       } catch (err) {
-        setError(parseGraphQLError(err))
+        setError(
+          parseGraphQLError(err, {
+            codeMap: TIME_BOX_ERROR_CODES,
+            defaultMessage: 'Failed to update time box.',
+          }),
+        )
       } finally {
         setSubmitting(false)
       }
@@ -110,7 +103,12 @@ export function TaskTimeBox({
           taskId,
         })
       } catch (err) {
-        setError(parseGraphQLError(err))
+        setError(
+          parseGraphQLError(err, {
+            codeMap: TIME_BOX_ERROR_CODES,
+            defaultMessage: 'Failed to update time box.',
+          }),
+        )
       } finally {
         setSubmitting(false)
       }
@@ -125,7 +123,12 @@ export function TaskTimeBox({
       await graphqlClient.request(KILL_TASK, { taskId })
       setConfirmKill(false)
     } catch (err) {
-      setError(parseGraphQLError(err))
+      setError(
+        parseGraphQLError(err, {
+          codeMap: TIME_BOX_ERROR_CODES,
+          defaultMessage: 'Failed to update time box.',
+        }),
+      )
     } finally {
       setSubmitting(false)
     }
