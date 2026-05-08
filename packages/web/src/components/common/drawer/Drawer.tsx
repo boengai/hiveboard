@@ -19,6 +19,7 @@ const contentVariants = tv({
       default: 'w-[480px] max-w-[90vw]',
       narrow: 'w-[360px] max-w-[85vw]',
       wide: 'w-[640px] max-w-[95vw]',
+      xl: 'w-[640px] max-w-[95vw] xl:w-[1100px]',
     },
   },
 })

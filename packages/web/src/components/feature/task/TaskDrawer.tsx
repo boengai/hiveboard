@@ -1301,7 +1301,7 @@ export const TaskDrawer = () => {
         if (!open) closeDrawer()
       }}
       open={drawerMode !== 'closed'}
-      size="wide"
+      size="xl"
       title={drawerTitle}
     >
       {drawerMode === 'create' && (
