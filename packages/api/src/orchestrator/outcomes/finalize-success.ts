@@ -93,9 +93,9 @@ export async function finalizeSuccess(deps: OutcomeDeps): Promise<void> {
     targetColumnId = findColumnId(task.board_id, targetColumnName)
   }
 
-  let planBody: string | null = null
+  let planText: string | null = null
   if (task.action === 'plan' && result.output) {
-    planBody = extractPlanFromOutput(result.output, task.body)
+    planText = extractPlanFromOutput(result.output)
   }
 
   taskLifecycleTransition({
@@ -108,9 +108,9 @@ export async function finalizeSuccess(deps: OutcomeDeps): Promise<void> {
       const setParts = [`action = NULL`, `agent_output = ?`]
       const setValues: (string | number | null)[] = [result.output]
 
-      if (planBody) {
-        setParts.push('body = ?')
-        setValues.push(planBody)
+      if (planText) {
+        setParts.push('plan = ?')
+        setValues.push(planText)
       }
       if (prUrl) {
         setParts.push('pr_url = ?')
