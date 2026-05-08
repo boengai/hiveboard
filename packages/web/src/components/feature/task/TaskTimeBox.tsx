@@ -232,7 +232,7 @@ export function TaskTimeBox({
   // Editable mode (IDLE / QUEUED / RUNNING-no-budget)
   const disabled = isRunning || submitting
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {PRESETS.map((p) => {
         const active = timeBoxMs === p.ms
         // Segmented-control-style pill (rounded-full) toggle, not a
