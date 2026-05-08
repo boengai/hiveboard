@@ -56,6 +56,10 @@ export function buildPromptContext(input: PromptInput): PromptContext {
   const { task } = input
   const [repoOwner, repoName] = (task.targetRepo ?? '/').split('/')
 
+  const combinedBody = task.plan
+    ? `${task.body.trimEnd()}\n\n## Implementation Plan\n\n${task.plan.trim()}`
+    : task.body
+
   return {
     attempt: input.attempt,
     auto_revise_from_verification:
@@ -71,7 +75,7 @@ export function buildPromptContext(input: PromptInput): PromptContext {
     task: {
       action: task.action ?? '',
       agent_instruction: task.agentInstruction ?? '',
-      body: task.body,
+      body: combinedBody,
       id: task.id,
       pr_url: task.prUrl ?? '',
       repo_name: repoName ?? '',
