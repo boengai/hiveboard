@@ -40,13 +40,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 tmp/**
 !tmp/**/
 !tmp/**/*/.gitkeep
-
-docs/superpowers/**
 packages/web/dist/
 
 
 # Claude Cli
 .claude/settings.local.json
+docs/superpowers/**
+.superpowers/**
 
 # Playwright
 .playwright-mcp
