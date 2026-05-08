@@ -409,7 +409,8 @@ const ViewMode = ({
     const scrollContainer = headerNode.parentElement?.parentElement ?? null
 
     const measure = () => {
-      setHeaderHeight(headerNode.clientHeight)
+      // offsetHeight includes the sticky header's border-b; clientHeight does not.
+      setHeaderHeight(headerNode.offsetHeight)
       if (scrollContainer) {
         const styles = getComputedStyle(scrollContainer)
         const paddingY =
@@ -426,9 +427,9 @@ const ViewMode = ({
 
   return (
     <div className="flex grow flex-col">
-      {/* Sticky header — title, meta, tags, agent panel, continue-from-failure */}
+      {/* Sticky header — title, meta, tags, continue-from-failure */}
       <div
-        className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-raised pb-6 border-b border-border-default"
+        className="sticky top-0 z-10 flex flex-col gap-4 bg-surface-raised pb-4 border-b border-border-default"
         ref={headerRef}
       >
         {/* Header area */}
@@ -520,16 +521,6 @@ const ViewMode = ({
           </div>
         </div>
 
-        {/* Agent panel */}
-        {task.column?.name !== 'Done' && (
-          <AgentPanel
-            loading={loading}
-            onInterruptAgent={onInterruptAgent}
-            onUpdateAction={onUpdateAction}
-            task={task}
-          />
-        )}
-
         {/* Continue from failure */}
         {task.agentStatus === 'FAILED' && (
           <div className="flex flex-col gap-2 rounded-md border border-border-default bg-surface-2 p-3">
@@ -559,18 +550,22 @@ const ViewMode = ({
 
       {/* Body grid — single column below xl, two columns at xl+ */}
       <div
-        className="grid grid-cols-1 gap-6 pt-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+        className="grid grid-cols-1 gap-4 pt-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
+        // Column max-height = scroll viewport minus the sticky header AND
+        // minus this grid's own pt-4 (16px). Without the pt-4 subtraction,
+        // the grid box overflows the drawer by exactly that 16px and the
+        // outer drawer also scrolls (double scrollbar).
         style={
           {
             '--col-max-h':
               scrollViewportHeight > 0
-                ? `${scrollViewportHeight - headerHeight}px`
-                : `calc(100dvh - ${headerHeight}px)`,
+                ? `${scrollViewportHeight - headerHeight - 16}px`
+                : `calc(100dvh - ${headerHeight}px - 16px)`,
           } as React.CSSProperties
         }
       >
         {/* LEFT COLUMN — writing surfaces */}
-        <div className="flex flex-col gap-6 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
+        <div className="flex flex-col gap-4 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
           {/* Body */}
           {task.body ? (
             <MarkdownPreview content={task.body} />
@@ -625,8 +620,17 @@ const ViewMode = ({
           )}
         </div>
 
-        {/* RIGHT COLUMN — metadata + telemetry */}
-        <div className="flex flex-col gap-6 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
+        {/* RIGHT COLUMN — agent + metadata + telemetry */}
+        <div className="flex flex-col gap-4 xl:overflow-y-auto xl:max-h-[var(--col-max-h)]">
+          {/* Agent panel — moved here from the sticky header */}
+          {task.column?.name !== 'Done' && (
+            <AgentPanel
+              loading={loading}
+              onInterruptAgent={onInterruptAgent}
+              onUpdateAction={onUpdateAction}
+              task={task}
+            />
+          )}
           <CollapsibleSection defaultOpen label="Dependencies" name="dependencies">
             <TaskDependencies
               agentStatus={task.agentStatus}
