@@ -393,28 +393,39 @@ const ViewMode = ({
     }
   }
 
-  const outerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
-  const [outerHeight, setOuterHeight] = useState(0)
+  // Visible inner height of the drawer's scroll viewport, computed from the
+  // scroll container's clientHeight minus its vertical padding. We need this
+  // (rather than 100vh) because the drawer is not the full viewport — its
+  // content area is wrapped by Vaul's close-bar and the drawer's own padding.
+  const [scrollViewportHeight, setScrollViewportHeight] = useState(0)
 
   useLayoutEffect(() => {
     const headerNode = headerRef.current
-    const outerNode = outerRef.current
-    if (!headerNode || !outerNode) return
+    if (!headerNode) return
+    // The scroll container is the drawer's content area (overflow-y: auto), two
+    // levels up from the sticky header: header → outer wrapper → scroll container.
+    const scrollContainer = headerNode.parentElement?.parentElement ?? null
+
     const measure = () => {
       setHeaderHeight(headerNode.clientHeight)
-      setOuterHeight(outerNode.clientHeight)
+      if (scrollContainer) {
+        const styles = getComputedStyle(scrollContainer)
+        const paddingY =
+          parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom)
+        setScrollViewportHeight(scrollContainer.clientHeight - paddingY)
+      }
     }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(headerNode)
-    ro.observe(outerNode)
+    if (scrollContainer) ro.observe(scrollContainer)
     return () => ro.disconnect()
   }, [])
 
   return (
-    <div className="flex grow flex-col" ref={outerRef}>
+    <div className="flex grow flex-col">
       {/* Sticky header — title, meta, tags, agent panel, continue-from-failure */}
       <div
         className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-raised pb-6 border-b border-border-default"
@@ -552,8 +563,8 @@ const ViewMode = ({
         style={
           {
             '--col-max-h':
-              outerHeight > 0
-                ? `${outerHeight - headerHeight}px`
+              scrollViewportHeight > 0
+                ? `${scrollViewportHeight - headerHeight}px`
                 : `calc(100dvh - ${headerHeight}px)`,
           } as React.CSSProperties
         }
