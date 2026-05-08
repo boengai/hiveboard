@@ -45,6 +45,7 @@ export type TaskRow = {
   column_id: string
   title: string
   body: string
+  plan: string | null
   action: string | null
   agent_instruction: string | null
   target_repo: string | null
