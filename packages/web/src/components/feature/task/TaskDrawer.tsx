@@ -393,26 +393,31 @@ const ViewMode = ({
     }
   }
 
+  const outerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const [headerHeight, setHeaderHeight] = useState(0)
+  const [outerHeight, setOuterHeight] = useState(0)
 
   useLayoutEffect(() => {
-    const node = headerRef.current
-    if (!node) return
+    const headerNode = headerRef.current
+    const outerNode = outerRef.current
+    if (!headerNode || !outerNode) return
     const measure = () => {
-      setHeaderHeight(node.clientHeight)
+      setHeaderHeight(headerNode.clientHeight)
+      setOuterHeight(outerNode.clientHeight)
     }
     measure()
     const ro = new ResizeObserver(measure)
-    ro.observe(node)
+    ro.observe(headerNode)
+    ro.observe(outerNode)
     return () => ro.disconnect()
   }, [])
 
   return (
-    <div className="flex grow flex-col">
+    <div className="flex grow flex-col" ref={outerRef}>
       {/* Sticky header — title, meta, tags, agent panel, continue-from-failure */}
       <div
-        className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-default pb-6 border-b border-border-default"
+        className="sticky top-0 z-10 flex flex-col gap-6 bg-surface-raised pb-6 border-b border-border-default"
         ref={headerRef}
       >
         {/* Header area */}
@@ -543,9 +548,14 @@ const ViewMode = ({
 
       {/* Body grid — single column below xl, two columns at xl+ */}
       <div
-        className="grid grid-cols-1 gap-6 pt-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:gap-x-6"
+        className="grid grid-cols-1 gap-6 pt-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"
         style={
-          { '--col-max-h': `calc(100vh - ${headerHeight}px)` } as React.CSSProperties
+          {
+            '--col-max-h':
+              outerHeight > 0
+                ? `${outerHeight - headerHeight}px`
+                : `calc(100dvh - ${headerHeight}px)`,
+          } as React.CSSProperties
         }
       >
         {/* LEFT COLUMN — writing surfaces */}
