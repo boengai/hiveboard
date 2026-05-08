@@ -34,6 +34,8 @@ import { seed } from '../src/db/seed'
 import { generateId } from '../src/db/ulid'
 import { listVerificationRunsForTask } from '../src/db/verification-runs'
 import {
+  getBoard as getBoardRow,
+  getCurrentUser,
   makeConfig as makeSharedConfig,
   makeGitHubStub as makeSharedGitHubStub,
   makeWorkspaceStub as makeSharedWorkspaceStub,
@@ -124,13 +126,8 @@ function makeWorkspaceStub(path: string) {
   return makeSharedWorkspaceStub({ path })
 }
 
-function getUser() {
-  return memDb.query('SELECT id FROM users LIMIT 1').get() as { id: string }
-}
-
-function getBoard() {
-  return memDb.query('SELECT id FROM boards LIMIT 1').get() as { id: string }
-}
+const getUser = () => getCurrentUser(memDb)
+const getBoard = () => getBoardRow(memDb)
 
 function getColumn(name: string) {
   const board = getBoard()
@@ -197,10 +194,6 @@ function getAgentRun(runId: string) {
     status: string
     error: string | null
   } | null
-}
-
-async function _flushMicrotasks(ms = 150) {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
 // ---------------------------------------------------------------------------
